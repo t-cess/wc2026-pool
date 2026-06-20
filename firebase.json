@@ -2,6 +2,9 @@
   "hosting": {
     "site": "wc2026-kui-chin",
     "public": "wc2026_pool",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/*.md"]
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/*.md"],
+    "headers": [
+      { "source": "**/*.html", "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, max-age=0" }] }
+    ]
   }
 }
