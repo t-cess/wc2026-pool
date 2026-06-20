@@ -265,25 +265,32 @@ $("#logoutBtn").onclick = () => signOut(auth);
 
 onAuthStateChanged(auth, async user => {
   if (!user) { showView("login"); me = null; return; }
-  const ref = doc(db, "players", user.uid);
-  const snap = await getDoc(ref);
-  if (!snap.exists() || !snap.data().name) {
-    me = { uid:user.uid, email:user.email, name:"" };
-    $("#nameInput").value = user.displayName || "";
-    showView("name");
-  } else {
-    me = { uid:user.uid, email:user.email, name:snap.data().name };
-    enterApp();
+  try {
+    const snap = await getDoc(doc(db, "players", user.uid));
+    if (!snap.exists() || !snap.data().name) {
+      me = { uid:user.uid, email:user.email, name:"" };
+      $("#nameInput").value = user.displayName || "";
+      showView("name");
+    } else {
+      me = { uid:user.uid, email:user.email, name:snap.data().name };
+      enterApp();
+    }
+  } catch (e) {
+    showView("login");
+    $("#liMsg").textContent = "อ่านข้อมูลไม่ได้: " + (e.code || e.message) +
+      " — น่าจะยังไม่ได้วาง/Publish กฎ Rules ใน Firestore (SETUP.md ขั้น 4)";
   }
 });
 
 $("#nameSave").onclick = async () => {
   const name = $("#nameInput").value.trim();
   if (!name) { toast("ใส่ชื่อก่อน"); return; }
-  await setDoc(doc(db,"players", me.uid),
-    { uid:me.uid, email:me.email, name, champ1:"", champ2:"" }, { merge:true });
-  me.name = name;
-  enterApp();
+  try {
+    await setDoc(doc(db,"players", me.uid),
+      { uid:me.uid, email:me.email, name, champ1:"", champ2:"" }, { merge:true });
+    me.name = name;
+    enterApp();
+  } catch (e) { toast("บันทึกไม่ได้: " + (e.code||e.message) + " — วาง Rules หรือยัง?"); }
 };
 
 function showView(v) {
