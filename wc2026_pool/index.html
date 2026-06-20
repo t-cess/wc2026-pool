@@ -238,8 +238,11 @@ function scoreMatch(pred, m) {
   const predResult = pred.homeScore > pred.awayScore ? "home" : pred.homeScore < pred.awayScore ? "away" : "draw";
   if (predResult === actual) pts += (actual === "draw") ? 2 : 1;                 // ผล
   if (pred.homeScore === m.homeScore && pred.awayScore === m.awayScore) pts += 3; // สกอร์เป๊ะ
-  // คนยิง — ห้ามนับถ้าทายเสมอ 0-0
-  if (!(pred.homeScore === 0 && pred.awayScore === 0)) {
+  // คนยิง
+  if (pred.homeScore === 0 && pred.awayScore === 0) {
+    // ทาย 0-0 = ทายว่า "ไม่มีใครยิง" → ได้ +1 ถ้าผลจริงออก 0-0 จริง
+    if (m.homeScore === 0 && m.awayScore === 0) pts += 1;
+  } else {
     const s1 = norm(pred.scorer1), s2 = norm(pred.scorer2);
     const scored = (m.scorers || []).map(norm);
     const dnp    = (m.dnp || []).map(norm);
@@ -382,7 +385,7 @@ function renderFixtures() {
           <input type="number" min="0" id="hs_${m.id}" value="${p.homeScore}" placeholder="0">
           <span class="vs">-</span>
           <input type="number" min="0" id="as_${m.id}" value="${p.awayScore}" placeholder="0">
-          <span class="mut" style="flex:2">สกอร์ที่ทาย (ห้าม 0-0)</span></div>
+          <span class="mut" style="flex:2">สกอร์ที่ทาย (0-0 = ไม่ต้องทายคนยิง)</span></div>
         <div class="row" style="margin-top:8px">
           <input id="s1_${m.id}" value="${p.scorer1||""}" placeholder="คนยิง ชื่อ1 (ตัวจบสกอร์)">
           <input id="s2_${m.id}" value="${p.scorer2||""}" placeholder="คนยิง ชื่อ2 (สำรอง)"></div>
@@ -403,7 +406,18 @@ function renderFixtures() {
     }
     c.innerHTML = html;
     box.appendChild(c);
-    if (!locked) $("#save_"+m.id).onclick = () => savePred(m);
+    if (!locked) {
+      $("#save_"+m.id).onclick = () => savePred(m);
+      // ทาย 0-0 → ปิดช่องคนยิง (เท่ากับทายว่าไม่มีใครยิง)
+      const upd = () => {
+        const zero = parseInt($("#hs_"+m.id).value)===0 && parseInt($("#as_"+m.id).value)===0;
+        const s1=$("#s1_"+m.id), s2=$("#s2_"+m.id);
+        s1.disabled = s2.disabled = zero;
+        if (zero) { s1.value=""; s2.value=""; s1.placeholder="0-0 = ไม่มีคนยิง"; }
+        else { s1.placeholder="คนยิง ชื่อ1 (ตัวจบสกอร์)"; }
+      };
+      $("#hs_"+m.id).oninput = upd; $("#as_"+m.id).oninput = upd; upd();
+    }
   });
 }
 
@@ -411,9 +425,10 @@ async function savePred(m) {
   if (now() >= (m.kickoff||0) - LOCK_BEFORE_MS) { toast("คู่นี้ปิดรับแล้ว (ก่อนเตะ 10 นาที)"); renderFixtures(); return; }
   const hs = parseInt($("#hs_"+m.id).value), as = parseInt($("#as_"+m.id).value);
   if (isNaN(hs) || isNaN(as)) { toast("ใส่สกอร์ให้ครบ"); return; }
-  if (hs === 0 && as === 0) { toast("กติกาห้ามทาย 0-0 — เลือกสกอร์อื่น"); return; }
+  const zeroZero = hs === 0 && as === 0;   // ทาย 0-0 → ไม่เก็บคนยิง (เท่ากับทายว่าไม่มีใครยิง)
   const pred = { uid:me.uid, player:me.name, matchId:m.id, homeScore:hs, awayScore:as,
-                 scorer1:$("#s1_"+m.id).value.trim(), scorer2:$("#s2_"+m.id).value.trim() };
+                 scorer1: zeroZero ? "" : $("#s1_"+m.id).value.trim(),
+                 scorer2: zeroZero ? "" : $("#s2_"+m.id).value.trim() };
   try { await setDoc(doc(db,"predictions", `${m.id}__${me.uid}`), pred); toast("บันทึกแล้ว ✅"); }
   catch (e) { toast("บันทึกไม่ได้ (อาจปิดรับแล้ว)"); }
 }
