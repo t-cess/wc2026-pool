@@ -400,6 +400,7 @@ function renderFixtures(){
 
     if(st==="open"){
       const p=myPreds[m.id]||{};
+      const subs=allPreds.filter(x=>x.matchId===m.id).map(x=>x.player);
       const sBox=`width:52px;height:46px;text-align:center;font-family:'Kanit';font-weight:700;font-size:25px;color:#EEF1F4;background:#0E1116;border:1px solid #2A303A;border-radius:11px;`;
       inner+=`<div style="${rowBase}">${flag(m.home)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.home)} ${fe(m.home)}</div>
           <input id="hs_${m.id}" inputmode="numeric" maxlength="2" value="${p.homeScore??""}" placeholder="0" style="${sBox}"></div>
@@ -408,9 +409,14 @@ function renderFixtures(){
         <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
           <input id="s1_${m.id}" class="field" value="${esc(p.scorer1||"")}" placeholder="คนยิง ตัวจบสกอร์">
           <input id="s2_${m.id}" class="field" value="${esc(p.scorer2||"")}" placeholder="คนยิง สำรอง"></div>
-        <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;">
+        ${myPreds[m.id]?`<div style="margin-top:10px;display:flex;align-items:center;gap:8px;background:#10301f;border:1px solid #1f5a39;border-radius:10px;padding:9px 12px;">
+          <span class="k" style="font-weight:700;font-size:12px;color:#5fcf94;">✓ บันทึกแล้ว</span>
+          <span class="k" style="font-weight:700;font-size:14px;">${myPreds[m.id].homeScore}-${myPreds[m.id].awayScore}</span>
+          <span style="flex:1;font-size:12px;color:#9fd8b6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(myPreds[m.id].homeScore===0&&myPreds[m.id].awayScore===0)?"ไม่มีคนยิง":(esc([myPreds[m.id].scorer1,myPreds[m.id].scorer2].filter(Boolean).join(" / "))||"—")}</span></div>`:""}
+        <div class="k" style="margin-top:10px;font-size:11.5px;color:#8A929E;">📨 ${subs.length}/${ROSTER.length} ส่งแล้ว${subs.length?` <span style="color:#5fcf94;">(${subs.map(esc).join(", ")})</span>`:""}</div>
+        <div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;">
           <span class="k" id="cd_${m.id}" style="font-size:11.5px;color:#5b626d;">⏱ ${countdown(lockTs(m)-nowTs)}</span>
-          <div id="save_${m.id}" class="k btnG" style="font-weight:700;font-size:14px;padding:9px 18px;">บันทึกโพย</div></div>`;
+          <div id="save_${m.id}" class="k btnG" style="font-weight:700;font-size:14px;padding:9px 18px;">${myPreds[m.id]?"แก้โพย":"บันทึกโพย"}</div></div>`;
     } else {
       const done=st==="done";
       const scStyle=w=>`font-family:'Kanit';font-weight:800;font-size:26px;width:52px;text-align:center;color:${w?"#1FB85E":"#EEF1F4"};`;
