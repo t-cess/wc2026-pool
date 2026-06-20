@@ -1,0 +1,79 @@
+// 🛠️ สคริปต์แอดมินวงทายบอลโลก — เพิ่มคู่ / กรอกผล / ตั้งคะแนนยกมา / ตั้งแชมป์
+// ใช้โดย Claude (หรือ ต้น) — เขียนลง Firestore ตรงๆ
+//
+// เตรียมครั้งเดียว:
+//   1) วางไฟล์กุญแจไว้ที่  admin/serviceAccount.json  (ดูวิธีโหลดใน README ด้านล่างของไฟล์นี้)
+//   2) cd admin && npm install
+// รัน:
+//   node admin.mjs list     → โชว์คู่ทั้งหมด + id (เอาไว้กรอกผล)
+//   node admin.mjs          → ลงข้อมูลที่กำหนดในบล็อกด้านล่าง
+
+import { readFileSync } from "node:fs";
+import { initializeApp, cert } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+
+const sa = JSON.parse(readFileSync(new URL("./serviceAccount.json", import.meta.url)));
+initializeApp({ credential: cert(sa) });
+const db = getFirestore();
+
+/* ===================== แก้ข้อมูลตรงนี้แต่ละวัน ===================== */
+
+// 1) คะแนนยกมา (สัปดาห์แรก ที่ไม่มีประวัติในแอป) — ตั้งครั้งเดียว/อัปเดตเมื่อแก้
+const CARRY = { "กราฟ":37, "กุ้ย":35, "นน":35, "BB":33, "กอล์ฟ":33, "ต้น":31 };
+
+// 2) เพิ่มคู่ (kickoff เวลาไทย) — id สร้างอัตโนมัติจากชื่อทีม+กลุ่ม (กันซ้ำ)
+const ADD_MATCHES = [
+  // { home:"เช็ก", away:"เม็กซิโก", group:"A นัด3", kickoff:"2026-06-25T08:00" },
+];
+
+// 3) กรอกผล (เอา id จาก `node admin.mjs list`)
+const RESULTS = [
+  // { id:"m_เช็ก_เม็กซิโก_aนัด3", homeScore:1, awayScore:1, scorers:["ชิค"], dnp:[] },
+];
+
+// 4) ตั้งแชมป์ (ตอนจบทัวร์) — ปล่อยว่างถ้ายัง
+const CHAMPION = "";
+
+/* ===================== ลงมือ (ไม่ต้องแก้ด้านล่าง) ===================== */
+const idFor = m => "m_" + (m.home+"_"+m.away+"_"+(m.group||"")).toLowerCase().replace(/\s+/g,"").replace(/[^a-z0-9ก-๙_]/g,"");
+
+async function list() {
+  const snap = await db.collection("matches").orderBy("kickoff").get();
+  if (snap.empty) return console.log("(ยังไม่มีคู่)");
+  snap.forEach(d => { const m=d.data();
+    console.log(`${d.id}\t${m.status}\t${m.home} ${m.homeScore}-${m.awayScore} ${m.away} (${m.group||""})`);
+  });
+}
+
+async function apply() {
+  if (Object.keys(CARRY).length) {
+    await db.doc("config/carry").set(CARRY, { merge:true });
+    console.log("✓ คะแนนยกมา:", CARRY);
+  }
+  for (const m of ADD_MATCHES) {
+    const id = idFor(m);
+    await db.doc("matches/"+id).set({
+      home:m.home, away:m.away, group:m.group||"",
+      kickoff:new Date(m.kickoff).getTime(),
+      homeScore:0, awayScore:0, scorers:[], dnp:[], status:"upcoming"
+    }, { merge:true });
+    console.log("✓ เพิ่มคู่:", id);
+  }
+  for (const r of RESULTS) {
+    await db.doc("matches/"+r.id).set({
+      homeScore:r.homeScore, awayScore:r.awayScore,
+      scorers:r.scorers||[], dnp:r.dnp||[], status:"finished"
+    }, { merge:true });
+    console.log("✓ กรอกผล:", r.id, `${r.homeScore}-${r.awayScore}`);
+  }
+  if (CHAMPION) {
+    await db.doc("config/tournament").set({ champion:CHAMPION, championLocked:true }, { merge:true });
+    console.log("✓ ตั้งแชมป์:", CHAMPION);
+  }
+  console.log("เสร็จ ✅");
+}
+
+const cmd = process.argv[2];
+(cmd === "list" ? list() : apply())
+  .then(() => process.exit(0))
+  .catch(e => { console.error("❌", e.message); process.exit(1); });

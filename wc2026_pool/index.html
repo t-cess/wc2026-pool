@@ -65,14 +65,18 @@
     </div>
   </div>
 
-  <!-- ====== NAME SETUP (ครั้งแรก) ====== -->
+  <!-- ====== IDENTITY SETUP (ครั้งแรก) ====== -->
   <div id="nameView" class="hidden">
     <div class="card">
-      <h2>ตั้งชื่อเล่นในวง</h2>
-      <p class="mut">ชื่อนี้จะโชว์บนตารางคะแนน (ตั้งครั้งเดียว)</p>
-      <input id="nameInput" placeholder="เช่น ต้น" autocomplete="off" />
+      <h2>คุณคือใครในวง?</h2>
+      <p class="mut">เลือกชื่อตัวเองจากรายชื่อวง (ผูกกับบัญชี Google นี้ครั้งเดียว เพื่อรับคะแนนสะสมเดิม)</p>
+      <select id="rosterSel"></select>
+      <div id="newNameWrap" class="hidden">
+        <label>ชื่อสมาชิกใหม่ (เริ่มที่ 0 แต้ม)</label>
+        <input id="nameInput" placeholder="พิมพ์ชื่อ" autocomplete="off" />
+      </div>
       <div style="height:10px"></div>
-      <button id="nameSave">บันทึก เข้าวง</button>
+      <button id="nameSave">ยืนยัน เข้าวง</button>
     </div>
   </div>
 
@@ -114,7 +118,7 @@
     <div id="tab-board" class="hidden">
       <div class="card">
         <h3>📊 ตารางคะแนนสด</h3>
-        <table id="boardTable"><thead><tr><th>#</th><th>ผู้เล่น</th><th>รายคู่</th><th>แชมป์</th><th>รวม</th></tr></thead><tbody></tbody></table>
+        <table id="boardTable"><thead><tr><th>#</th><th>ผู้เล่น</th><th>ยกมา</th><th>รายคู่</th><th>แชมป์</th><th>รวม</th></tr></thead><tbody></tbody></table>
         <p class="mut" id="boardChamp"></p>
       </div>
     </div>
@@ -178,6 +182,7 @@ const firebaseConfig = {
   measurementId: "G-1XHSCEYBSC",
 };
 const ADMIN_EMAILS = ["ton.itthiphon@gmail.com"];   // ใครเป็นแอดมิน (ตามอีเมล Google)
+const ROSTER = ["กราฟ","กุ้ย","นน","BB","กอล์ฟ","ต้น"];   // สมาชิกวงเดิม (คะแนนยกมาตั้งในสคริปต์แอดมิน → config/carry)
 const TEAMS = ["บราซิล","อาร์เจนตินา","ฝรั่งเศส","สเปน","อังกฤษ","โปรตุเกส","เยอรมนี",
   "เนเธอร์แลนด์","เบลเยียม","อิตาลี","โครเอเชีย","อุรุกวัย","โคลอมเบีย","โมร็อกโก",
   "สหรัฐฯ","เม็กซิโก","แคนาดา","ญี่ปุ่น","เกาหลีใต้","ออสเตรเลีย","สวิตเซอร์แลนด์",
@@ -269,7 +274,7 @@ onAuthStateChanged(auth, async user => {
     const snap = await getDoc(doc(db, "players", user.uid));
     if (!snap.exists() || !snap.data().name) {
       me = { uid:user.uid, email:user.email, name:"" };
-      $("#nameInput").value = user.displayName || "";
+      await showNameScreen();
       showView("name");
     } else {
       me = { uid:user.uid, email:user.email, name:snap.data().name };
@@ -282,9 +287,24 @@ onAuthStateChanged(auth, async user => {
   }
 });
 
+// เติม dropdown ด้วยรายชื่อวงที่ "ยังไม่มีใครจอง" + ตัวเลือกสมาชิกใหม่
+async function showNameScreen() {
+  const snap = await getDocs(collection(db,"players"));
+  const taken = new Set();
+  snap.forEach(d => { const p = d.data(); if (p.name && p.uid !== me.uid) taken.add(p.name); });
+  const sel = $("#rosterSel");
+  const avail = ROSTER.filter(n => !taken.has(n));
+  sel.innerHTML = avail.map(n => `<option value="${n}">${n}</option>`).join("")
+    + `<option value="__new__">+ สมาชิกใหม่…</option>`;
+  $("#newNameWrap").classList.toggle("hidden", avail.length > 0);
+}
+$("#rosterSel").onchange = e =>
+  $("#newNameWrap").classList.toggle("hidden", e.target.value !== "__new__");
+
 $("#nameSave").onclick = async () => {
-  const name = $("#nameInput").value.trim();
-  if (!name) { toast("ใส่ชื่อก่อน"); return; }
+  const v = $("#rosterSel").value;
+  const name = v === "__new__" ? $("#nameInput").value.trim() : v;
+  if (!name) { toast("เลือกชื่อหรือพิมพ์ชื่อก่อน"); return; }
   try {
     await setDoc(doc(db,"players", me.uid),
       { uid:me.uid, email:me.email, name, champ1:"", champ2:"" }, { merge:true });
@@ -414,11 +434,13 @@ $("#champSave").onclick = async () => {
    10) ตารางคะแนนสด
    ========================================================================== */
 async function renderBoard() {
-  const [players, cfg] = await Promise.all([
+  const [players, cfg, carrySnap] = await Promise.all([
     getDocs(collection(db,"players")),
     getDoc(doc(db,"config","tournament")),
+    getDoc(doc(db,"config","carry")),
   ]);
   const champion = cfg.exists() ? norm(cfg.data().champion) : "";
+  const carry = carrySnap.exists() ? carrySnap.data() : {};   // { ชื่อ: คะแนนยกมา }
   const mById = Object.fromEntries(matches.map(m => [m.id, m]));
   const rows = [];
   players.forEach(pl => {
@@ -427,14 +449,15 @@ async function renderBoard() {
     allPreds.forEach(p => { if (p.uid === d.uid) matchPts += scoreMatch(p, mById[p.matchId]); });
     let champPts = 0;
     if (champion) { if (norm(d.champ1)===champion) champPts += 10; if (norm(d.champ2)===champion) champPts += 10; }
-    rows.push({ name:d.name, uid:d.uid, matchPts, champPts, total:matchPts+champPts });
+    const carryPts = carry[d.name] || 0;
+    rows.push({ name:d.name, uid:d.uid, carryPts, matchPts, champPts, total:carryPts+matchPts+champPts });
   });
   rows.sort((a,b) => b.total - a.total);
   const tb = $("#boardTable").querySelector("tbody"); tb.innerHTML = "";
   rows.forEach((r,i) => {
     const tr = document.createElement("tr"); if (r.uid===me.uid) tr.className="me";
-    tr.innerHTML = `<td class="rank">${i+1}</td><td>${r.name}</td><td>${r.matchPts}</td>
-                    <td>${r.champPts||""}</td><td><b>${r.total}</b></td>`;
+    tr.innerHTML = `<td class="rank">${i+1}</td><td>${r.name}</td><td class="mut">${r.carryPts||""}</td>
+                    <td>${r.matchPts}</td><td>${r.champPts||""}</td><td><b>${r.total}</b></td>`;
     tb.appendChild(tr);
   });
   $("#boardChamp").textContent = champion ? `แชมป์ทัวร์นาเมนต์: ${cfg.data().champion}` : "ยังไม่ตั้งแชมป์";
