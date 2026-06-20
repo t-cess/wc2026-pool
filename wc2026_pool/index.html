@@ -206,11 +206,7 @@ function scoreMatch(p, m){
   if(p.homeScore===m.homeScore && p.awayScore===m.awayScore) pts+=3;
   if(p.homeScore===0 && p.awayScore===0){
     if(m.homeScore===0 && m.awayScore===0) pts+=1;   // ทาย 0-0 = ทายว่าไม่มีใครยิง
-  } else {
-    const s1=norm(p.scorer1), s2=norm(p.scorer2), sc=(m.scorers||[]).map(norm), dnp=(m.dnp||[]).map(norm);
-    if(s1 && sc.includes(s1)) pts+=1;
-    else if(s1 && dnp.includes(s1) && s2 && sc.includes(s2)) pts+=1;
-  }
+  } else if(p.scorerOk) pts+=1;                        // คนยิง = แอดมิน/auto ติ๊ก (scorerOk)
   return pts;
 }
 const lockTs = m => (m.kickoff||0) - LOCK_BEFORE_MS;
@@ -331,21 +327,26 @@ function renderAll(){ renderHeader(); renderFixtures(); renderChampion(); render
 
 /* ===== board calc (ใช้ร่วม) ===== */
 function rankMap(tot){ const a=Object.entries(tot).map(([n,t])=>({n,t})).sort((x,y)=>y.t-x.t); const r={}; a.forEach((x,i)=>r[x.n]=i+1); return r; }
+function isToday(ts){ if(!ts) return false; const d=new Date(ts),n=new Date(nowTs);
+  return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate(); }
 function computeBoard(){
   const champion = norm(tournament.champion||"");
-  const names = new Set([...Object.keys(carry),...Object.keys(champPicks),...Object.keys(playersByName),...Object.keys(prev),...ROSTER]);
+  const mById = Object.fromEntries(matches.map(m=>[m.id,m]));
+  const mp={}, tp={};   // แต้มรายคู่รวม / แต้มวันนี้
+  allPreds.forEach(p=>{ const m=mById[p.matchId]; const pts=scoreMatch(p,m);
+    mp[p.player]=(mp[p.player]||0)+pts;
+    if(m && m.status==="finished" && isToday(m.kickoff)) tp[p.player]=(tp[p.player]||0)+pts; });
+  const names = new Set([...Object.keys(carry),...Object.keys(champPicks),...Object.keys(playersByName),...ROSTER]);
   const cur={};
-  names.forEach(name=>{ let champPts=0; if(champion) champPts=(champPicks[name]||[]).map(norm).filter(t=>t===champion).length*10;
-    cur[name]=(carry[name]||0)+champPts; });
-  const curRank=rankMap(cur);
-  const havePrev=Object.keys(prev).length>0;
-  const prevRank=havePrev?rankMap(prev):{};
   const rows=[...names].map(name=>{
-    const total=cur[name];
-    const todayPts=(name in prev)?(total-prev[name]):0;
-    let move=0; if(havePrev && (name in prevRank)) move=prevRank[name]-curRank[name];  // >0 = ขึ้น
-    return {name,total,todayPts,move,photo:(playersByName[name]||{}).photo||""};
+    let champPts=0; if(champion) champPts=(champPicks[name]||[]).map(norm).filter(t=>t===champion).length*10;
+    const total=(carry[name]||0)+(mp[name]||0)+champPts;
+    cur[name]=total;
+    return {name,carryPts:carry[name]||0,matchPts:mp[name]||0,todayPts:tp[name]||0,champPts,total,photo:(playersByName[name]||{}).photo||""};
   });
+  const prevTot={}; rows.forEach(r=>prevTot[r.name]=r.total-r.todayPts);
+  const curRank=rankMap(cur), prevRank=rankMap(prevTot);
+  rows.forEach(r=>r.move=(prevRank[r.name]||0)-(curRank[r.name]||0));   // >0 = ขึ้น
   rows.sort((a,b)=>b.total-a.total);
   rows.forEach((r,i)=>r.rank=i+1);
   return rows;
