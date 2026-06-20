@@ -175,6 +175,7 @@ let matches = [], allPreds = [], myPreds = {};
 let carry = {}, champPicks = {}, tournament = {}, playersByName = {}, prev = {};
 let tab = "fixtures", filter = "open", pickName = ROSTER[0];
 const expanded = {};
+const editing = {};
 let nowTs = Date.now();
 
 const $ = s => document.querySelector(s);
@@ -399,24 +400,28 @@ function renderFixtures(){
         <div class="k" style="font-size:12px;color:var(--mut);">${esc(m.group||"")} · ${fmtKo(m)}</div>${pill}</div>`;
 
     if(st==="open"){
-      const p=myPreds[m.id]||{};
+      const saved=myPreds[m.id];
+      const editMode=!saved||editing[m.id];
       const subs=allPreds.filter(x=>x.matchId===m.id).map(x=>x.player);
-      const sBox=`width:52px;height:46px;text-align:center;font-family:'Kanit';font-weight:700;font-size:25px;color:#EEF1F4;background:#0E1116;border:1px solid #2A303A;border-radius:11px;`;
-      inner+=`<div style="${rowBase}">${flag(m.home)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.home)} ${fe(m.home)}</div>
-          <input id="hs_${m.id}" inputmode="numeric" maxlength="2" value="${p.homeScore??""}" placeholder="0" style="${sBox}"></div>
-        <div style="${rowBase}">${flag(m.away)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.away)} ${fe(m.away)}</div>
-          <input id="as_${m.id}" inputmode="numeric" maxlength="2" value="${p.awayScore??""}" placeholder="0" style="${sBox}"></div>
-        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
-          <input id="s1_${m.id}" class="field" value="${esc(p.scorer1||"")}" placeholder="คนยิง ตัวจบสกอร์">
-          <input id="s2_${m.id}" class="field" value="${esc(p.scorer2||"")}" placeholder="คนยิง สำรอง"></div>
-        ${myPreds[m.id]?`<div style="margin-top:10px;display:flex;align-items:center;gap:8px;background:#10301f;border:1px solid #1f5a39;border-radius:10px;padding:9px 12px;">
-          <span class="k" style="font-weight:700;font-size:12px;color:#5fcf94;">✓ บันทึกแล้ว</span>
-          <span class="k" style="font-weight:700;font-size:14px;">${myPreds[m.id].homeScore}-${myPreds[m.id].awayScore}</span>
-          <span style="flex:1;font-size:12px;color:#9fd8b6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(myPreds[m.id].homeScore===0&&myPreds[m.id].awayScore===0)?"ไม่มีคนยิง":(esc([myPreds[m.id].scorer1,myPreds[m.id].scorer2].filter(Boolean).join(" / "))||"—")}</span></div>`:""}
-        <div class="k" style="margin-top:10px;font-size:11.5px;color:#8A929E;">📨 ${subs.length}/${ROSTER.length} ส่งแล้ว${subs.length?` <span style="color:#5fcf94;">(${subs.map(esc).join(", ")})</span>`:""}</div>
-        <div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;">
-          <span class="k" id="cd_${m.id}" style="font-size:11.5px;color:#5b626d;">⏱ ${countdown(lockTs(m)-nowTs)}</span>
-          <div id="save_${m.id}" class="k btnG" style="font-weight:700;font-size:14px;padding:9px 18px;">${myPreds[m.id]?"แก้โพย":"บันทึกโพย"}</div></div>`;
+      const subLine=`<div class="k" style="margin-top:10px;font-size:11.5px;color:#8A929E;">📨 ${subs.length}/${ROSTER.length} ส่งแล้ว${subs.length?` <span style="color:#5fcf94;">(${subs.map(esc).join(", ")})</span>`:""}</div>`;
+      const cdRow=lbl=>`<div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;"><span class="k" id="cd_${m.id}" style="font-size:11.5px;color:#5b626d;">⏱ ${countdown(lockTs(m)-nowTs)}</span>${lbl}</div>`;
+      if(editMode){
+        const p=saved||{};
+        const sBox=`width:52px;height:46px;text-align:center;font-family:'Kanit';font-weight:700;font-size:25px;color:#EEF1F4;background:#0E1116;border:1px solid #2A303A;border-radius:11px;`;
+        inner+=`<div style="${rowBase}">${flag(m.home)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.home)} ${fe(m.home)}</div><input id="hs_${m.id}" inputmode="numeric" maxlength="2" value="${p.homeScore??""}" placeholder="0" style="${sBox}"></div>
+          <div style="${rowBase}">${flag(m.away)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.away)} ${fe(m.away)}</div><input id="as_${m.id}" inputmode="numeric" maxlength="2" value="${p.awayScore??""}" placeholder="0" style="${sBox}"></div>
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;"><input id="s1_${m.id}" class="field" value="${esc(p.scorer1||"")}" placeholder="คนยิง ตัวจบสกอร์"><input id="s2_${m.id}" class="field" value="${esc(p.scorer2||"")}" placeholder="คนยิง สำรอง"></div>
+          ${subLine}${cdRow(`<div id="save_${m.id}" class="k btnG" style="font-weight:700;font-size:14px;padding:9px 18px;">บันทึกโพย</div>`)}`;
+      } else {
+        const sc=w=>`font-family:'Kanit';font-weight:800;font-size:26px;width:52px;text-align:center;color:${w?"#1FB85E":"#EEF1F4"};`;
+        const zero=saved.homeScore===0&&saved.awayScore===0;
+        const sclist=zero?"ไม่มีคนยิง":(esc([saved.scorer1,saved.scorer2].filter(Boolean).join(" / "))||"—");
+        inner+=`<div class="k" style="display:inline-block;font-weight:700;font-size:11px;color:#5fcf94;background:#10301f;border:1px solid #1f5a39;padding:3px 10px;border-radius:99px;margin-bottom:8px;">✓ บันทึกโพยแล้ว</div>
+          <div style="${rowBase}">${flag(m.home)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.home)} ${fe(m.home)}</div><div style="${sc(saved.homeScore>saved.awayScore)}">${saved.homeScore}</div></div>
+          <div style="${rowBase}">${flag(m.away)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.away)} ${fe(m.away)}</div><div style="${sc(saved.awayScore>saved.homeScore)}">${saved.awayScore}</div></div>
+          <div class="k" style="margin-top:8px;font-size:12.5px;color:var(--mut);">คนยิง: <span style="color:#cfd4db;">${sclist}</span></div>
+          ${subLine}${cdRow(`<div id="edit_${m.id}" class="k" style="font-weight:700;font-size:14px;padding:9px 18px;border-radius:12px;background:#283042;color:#EEF1F4;cursor:pointer;">แก้โพย</div>`)}`;
+      }
     } else {
       const done=st==="done";
       const scStyle=w=>`font-family:'Kanit';font-weight:800;font-size:26px;width:52px;text-align:center;color:${w?"#1FB85E":"#EEF1F4"};`;
@@ -450,12 +455,19 @@ function renderFixtures(){
   box.querySelectorAll(".flt").forEach(el=> el.onclick=()=>{ filter=el.dataset.f; renderFixtures(); });
   box.querySelectorAll("[data-toggle]").forEach(el=> el.onclick=()=>{ const id=el.dataset.toggle; expanded[id]=!expanded[id]; renderFixtures(); });
   list.forEach(({m,st})=>{ if(st!=="open") return;
-    const hs=$("#hs_"+m.id), as=$("#as_"+m.id), s1=$("#s1_"+m.id), s2=$("#s2_"+m.id);
-    const sanit=e=>{ e.target.value=e.target.value.replace(/\D/g,"").slice(0,2); upd(); };
-    const upd=()=>{ const z=parseInt(hs.value)===0&&parseInt(as.value)===0; s1.disabled=s2.disabled=z;
-      if(z){ s1.value="";s2.value=""; s1.placeholder="0-0 = ไม่มีคนยิง"; } else s1.placeholder="คนยิง ตัวจบสกอร์"; };
-    hs.oninput=sanit; as.oninput=sanit; upd();
-    $("#save_"+m.id).onclick=()=>savePred(m);
+    const saved=myPreds[m.id]; const editMode=!saved||editing[m.id];
+    if(editMode){
+      const hs=$("#hs_"+m.id), as=$("#as_"+m.id), s1=$("#s1_"+m.id), s2=$("#s2_"+m.id);
+      if(hs){
+        const upd=()=>{ const z=parseInt(hs.value)===0&&parseInt(as.value)===0; s1.disabled=s2.disabled=z;
+          if(z){ s1.value="";s2.value=""; s1.placeholder="0-0 = ไม่มีคนยิง"; } else s1.placeholder="คนยิง ตัวจบสกอร์"; };
+        hs.oninput=e=>{ e.target.value=e.target.value.replace(/\D/g,"").slice(0,2); upd(); };
+        as.oninput=e=>{ e.target.value=e.target.value.replace(/\D/g,"").slice(0,2); upd(); };
+        upd(); $("#save_"+m.id).onclick=()=>savePred(m);
+      }
+    } else {
+      const e=$("#edit_"+m.id); if(e) e.onclick=()=>{ editing[m.id]=true; renderFixtures(); };
+    }
   });
 }
 async function savePred(m){
@@ -465,7 +477,7 @@ async function savePred(m){
   const zero=hs===0&&as===0;
   const pred={uid:me.uid,player:me.name,matchId:m.id,homeScore:hs,awayScore:as,
     scorer1:zero?"":$("#s1_"+m.id).value.trim(), scorer2:zero?"":$("#s2_"+m.id).value.trim()};
-  try{ await setDoc(doc(db,"predictions",`${m.id}__${me.uid}`),pred); toast("บันทึกโพยแล้ว ✓"); }
+  try{ await setDoc(doc(db,"predictions",`${m.id}__${me.uid}`),pred); editing[m.id]=false; toast("บันทึกโพยแล้ว ✓"); renderFixtures(); }
   catch(e){ toast("บันทึกไม่ได้ (อาจปิดรับ)"); }
 }
 
