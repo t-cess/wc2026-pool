@@ -58,7 +58,7 @@ function askQwen(actualScorers, items) {
     const out = execSync(`claude --settings ~/.claude-9arm.json --model qwen3.6-35b-a3b -p ${JSON.stringify(prompt)}`,
       {encoding:"utf8", timeout:180000});
     const res = {};
-    out.split("\n").forEach(line=>{ const m=line.match(/(\d+)\s*[:.)]\s*(YES|NO)/i); if(m) res[items[+m[1]-1]] = /yes/i.test(m[2]); });
+    out.split("\n").forEach(line=>{ const m=line.match(/^\s*(\d+)\D*(YES|NO)\s*$/i); if(m) res[items[+m[1]-1]] = /yes/i.test(m[2]); });  // Qwen สะท้อนชื่อกลับ → จับเลขต้นบรรทัด + YES/NO ท้ายบรรทัด
     return res;
   } catch(e){ console.log("  ⚠️ Qwen ล้มเหลว:", e.message); return {}; }
 }
@@ -75,7 +75,9 @@ function scorerHit(pred, actualScorers, qwenMap) {
   return false;
 }
 
+const DRY = process.argv.includes("--dry-run");
 async function run() {
+  if (DRY) console.log("🧪 DRY-RUN: อ่าน + เรียก Qwen ได้ แต่จะไม่เขียน Firestore\n");
   // ดึง ESPN วันนี้+เมื่อวาน+พรุ่งนี้ (กันคาบเกี่ยวเที่ยงคืน)
   const now = new Date();
   const ds = [-1,0,1].map(o=>{ const d=new Date(now); d.setDate(d.getDate()+o);
@@ -91,8 +93,8 @@ async function run() {
       const ev = espn.find(e => e.home===m.home && e.away===m.away);
       if (!ev) continue;                                          // ESPN ยังไม่มี/ยังไม่จบ
       // 1) เขียนผลจริง
-      await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, status:"finished", autoGraded:true }, {merge:true});
-      console.log(`[${p.id}] ✓ ผล ${m.home} ${ev.hs}-${ev.as} ${m.away} | ยิง: ${ev.scorers.join(", ")||"-"}`);
+      console.log(`[${p.id}] ${DRY?"[DRY] จะเขียนผล":"✓ ผล"} ${m.home} ${ev.hs}-${ev.as} ${m.away} | ยิง: ${ev.scorers.join(", ")||"-"}`);
+      if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, status:"finished", autoGraded:true }, {merge:true});
       // 2) ตรวจคนยิง
       const preds = (await col(p,"predictions").get()).docs.filter(d=>d.data().matchId===mdoc.id);
       const unknown = new Set();
@@ -101,7 +103,9 @@ async function run() {
       const qwenMap = askQwen(ev.scorers, [...unknown]);
       for (const d of preds) {
         const pr=d.data(); const ok=scorerHit(pr, ev.scorers, qwenMap);
-        if (ok!==null) await d.ref.set({ scorerOk:ok }, {merge:true});
+        if (ok===null) continue;
+        if (DRY) console.log(`[${p.id}]   [DRY] ${pr.player}: "${[pr.scorer1,pr.scorer2].filter(Boolean).join(" / ")||"-"}" → scorerOk=${ok}`);
+        else await d.ref.set({ scorerOk:ok }, {merge:true});
       }
       console.log(`[${p.id}]   ตรวจคนยิง ${preds.length} โพย (ถาม Qwen ${unknown.size} ชื่อใหม่)`);
     }
