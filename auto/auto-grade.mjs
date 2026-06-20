@@ -1,13 +1,15 @@
 // 🤖 Auto-grader: ESPN (ข้อเท็จจริง) → พจนานุกรม Claude (ชื่อ) → Qwen (ชื่อใหม่) → Firestore
-// รัน: node auto-grade.mjs        (ตั้ง cron ทุก 5 นาทีตอนบอลเตะ)
-// ต้องมี: serviceAccount.json (ในโฟลเดอร์นี้), aliases.json, claude-9arm (สำหรับ fallback)
+// รัน: node auto-grade.mjs        (ตั้ง cron/GitHub Actions ทุก 5 นาทีตอนบอลเตะ)
+// ต้องมี: serviceAccount.json + aliases.json · Qwen ผ่าน gateway (env QWEN_BASE_URL/QWEN_TOKEN)
+//   local: อ่านจากไฟล์ · CI: serviceAccount จาก env FIREBASE_SERVICE_ACCOUNT
 import { readFileSync } from "node:fs";
-import { execSync } from "node:child_process";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 
 const here = new URL(".", import.meta.url);
-const sa = JSON.parse(readFileSync(new URL("serviceAccount.json", here)));
+const sa = process.env.FIREBASE_SERVICE_ACCOUNT
+  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)                 // CI: GitHub Secret
+  : JSON.parse(readFileSync(new URL("serviceAccount.json", here)));  // local: ไฟล์
 const aliases = JSON.parse(readFileSync(new URL("aliases.json", here)));
 initializeApp({ credential: cert(sa) });
 const db = getFirestore();
@@ -49,14 +51,23 @@ async function fetchEspn(dateStr) {
   });
 }
 
-// ถาม Qwen เฉพาะชื่อที่ไม่อยู่ในดิก (เจาะจง yes/no)
-function askQwen(actualScorers, items) {
+// ถาม Qwen เฉพาะชื่อที่ไม่อยู่ในดิก (เจาะจง yes/no) — ผ่าน gateway แบบ OpenAI chat/completions
+const QWEN_BASE = (process.env.QWEN_BASE_URL || "https://gateway.9arm.co").replace(/\/$/,"");
+const QWEN_TOKEN = process.env.QWEN_TOKEN || "";
+const QWEN_MODEL = process.env.QWEN_MODEL || "qwen3.6-35b-a3b";
+async function askQwen(actualScorers, items) {
   if (!items.length) return {};
+  if (!QWEN_TOKEN) { console.log("  ⚠️ ไม่มี QWEN_TOKEN — ข้าม Qwen (ชื่อใหม่จะ = ไม่ให้คะแนน)"); return {}; }
   const list = items.map((t,i)=>`${i+1}) "${t}"`).join("\n");
   const prompt = `คนยิงจริงในแมตช์นี้: ${actualScorers.join(", ")}\nต่อไปนี้คือชื่อที่ผู้เล่นพิมพ์ (ไทย/ฉายา/มุก) ตอบว่าแต่ละอันหมายถึง "คนยิงจริง" คนใดคนหนึ่งข้างบนไหม ตอบบรรทัดละ "เลข: YES" หรือ "เลข: NO" เท่านั้น\n${list}`;
   try {
-    const out = execSync(`claude --settings ~/.claude-9arm.json --model qwen3.6-35b-a3b -p ${JSON.stringify(prompt)}`,
-      {encoding:"utf8", timeout:180000});
+    const r = await fetch(QWEN_BASE+"/v1/chat/completions", {
+      method:"POST",
+      headers:{ "content-type":"application/json", "authorization":"Bearer "+QWEN_TOKEN },
+      body: JSON.stringify({ model:QWEN_MODEL, max_tokens:512, messages:[{role:"user",content:prompt}] }),
+    });
+    const d = await r.json();
+    const out = d?.choices?.[0]?.message?.content || "";
     const res = {};
     out.split("\n").forEach(line=>{ const m=line.match(/^\s*(\d+)\D*(YES|NO)\s*$/i); if(m) res[items[+m[1]-1]] = /yes/i.test(m[2]); });  // Qwen สะท้อนชื่อกลับ → จับเลขต้นบรรทัด + YES/NO ท้ายบรรทัด
     return res;
@@ -120,7 +131,7 @@ async function run() {
       const unknown = new Set();
       preds.forEach(d=>{ const pr=d.data(); if(pr.homeScore===0&&pr.awayScore===0)return;
         [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !resolve(s)) unknown.add(s); }); });
-      const qwenMap = askQwen(ev.scorers, [...unknown]);
+      const qwenMap = await askQwen(ev.scorers, [...unknown]);
       for (const d of preds) {
         const pr=d.data(); const ok=scorerHit(pr, ev.scorers, qwenMap);
         if (ok===null) continue;

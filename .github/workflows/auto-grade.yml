@@ -1,0 +1,31 @@
+name: auto-grade
+
+on:
+  workflow_dispatch: {}          # กดรันมือ (ทดสอบ) — จะส่ง --force ข้าม gate
+  # schedule:                    # ⬇️ เปิดเมื่อเลือก cadence แล้ว (ดู GITHUB_SETUP.md)
+  #   - cron: "*/5 * * * *"              # repo public: 5 นาทีทั้งวัน (Actions unlimited)
+  #   - cron: "*/15 16-23,0-5 * * *"     # repo private free: 15 นาที เฉพาะกรอบ WC (UTC)
+
+concurrency:                     # กันรันซ้อน
+  group: auto-grade
+  cancel-in-progress: false
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: install deps
+        working-directory: auto
+        run: npm install --no-audit --no-fund
+      - name: run auto-grade
+        working-directory: auto
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          QWEN_TOKEN: ${{ secrets.QWEN_TOKEN }}
+        # กดรันมือ = --force (ข้าม gate ทดสอบได้ทุกเวลา) · ตามตาราง = ใช้ gate
+        run: node auto-grade.mjs ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}
