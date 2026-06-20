@@ -353,8 +353,8 @@ function renderAll(){ renderHeader(); renderFixtures(); renderChampion(); render
 
 /* ===== board calc (ใช้ร่วม) ===== */
 function rankMap(tot){ const a=Object.entries(tot).map(([n,t])=>({n,t})).sort((x,y)=>y.t-x.t); const r={}; a.forEach((x,i)=>r[x.n]=i+1); return r; }
-function isToday(ts){ if(!ts) return false; const d=new Date(ts),n=new Date(nowTs);
-  return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate(); }
+const ymdNYC = ts => new Date(ts).toLocaleDateString("en-CA",{timeZone:"America/New_York"});  // "YYYY-MM-DD" ตามเวลา NYC (กันเครื่องคนดูต่าง tz)
+function isToday(ts){ if(!ts) return false; return ymdNYC(ts)===ymdNYC(nowTs); }
 function computeBoard(){
   const champion = norm(tournament.champion||"");
   const mById = Object.fromEntries(matches.map(m=>[m.id,m]));
@@ -671,7 +671,8 @@ function renderAdmin(){
     const g=[$("#amGroup").value,$("#amRound").value].filter(Boolean).join(" · ");
     if(!h||!a||!k){toast("เลือกทีม 2 ทีม + วัน-เวลา");return;} if(h===a){toast("เลือกทีมซ้ำ");return;}
     await setDoc(doc(db,"matches","m_"+Date.now()),{home:h,away:a,group:g,kickoff:k,homeScore:0,awayScore:0,scorers:[],status:"upcoming"}); toast("เพิ่มคู่แล้ว ✓"); renderAdmin(); };
-  if(window.flatpickr && $("#amKick")) fp=flatpickr("#amKick",{enableTime:true,time_24hr:true,minuteIncrement:30,dateFormat:"D d M Y · H:i น.",disableMobile:true});
+  if(window.flatpickr && $("#amKick")) fp=flatpickr("#amKick",{enableTime:true,time_24hr:true,minuteIncrement:30,disableMobile:true,
+    formatDate:d=>d.toLocaleString("th-TH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" น."});
   const lockRound=()=>{ const g=$("#amGroup").value; const ko=g && !g.startsWith("กลุ่ม"); const r=$("#amRound"); r.disabled=ko; if(ko)r.value=""; r.style.opacity=ko?".5":"1"; };
   $("#amGroup").onchange=lockRound; lockRound();
   $("#amSel").onchange=e=>{ adminSel=e.target.value; gameEdit=false; renderAdmin(); };
