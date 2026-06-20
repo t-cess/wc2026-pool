@@ -21,6 +21,13 @@ const db = getFirestore();
 // 1) คะแนนยกมา (สัปดาห์แรก ที่ไม่มีประวัติในแอป) — ตั้งครั้งเดียว/อัปเดตเมื่อแก้
 const CARRY = { "กราฟ":37, "กุ้ย":35, "นน":35, "BB":33, "กอล์ฟ":33, "ต้น":31 };
 
+// 1.5) ทายแชมป์ของทุกคน (ทายครบแล้ว) + ล็อก/เปิดเผย
+const CHAMP_PICKS = {
+  "กราฟ":["โปรตุเกส","ฝรั่งเศส"], "กุ้ย":["สเปน","ฝรั่งเศส"], "นน":["อังกฤษ","โปรตุเกส"],
+  "BB":["บราซิล","อังกฤษ"], "กอล์ฟ":["ฝรั่งเศส","สเปน"], "ต้น":["บราซิล","อาร์เจนตินา"],
+};
+const LOCK_PICKS = true;   // ล็อกทายแชมป์ (ทุกคนทายครบแล้ว → เปิดเผยในแอป)
+
 // 2) เพิ่มคู่ (kickoff เวลาไทย) — id สร้างอัตโนมัติจากชื่อทีม+กลุ่ม (กันซ้ำ)
 const ADD_MATCHES = [
   { home:"เนเธอร์แลนด์", away:"สวีเดน",      group:"F นัด2", kickoff:"2026-06-21T00:00" },
@@ -52,6 +59,14 @@ async function apply() {
   if (Object.keys(CARRY).length) {
     await db.doc("config/carry").set(CARRY, { merge:true });
     console.log("✓ คะแนนยกมา:", CARRY);
+  }
+  if (Object.keys(CHAMP_PICKS).length) {
+    await db.doc("config/champPicks").set(CHAMP_PICKS, { merge:true });
+    console.log("✓ ทายแชมป์ทุกคน:", Object.keys(CHAMP_PICKS).join(", "));
+  }
+  if (LOCK_PICKS) {
+    await db.doc("config/tournament").set({ picksLocked:true }, { merge:true });
+    console.log("✓ ล็อกทายแชมป์แล้ว");
   }
   for (const m of ADD_MATCHES) {
     const id = idFor(m);

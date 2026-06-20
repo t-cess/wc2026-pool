@@ -102,15 +102,18 @@
     <!-- CHAMPION -->
     <div id="tab-champion" class="hidden">
       <div class="card">
-        <h3>👑 ทายแชมป์ (เลือก 2 ทีม, +10 ต่อทีมที่เป็นแชมป์จริง)</h3>
+        <h3>👑 ทายแชมป์ (+10 ต่อทีมที่เป็นแชมป์จริง)</h3>
         <p class="mut" id="champLockMsg"></p>
-        <label>แชมป์ทีมที่ 1</label>
-        <input id="champ1" list="teamList" placeholder="พิมพ์ชื่อทีม" />
-        <label>แชมป์ทีมที่ 2</label>
-        <input id="champ2" list="teamList" placeholder="พิมพ์ชื่อทีม" />
-        <datalist id="teamList"></datalist>
-        <div style="height:10px"></div>
-        <button id="champSave">บันทึกแชมป์</button>
+        <div id="champForm">
+          <label>แชมป์ทีมที่ 1</label>
+          <input id="champ1" list="teamList" placeholder="พิมพ์ชื่อทีม" />
+          <label>แชมป์ทีมที่ 2</label>
+          <input id="champ2" list="teamList" placeholder="พิมพ์ชื่อทีม" />
+          <datalist id="teamList"></datalist>
+          <div style="height:10px"></div>
+          <button id="champSave">บันทึกแชมป์</button>
+        </div>
+        <div id="champTable"></div>
       </div>
     </div>
 
@@ -325,7 +328,7 @@ function enterApp() {
   $("#meName").textContent = me.name;
   $("#adminTab").classList.toggle("hidden", !isAdmin());
   watchData();
-  loadMyChampion();
+  renderChampion();
 }
 
 /* ==========================================================================
@@ -336,6 +339,7 @@ document.querySelectorAll(".nav button").forEach(b => b.onclick = () => {
   b.classList.add("active");
   ["fixtures","champion","board","admin"].forEach(t =>
     $("#tab-"+t).classList.toggle("hidden", t !== b.dataset.tab));
+  if (b.dataset.tab === "champion") renderChampion();
 });
 
 /* ==========================================================================
@@ -416,13 +420,27 @@ async function savePred(m) {
 /* ==========================================================================
    9) ทายแชมป์
    ========================================================================== */
-async function loadMyChampion() {
-  const snap = await getDoc(doc(db,"players", me.uid));
-  if (snap.exists()) { $("#champ1").value = snap.data().champ1||""; $("#champ2").value = snap.data().champ2||""; }
-  const cfg = await getDoc(doc(db,"config","tournament"));
-  if (cfg.exists() && cfg.data().championLocked) {
-    $("#champ1").disabled=$("#champ2").disabled=$("#champSave").disabled=true;
-    $("#champLockMsg").textContent = "ปิดรับทายแชมป์แล้ว";
+async function renderChampion() {
+  const [picksSnap, cfg, mySnap] = await Promise.all([
+    getDoc(doc(db,"config","champPicks")),
+    getDoc(doc(db,"config","tournament")),
+    getDoc(doc(db,"players", me.uid)),
+  ]);
+  const picks = picksSnap.exists() ? picksSnap.data() : {};
+  const locked = cfg.exists() && (cfg.data().picksLocked || cfg.data().championLocked);
+  $("#champForm").classList.toggle("hidden", locked);
+  if (locked) {
+    $("#champLockMsg").textContent = "🔒 ปิดรับทายแชมป์แล้ว — ทายของทุกคน:";
+    const names = Object.keys(picks).length ? Object.keys(picks) : ROSTER;
+    $("#champTable").innerHTML =
+      `<table><thead><tr><th>ผู้เล่น</th><th>แชมป์ 1</th><th>แชมป์ 2</th></tr></thead><tbody>`
+      + names.map(n => { const cls=n===me.name?' class="me"':''; const a=picks[n]||[];
+          return `<tr${cls}><td>${n}</td><td>${a[0]||"-"}</td><td>${a[1]||"-"}</td></tr>`; }).join("")
+      + `</tbody></table>`;
+  } else {
+    $("#champTable").innerHTML = "";
+    $("#champLockMsg").textContent = "เลือก 2 ทีม (ก่อนปิดรับ)";
+    if (mySnap.exists()) { $("#champ1").value=mySnap.data().champ1||""; $("#champ2").value=mySnap.data().champ2||""; }
   }
 }
 $("#champSave").onclick = async () => {
@@ -435,28 +453,34 @@ $("#champSave").onclick = async () => {
    10) ตารางคะแนนสด
    ========================================================================== */
 async function renderBoard() {
-  const [players, cfg, carrySnap] = await Promise.all([
+  const [players, cfg, carrySnap, picksSnap] = await Promise.all([
     getDocs(collection(db,"players")),
     getDoc(doc(db,"config","tournament")),
     getDoc(doc(db,"config","carry")),
+    getDoc(doc(db,"config","champPicks")),
   ]);
   const champion = cfg.exists() ? norm(cfg.data().champion) : "";
   const carry = carrySnap.exists() ? carrySnap.data() : {};   // { ชื่อ: คะแนนยกมา }
+  const picks = picksSnap.exists() ? picksSnap.data() : {};   // { ชื่อ: [ทีม1,ทีม2] }
   const mById = Object.fromEntries(matches.map(m => [m.id, m]));
+  // รวมรายชื่อจาก: คนที่ล็อกอินแล้ว + คะแนนยกมา + ทายแชมป์ → โชว์ครบทุกคน
+  const playerByName = {};
+  players.forEach(pl => { const d = pl.data(); if (d.name) playerByName[d.name] = d; });
+  const names = new Set([...Object.keys(carry), ...Object.keys(picks), ...Object.keys(playerByName)]);
   const rows = [];
-  players.forEach(pl => {
-    const d = pl.data(); if (!d.name) return;
+  names.forEach(name => {
+    const d = playerByName[name];
     let matchPts = 0;
-    allPreds.forEach(p => { if (p.uid === d.uid) matchPts += scoreMatch(p, mById[p.matchId]); });
+    if (d) allPreds.forEach(p => { if (p.uid === d.uid) matchPts += scoreMatch(p, mById[p.matchId]); });
     let champPts = 0;
-    if (champion) { if (norm(d.champ1)===champion) champPts += 10; if (norm(d.champ2)===champion) champPts += 10; }
-    const carryPts = carry[d.name] || 0;
-    rows.push({ name:d.name, uid:d.uid, carryPts, matchPts, champPts, total:carryPts+matchPts+champPts });
+    if (champion) champPts = (picks[name]||[]).map(norm).filter(t => t===champion).length * 10;
+    const carryPts = carry[name] || 0;
+    rows.push({ name, carryPts, matchPts, champPts, total:carryPts+matchPts+champPts });
   });
   rows.sort((a,b) => b.total - a.total);
   const tb = $("#boardTable").querySelector("tbody"); tb.innerHTML = "";
   rows.forEach((r,i) => {
-    const tr = document.createElement("tr"); if (r.uid===me.uid) tr.className="me";
+    const tr = document.createElement("tr"); if (r.name===me.name) tr.className="me";
     tr.innerHTML = `<td class="rank">${i+1}</td><td>${r.name}</td><td class="mut">${r.carryPts||""}</td>
                     <td>${r.matchPts}</td><td>${r.champPts||""}</td><td><b>${r.total}</b></td>`;
     tb.appendChild(tr);
