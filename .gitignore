@@ -4,3 +4,5 @@ admin/node_modules/
 node_modules/
 auto/serviceAccount.json
 auto/node_modules
+auto/auto-grade.log
+auto/.lock

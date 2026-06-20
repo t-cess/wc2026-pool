@@ -76,8 +76,28 @@ function scorerHit(pred, actualScorers, qwenMap) {
 }
 
 const DRY = process.argv.includes("--dry-run");
+const FORCE = process.argv.includes("--force");   // ข้าม live-window gate (ไว้เทส)
+
+// มีคู่ที่ "อยู่ในเวลาเตะ" ไหม = ตั้งแต่เตะก่อน 5 นาที จนถึงจบ+3 ชม. และยังไม่ตรวจ
+async function hasLiveWindow() {
+  const now = Date.now(), BEFORE = 5*60*1000, AFTER = 3*60*60*1000;
+  for (const p of POOLS) {
+    for (const md of (await col(p,"matches").get()).docs) {
+      const m = md.data();
+      if (m.status==="finished" && m.autoGraded) continue;   // ตรวจจบแล้ว ไม่นับ
+      const ko = m.kickoff||0;
+      if (ko && now >= ko-BEFORE && now <= ko+AFTER) return true;
+    }
+  }
+  return false;
+}
+
 async function run() {
   if (DRY) console.log("🧪 DRY-RUN: อ่าน + เรียก Qwen ได้ แต่จะไม่เขียน Firestore\n");
+  if (!FORCE && !(await hasLiveWindow())) {   // ไม่มีบอลเตะ → ออกเลย (cron ตื่นเปล่า ไม่ยิง ESPN/Qwen)
+    console.log("⏸️ ไม่มีคู่อยู่ในเวลาเตะ — ข้าม", new Date().toLocaleString("th-TH"));
+    return;
+  }
   // ดึง ESPN วันนี้+เมื่อวาน+พรุ่งนี้ (กันคาบเกี่ยวเที่ยงคืน)
   const now = new Date();
   const ds = [-1,0,1].map(o=>{ const d=new Date(now); d.setDate(d.getDate()+o);
