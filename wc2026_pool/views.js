@@ -44,6 +44,7 @@ export function renderFixtures(){
 
   let list=S.matches.map(m=>({m,st:stateOf(m)}));
   if(S.filter!=="all") list=list.filter(x=>x.st===S.filter);
+  if(S.filter==="done") list.sort((a,b)=>(b.m.kickoff||0)-(a.m.kickoff||0));   // จบแล้ว: คู่ล่าสุดไว้บน
   if(!list.length) html+=`<p class="k" style="color:var(--dim);text-align:center;margin-top:30px;">ไม่มีคู่ในหมวดนี้</p>`;
 
   list.forEach(({m,st})=>{
