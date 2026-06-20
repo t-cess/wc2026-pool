@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ทายบอลโลก 2026 by Kui chin</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2f3a; --txt:#e8eaed; --mut:#9aa0aa;
+          --accent:#22c55e; --accent2:#3b82f6; --warn:#f59e0b; --bad:#ef4444; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans Thai",sans-serif;
+         background:var(--bg); color:var(--txt); font-size:15px; }
+  h1,h2,h3 { margin:0 0 8px; }
+  .wrap { max-width:760px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
+  input,select,button { font:inherit; }
+  input,select { background:#11141a; color:var(--txt); border:1px solid var(--line);
+                 border-radius:8px; padding:9px 10px; width:100%; }
+  label { display:block; font-size:13px; color:var(--mut); margin:8px 0 4px; }
+  button { background:var(--accent); color:#04210f; border:none; border-radius:8px;
+           padding:10px 14px; font-weight:700; cursor:pointer; }
+  button.sec { background:#283042; color:var(--txt); }
+  button.g { background:#fff; color:#202124; border:1px solid #dadce0; }
+  button.sm { padding:6px 10px; font-size:13px; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .row > * { flex:1; }
+  .nav { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .nav button { flex:1; background:#283042; color:var(--txt); }
+  .nav button.active { background:var(--accent2); color:#fff; }
+  .mut { color:var(--mut); font-size:13px; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:99px; font-size:12px; }
+  .pill.open { background:#0f3d24; color:#7ee2a8; }
+  .pill.lock { background:#3d1f1f; color:#f3a3a3; }
+  .pill.done { background:#1f2a3d; color:#9cc3f3; }
+  .score { display:flex; gap:6px; align-items:center; }
+  .score input { width:56px; text-align:center; font-size:18px; font-weight:700; }
+  .vs { color:var(--mut); }
+  table { width:100%; border-collapse:collapse; }
+  th,td { padding:8px 6px; text-align:left; border-bottom:1px solid var(--line); }
+  th { color:var(--mut); font-size:12px; font-weight:600; }
+  .rank { font-weight:800; color:var(--accent); }
+  .me { background:#16241a; }
+  .hidden { display:none; }
+  .teams { font-weight:700; }
+  .grp { font-size:11px; color:var(--mut); }
+  .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+           background:#283042; color:#fff; padding:10px 16px; border-radius:8px;
+           opacity:0; transition:opacity .2s; z-index:50; }
+  .toast.show { opacity:1; }
+  .warn { background:#2a2410; border-color:#5a4a14; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ====== LOGIN (Google) ====== -->
+  <div id="loginView">
+    <div class="card">
+      <h1>⚽ ทายบอลโลก 2026 <span style="font-size:14px;color:var(--mut);font-weight:400">by Kui chin</span></h1>
+      <p class="mut">ล็อกอินด้วย Google ครั้งเดียว — กันสวมรอย แก้โพยคนอื่นไม่ได้ โปร่งใส 100%</p>
+      <div style="height:6px"></div>
+      <button id="googleBtn" class="g">🔓 เข้าด้วยบัญชี Google</button>
+      <p id="liMsg" class="mut"></p>
+    </div>
+  </div>
+
+  <!-- ====== NAME SETUP (ครั้งแรก) ====== -->
+  <div id="nameView" class="hidden">
+    <div class="card">
+      <h2>ตั้งชื่อเล่นในวง</h2>
+      <p class="mut">ชื่อนี้จะโชว์บนตารางคะแนน (ตั้งครั้งเดียว)</p>
+      <input id="nameInput" placeholder="เช่น ต้น" autocomplete="off" />
+      <div style="height:10px"></div>
+      <button id="nameSave">บันทึก เข้าวง</button>
+    </div>
+  </div>
+
+  <!-- ====== APP ====== -->
+  <div id="appView" class="hidden">
+    <div class="row" style="margin-bottom:10px">
+      <h2 style="margin:0">สวัสดี <span id="meName"></span> 👋</h2>
+      <div style="flex:0"><button class="sec sm" id="logoutBtn">ออก</button></div>
+    </div>
+    <div class="nav">
+      <button data-tab="fixtures" class="active">🎯 ทายผล</button>
+      <button data-tab="champion">👑 แชมป์</button>
+      <button data-tab="board">📊 คะแนน</button>
+      <button data-tab="admin" id="adminTab" class="hidden">🛠️ แอดมิน</button>
+    </div>
+
+    <!-- FIXTURES -->
+    <div id="tab-fixtures">
+      <div id="fixturesList"></div>
+      <p id="fxEmpty" class="mut hidden">ยังไม่มีคู่ให้ทาย — รอแอดมินเพิ่มคู่</p>
+    </div>
+
+    <!-- CHAMPION -->
+    <div id="tab-champion" class="hidden">
+      <div class="card">
+        <h3>👑 ทายแชมป์ (เลือก 2 ทีม, +10 ต่อทีมที่เป็นแชมป์จริง)</h3>
+        <p class="mut" id="champLockMsg"></p>
+        <label>แชมป์ทีมที่ 1</label>
+        <input id="champ1" list="teamList" placeholder="พิมพ์ชื่อทีม" />
+        <label>แชมป์ทีมที่ 2</label>
+        <input id="champ2" list="teamList" placeholder="พิมพ์ชื่อทีม" />
+        <datalist id="teamList"></datalist>
+        <div style="height:10px"></div>
+        <button id="champSave">บันทึกแชมป์</button>
+      </div>
+    </div>
+
+    <!-- BOARD -->
+    <div id="tab-board" class="hidden">
+      <div class="card">
+        <h3>📊 ตารางคะแนนสด</h3>
+        <table id="boardTable"><thead><tr><th>#</th><th>ผู้เล่น</th><th>รายคู่</th><th>แชมป์</th><th>รวม</th></tr></thead><tbody></tbody></table>
+        <p class="mut" id="boardChamp"></p>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="tab-admin" class="hidden">
+      <div class="card">
+        <h3>➕ เพิ่มคู่แข่งขัน</h3>
+        <div class="row"><input id="amHome" placeholder="ทีมเหย้า" /><input id="amAway" placeholder="ทีมเยือน" /></div>
+        <div class="row" style="margin-top:8px"><input id="amGroup" placeholder="กลุ่ม/รอบ เช่น A นัด2" /><input id="amKick" type="datetime-local" /></div>
+        <div style="height:8px"></div>
+        <button id="amAdd">เพิ่มคู่</button>
+        <div style="height:10px"></div>
+        <button id="amSeed" class="sec sm">📥 นำเข้าโปรแกรมนัด 3 กลุ่ม A-D (ตรวจเวลาก่อนแชร์!)</button>
+      </div>
+      <div class="card">
+        <h3>✅ กรอกผล / คนยิง</h3>
+        <select id="amMatchSel"></select>
+        <div class="row" style="margin-top:8px">
+          <input id="amHs" type="number" min="0" placeholder="สกอร์เหย้า" />
+          <input id="amAs" type="number" min="0" placeholder="สกอร์เยือน" />
+        </div>
+        <label>คนยิงจริง (คั่นด้วย , )</label>
+        <input id="amScorers" placeholder="เช่น วินิซิอุส, คุนญ่า" />
+        <label>ตัวที่ไม่ได้ลงสนาม (เฉพาะที่มีในโพย — ใช้ตัดสินคนยิงชื่อ2)</label>
+        <input id="amDnp" placeholder="เช่น เนย์มาร์, พูลิซิช" />
+        <div style="height:8px"></div>
+        <button id="amResult">บันทึกผล</button>
+      </div>
+      <div class="card warn">
+        <h3>🏆 ตั้งแชมป์ทัวร์นาเมนต์ (ตอนจบ)</h3>
+        <input id="amChampion" list="teamList" placeholder="ทีมแชมป์จริง" />
+        <div style="height:8px"></div>
+        <button id="amSetChamp" class="sec">ตั้งแชมป์ (ให้ +10)</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="mut" style="text-align:center;margin-top:20px">กติกา: ชนะ+1 · เสมอ+2 · สกอร์เป๊ะ+3 · คนยิง+1 · แชมป์+10</p>
+</div>
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc,
+         onSnapshot, query, orderBy }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+/* ==========================================================================
+   1) ตั้งค่า — แก้ก่อนใช้งาน (ดู SETUP.md)
+   ========================================================================== */
+const firebaseConfig = {
+  apiKey: "ใส่ของคุณ",
+  authDomain: "ใส่ของคุณ.firebaseapp.com",
+  projectId: "ใส่ของคุณ",
+  storageBucket: "ใส่ของคุณ.appspot.com",
+  messagingSenderId: "ใส่ของคุณ",
+  appId: "ใส่ของคุณ",
+};
+const ADMIN_EMAILS = ["ton.itthiphon@gmail.com"];   // ใครเป็นแอดมิน (ตามอีเมล Google)
+const TEAMS = ["บราซิล","อาร์เจนตินา","ฝรั่งเศส","สเปน","อังกฤษ","โปรตุเกส","เยอรมนี",
+  "เนเธอร์แลนด์","เบลเยียม","อิตาลี","โครเอเชีย","อุรุกวัย","โคลอมเบีย","โมร็อกโก",
+  "สหรัฐฯ","เม็กซิโก","แคนาดา","ญี่ปุ่น","เกาหลีใต้","ออสเตรเลีย","สวิตเซอร์แลนด์",
+  "เดนมาร์ก","เซเนกัล","สวีเดน","ออสเตรีย","ตุรกี","อิหร่าน","เอกวาดอร์","ปารากวัย",
+  "สกอตแลนด์","กานา","นอร์เวย์","แอฟริกาใต้","เช็ก","กาตาร์","บอสเนีย","เฮติ","ปานามา"];
+
+// โปรแกรมนัด 3 กลุ่ม A-D (คำนวณจาก round-robin) — ⚠️ เวลาเป็นค่าเริ่มต้น ตรวจ/แก้ก่อนแชร์
+const SEED_FIXTURES = [
+  { home:"เช็ก", away:"เม็กซิโก", group:"A นัด3", kickoff:"2026-06-25T08:00" },
+  { home:"แอฟริกาใต้", away:"เกาหลีใต้", group:"A นัด3", kickoff:"2026-06-25T08:00" },
+  { home:"แคนาดา", away:"สวิตเซอร์แลนด์", group:"B นัด3", kickoff:"2026-06-26T02:00" },
+  { home:"บอสเนีย", away:"กาตาร์", group:"B นัด3", kickoff:"2026-06-26T02:00" },
+  { home:"บราซิล", away:"สกอตแลนด์", group:"C นัด3", kickoff:"2026-06-27T08:00" },
+  { home:"โมร็อกโก", away:"เฮติ", group:"C นัด3", kickoff:"2026-06-27T08:00" },
+  { home:"สหรัฐฯ", away:"ตุรกี", group:"D นัด3", kickoff:"2026-06-27T05:00" },
+  { home:"ออสเตรเลีย", away:"ปารากวัย", group:"D นัด3", kickoff:"2026-06-27T05:00" },
+];
+
+/* ==========================================================================
+   2) Firebase init
+   ========================================================================== */
+const app  = initializeApp(firebaseConfig);
+const db   = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+/* ==========================================================================
+   3) สถานะ + helper
+   ========================================================================== */
+let me = null;              // { uid, name, email }
+let matches = [];
+let allPreds = [];          // โพยทุกคน (โปร่งใส)
+let myPreds = {};
+const $ = s => document.querySelector(s);
+const toast = msg => { const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+                       setTimeout(()=>t.classList.remove("show"), 1800); };
+const isAdmin = () => me && ADMIN_EMAILS.includes(me.email);
+const now = () => Date.now();
+const norm = s => (s||"").trim().toLowerCase();
+TEAMS.forEach(t => { const o=document.createElement("option"); o.value=t; $("#teamList").appendChild(o); });
+
+/* ==========================================================================
+   4) คิดแต้ม (ฟังก์ชันบริสุทธิ์ — กติกาวง + กฎคนยิงเป๊ะ)
+   ========================================================================== */
+function scoreMatch(pred, m) {
+  if (!pred || !m || m.status !== "finished") return 0;
+  let pts = 0;
+  const actual = m.homeScore > m.awayScore ? "home" : m.homeScore < m.awayScore ? "away" : "draw";
+  const predResult = pred.homeScore > pred.awayScore ? "home" : pred.homeScore < pred.awayScore ? "away" : "draw";
+  if (predResult === actual) pts += (actual === "draw") ? 2 : 1;                 // ผล
+  if (pred.homeScore === m.homeScore && pred.awayScore === m.awayScore) pts += 3; // สกอร์เป๊ะ
+  // คนยิง — ห้ามนับถ้าทายเสมอ 0-0
+  if (!(pred.homeScore === 0 && pred.awayScore === 0)) {
+    const s1 = norm(pred.scorer1), s2 = norm(pred.scorer2);
+    const scored = (m.scorers || []).map(norm);
+    const dnp    = (m.dnp || []).map(norm);
+    // กฎเป๊ะ: ชื่อ1 ยิง → +1 ; ถ้าชื่อ1 "ไม่ได้ลง" และชื่อ2 ยิง → +1
+    if (s1 && scored.includes(s1)) pts += 1;
+    else if (s1 && dnp.includes(s1) && s2 && scored.includes(s2)) pts += 1;
+  }
+  return pts;
+}
+
+/* ==========================================================================
+   5) Auth (Google)
+   ========================================================================== */
+$("#googleBtn").onclick = async () => {
+  if (firebaseConfig.apiKey === "ใส่ของคุณ") {
+    $("#liMsg").textContent = "⚠️ ยังไม่ได้ใส่ Firebase config — เปิด index.html ใส่ค่าจริงจาก Firebase ก่อน (ดู SETUP.md ขั้น 3)";
+    return;
+  }
+  try { await signInWithPopup(auth, provider); }
+  catch (e) {
+    const hint = e.code === "auth/network-request-failed"
+      ? " — เช็ก: ใส่ config จริงครบ? / เน็ตต่ออยู่? / เปิดผ่าน http ไม่ใช่ file://"
+      : e.code === "auth/unauthorized-domain"
+      ? " — เอาโดเมนนี้ไปใส่ใน Firebase → Authentication → Settings → Authorized domains"
+      : e.code === "auth/operation-not-allowed"
+      ? " — ยังไม่ได้เปิด Google ใน Firebase → Authentication → Sign-in method"
+      : "";
+    $("#liMsg").textContent = "เข้าไม่สำเร็จ: " + (e.code || e.message) + hint;
+  }
+};
+$("#logoutBtn").onclick = () => signOut(auth);
+
+onAuthStateChanged(auth, async user => {
+  if (!user) { showView("login"); me = null; return; }
+  const ref = doc(db, "players", user.uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists() || !snap.data().name) {
+    me = { uid:user.uid, email:user.email, name:"" };
+    $("#nameInput").value = user.displayName || "";
+    showView("name");
+  } else {
+    me = { uid:user.uid, email:user.email, name:snap.data().name };
+    enterApp();
+  }
+});
+
+$("#nameSave").onclick = async () => {
+  const name = $("#nameInput").value.trim();
+  if (!name) { toast("ใส่ชื่อก่อน"); return; }
+  await setDoc(doc(db,"players", me.uid),
+    { uid:me.uid, email:me.email, name, champ1:"", champ2:"" }, { merge:true });
+  me.name = name;
+  enterApp();
+};
+
+function showView(v) {
+  $("#loginView").classList.toggle("hidden", v!=="login");
+  $("#nameView").classList.toggle("hidden", v!=="name");
+  $("#appView").classList.toggle("hidden", v!=="app");
+}
+
+function enterApp() {
+  showView("app");
+  $("#meName").textContent = me.name;
+  $("#adminTab").classList.toggle("hidden", !isAdmin());
+  watchData();
+  loadMyChampion();
+}
+
+/* ==========================================================================
+   6) แท็บ
+   ========================================================================== */
+document.querySelectorAll(".nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".nav button").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  ["fixtures","champion","board","admin"].forEach(t =>
+    $("#tab-"+t).classList.toggle("hidden", t !== b.dataset.tab));
+});
+
+/* ==========================================================================
+   7) ฟังข้อมูลสด
+   ========================================================================== */
+function watchData() {
+  onSnapshot(query(collection(db,"matches"), orderBy("kickoff")), snap => {
+    matches = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    renderFixtures(); renderAdminMatchSelect(); renderBoard();
+  });
+  onSnapshot(collection(db,"predictions"), snap => {
+    allPreds = snap.docs.map(d => d.data());
+    myPreds = {};
+    allPreds.forEach(p => { if (p.uid === me.uid) myPreds[p.matchId] = p; });
+    renderFixtures(); renderBoard();
+  });
+}
+
+/* ==========================================================================
+   8) หน้าทายผล (+ โปร่งใส/ล็อก/กันลอก)
+   ========================================================================== */
+function renderFixtures() {
+  const box = $("#fixturesList"); box.innerHTML = "";
+  $("#fxEmpty").classList.toggle("hidden", matches.length > 0);
+  matches.forEach(m => {
+    const locked = m.status === "finished" || now() >= (m.kickoff || 0);
+    const kick = m.kickoff ? new Date(m.kickoff).toLocaleString("th-TH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "";
+    const pill = m.status==="finished" ? `<span class="pill done">จบ ${m.homeScore}-${m.awayScore}</span>`
+               : locked ? `<span class="pill lock">ปิดรับ</span>`
+               : `<span class="pill open">เปิดทาย</span>`;
+    const mp = allPreds.filter(p => p.matchId === m.id);
+    const c = document.createElement("div"); c.className="card";
+    let html = `<div class="row"><div><span class="grp">${m.group||""} · ${kick}</span><br>
+        <span class="teams">${m.home}</span> <span class="vs">vs</span> <span class="teams">${m.away}</span></div>
+        <div style="flex:0">${pill}</div></div>`;
+
+    if (!locked) {
+      const p = myPreds[m.id] || { homeScore:"", awayScore:"", scorer1:"", scorer2:"" };
+      html += `<div class="score" style="margin-top:10px">
+          <input type="number" min="0" id="hs_${m.id}" value="${p.homeScore}" placeholder="0">
+          <span class="vs">-</span>
+          <input type="number" min="0" id="as_${m.id}" value="${p.awayScore}" placeholder="0">
+          <span class="mut" style="flex:2">สกอร์ที่ทาย</span></div>
+        <div class="row" style="margin-top:8px">
+          <input id="s1_${m.id}" value="${p.scorer1||""}" placeholder="คนยิง ชื่อ1 (ตัวจบสกอร์)">
+          <input id="s2_${m.id}" value="${p.scorer2||""}" placeholder="คนยิง ชื่อ2 (สำรอง)"></div>
+        <div class="row" style="margin-top:8px;align-items:center">
+          <button class="sm" id="save_${m.id}" style="flex:0">บันทึกโพยคู่นี้</button>
+          <span class="mut">🔒 ${mp.length} คนส่งแล้ว · เปิดดูของทุกคนเมื่อปิดรับ</span></div>`;
+    } else {
+      const earned = m.status==="finished" && myPreds[m.id] ? ` · คุณได้ ${scoreMatch(myPreds[m.id], m)} แต้ม` : "";
+      html += `<div style="margin-top:10px"><div class="mut">📋 โพยทุกคน (${mp.length} คน)${earned}</div>
+        <table><thead><tr><th>ผู้เล่น</th><th>สกอร์</th><th>คนยิง</th><th>แต้ม</th></tr></thead><tbody>` +
+        (mp.length ? mp.map(p => {
+          const pts = m.status==="finished" ? scoreMatch(p,m) : "";
+          const sc = [p.scorer1,p.scorer2].filter(Boolean).join(", ");
+          const meCls = p.uid===me.uid ? ' class="me"' : '';
+          return `<tr${meCls}><td>${p.player}</td><td>${p.homeScore}-${p.awayScore}</td><td class="mut">${sc||"-"}</td><td>${pts!==""?`<b>${pts}</b>`:""}</td></tr>`;
+        }).join("") : `<tr><td colspan="4" class="mut">ไม่มีคนส่งโพย</td></tr>`) +
+        `</tbody></table></div>`;
+    }
+    c.innerHTML = html;
+    box.appendChild(c);
+    if (!locked) $("#save_"+m.id).onclick = () => savePred(m);
+  });
+}
+
+async function savePred(m) {
+  if (now() >= (m.kickoff||0)) { toast("คู่นี้ปิดรับแล้ว"); renderFixtures(); return; }
+  const hs = parseInt($("#hs_"+m.id).value), as = parseInt($("#as_"+m.id).value);
+  if (isNaN(hs) || isNaN(as)) { toast("ใส่สกอร์ให้ครบ"); return; }
+  const pred = { uid:me.uid, player:me.name, matchId:m.id, homeScore:hs, awayScore:as,
+                 scorer1:$("#s1_"+m.id).value.trim(), scorer2:$("#s2_"+m.id).value.trim() };
+  try { await setDoc(doc(db,"predictions", `${m.id}__${me.uid}`), pred); toast("บันทึกแล้ว ✅"); }
+  catch (e) { toast("บันทึกไม่ได้ (อาจปิดรับแล้ว)"); }
+}
+
+/* ==========================================================================
+   9) ทายแชมป์
+   ========================================================================== */
+async function loadMyChampion() {
+  const snap = await getDoc(doc(db,"players", me.uid));
+  if (snap.exists()) { $("#champ1").value = snap.data().champ1||""; $("#champ2").value = snap.data().champ2||""; }
+  const cfg = await getDoc(doc(db,"config","tournament"));
+  if (cfg.exists() && cfg.data().championLocked) {
+    $("#champ1").disabled=$("#champ2").disabled=$("#champSave").disabled=true;
+    $("#champLockMsg").textContent = "ปิดรับทายแชมป์แล้ว";
+  }
+}
+$("#champSave").onclick = async () => {
+  await updateDoc(doc(db,"players", me.uid),
+    { champ1:$("#champ1").value.trim(), champ2:$("#champ2").value.trim() });
+  toast("บันทึกแชมป์แล้ว 👑"); renderBoard();
+};
+
+/* ==========================================================================
+   10) ตารางคะแนนสด
+   ========================================================================== */
+async function renderBoard() {
+  const [players, cfg] = await Promise.all([
+    getDocs(collection(db,"players")),
+    getDoc(doc(db,"config","tournament")),
+  ]);
+  const champion = cfg.exists() ? norm(cfg.data().champion) : "";
+  const mById = Object.fromEntries(matches.map(m => [m.id, m]));
+  const rows = [];
+  players.forEach(pl => {
+    const d = pl.data(); if (!d.name) return;
+    let matchPts = 0;
+    allPreds.forEach(p => { if (p.uid === d.uid) matchPts += scoreMatch(p, mById[p.matchId]); });
+    let champPts = 0;
+    if (champion) { if (norm(d.champ1)===champion) champPts += 10; if (norm(d.champ2)===champion) champPts += 10; }
+    rows.push({ name:d.name, uid:d.uid, matchPts, champPts, total:matchPts+champPts });
+  });
+  rows.sort((a,b) => b.total - a.total);
+  const tb = $("#boardTable").querySelector("tbody"); tb.innerHTML = "";
+  rows.forEach((r,i) => {
+    const tr = document.createElement("tr"); if (r.uid===me.uid) tr.className="me";
+    tr.innerHTML = `<td class="rank">${i+1}</td><td>${r.name}</td><td>${r.matchPts}</td>
+                    <td>${r.champPts||""}</td><td><b>${r.total}</b></td>`;
+    tb.appendChild(tr);
+  });
+  $("#boardChamp").textContent = champion ? `แชมป์ทัวร์นาเมนต์: ${cfg.data().champion}` : "ยังไม่ตั้งแชมป์";
+}
+
+/* ==========================================================================
+   11) แอดมิน
+   ========================================================================== */
+$("#amAdd").onclick = async () => {
+  if (!isAdmin()) return;
+  const home=$("#amHome").value.trim(), away=$("#amAway").value.trim();
+  const kick=$("#amKick").value, group=$("#amGroup").value.trim();
+  if (!home||!away||!kick) { toast("กรอกทีม + เวลาเตะให้ครบ"); return; }
+  await setDoc(doc(db,"matches","m_"+Date.now()),
+    { home, away, group, kickoff:new Date(kick).getTime(),
+      homeScore:0, awayScore:0, scorers:[], dnp:[], status:"upcoming" });
+  $("#amHome").value=$("#amAway").value=$("#amGroup").value="";
+  toast("เพิ่มคู่แล้ว ✅");
+};
+
+$("#amSeed").onclick = async () => {
+  if (!isAdmin()) return;
+  for (const f of SEED_FIXTURES) {
+    const id = "seed_" + norm(f.home+"_"+f.away+"_"+f.group).replace(/[^a-z0-9ก-๙_]/g,"");
+    await setDoc(doc(db,"matches",id),
+      { home:f.home, away:f.away, group:f.group, kickoff:new Date(f.kickoff).getTime(),
+        homeScore:0, awayScore:0, scorers:[], dnp:[], status:"upcoming" }, { merge:true });
+  }
+  toast(`นำเข้า ${SEED_FIXTURES.length} คู่แล้ว — อย่าลืมตรวจเวลา!`);
+};
+
+function renderAdminMatchSelect() {
+  const sel = $("#amMatchSel"); if (!sel) return;
+  sel.innerHTML = matches.map(m =>
+    `<option value="${m.id}">${m.home} vs ${m.away} ${m.status==="finished"?`(${m.homeScore}-${m.awayScore})`:""}</option>`).join("");
+}
+
+$("#amResult").onclick = async () => {
+  if (!isAdmin()) return;
+  const id = $("#amMatchSel").value; if (!id) return;
+  const hs=parseInt($("#amHs").value), as=parseInt($("#amAs").value);
+  if (isNaN(hs)||isNaN(as)) { toast("ใส่สกอร์จริงให้ครบ"); return; }
+  const scorers = $("#amScorers").value.split(",").map(s=>s.trim()).filter(Boolean);
+  const dnp = $("#amDnp").value.split(",").map(s=>s.trim()).filter(Boolean);
+  await updateDoc(doc(db,"matches",id), { homeScore:hs, awayScore:as, scorers, dnp, status:"finished" });
+  toast("บันทึกผลแล้ว — คิดแต้มอัตโนมัติ ✅");
+};
+
+$("#amSetChamp").onclick = async () => {
+  if (!isAdmin()) return;
+  const champion = $("#amChampion").value.trim(); if (!champion) return;
+  await setDoc(doc(db,"config","tournament"), { champion, championLocked:true }, { merge:true });
+  toast("ตั้งแชมป์แล้ว 🏆"); renderBoard();
+};
+</script>
+</body>
+</html>
