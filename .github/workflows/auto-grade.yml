@@ -2,9 +2,8 @@ name: auto-grade
 
 on:
   workflow_dispatch: {}          # กดรันมือ (ทดสอบ) — จะส่ง --force ข้าม gate
-  # schedule:                    # ⬇️ เปิดเมื่อเลือก cadence แล้ว (ดู GITHUB_SETUP.md)
-  #   - cron: "*/5 * * * *"              # repo public: 5 นาทีทั้งวัน (Actions unlimited)
-  #   - cron: "*/15 16-23,0-5 * * *"     # repo private free: 15 นาที เฉพาะกรอบ WC (UTC)
+  schedule:
+    - cron: "*/5 * * * *"        # repo public → ทุก 5 นาที (Actions unlimited) · สคริปต์ gate เองว่ามีบอลเตะไหม
 
 concurrency:                     # กันรันซ้อน
   group: auto-grade
