@@ -27,4 +27,9 @@ export function countdown(ms){ if(ms<=0) return "ปิดรับแล้ว"
   const p=n=>String(n).padStart(2,"0");
   return "ปิดใน "+Math.floor(s/3600)+":"+p(Math.floor((s%3600)/60))+":"+p(s%60); }
 export const fmtKo = m => m.kickoff ? new Date(m.kickoff).toLocaleString("th-TH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "";
-export const ymdNYC = ts => new Date(ts).toLocaleDateString("en-CA",{timeZone:"America/New_York"});  // "YYYY-MM-DD" ตามเวลา NYC (กันเครื่องคนดูต่าง tz)
+// คีย์ "วันแข่ง" ตัดรอบ 6 โมงเช้า NYC — เกมดึกข้ามเที่ยงคืนยังนับเป็นวันเดียวกันจนถึง 6am (กันเครื่องคนดูต่าง tz)
+export const ymdNYC = ts => {
+  const d = new Date(new Date(ts).toLocaleString("en-US",{timeZone:"America/New_York"}));
+  d.setHours(d.getHours()-6);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+};
