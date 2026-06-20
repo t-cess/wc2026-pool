@@ -50,7 +50,7 @@ service cloud.firestore {
         if request.auth != null
         && request.auth.uid == request.resource.data.uid
         && request.time.toMillis()
-           < get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.kickoff;
+           < get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.kickoff - 600000;
       allow delete: if false;
     }
   }
