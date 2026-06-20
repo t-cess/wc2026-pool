@@ -49,6 +49,7 @@ service cloud.firestore {
       allow create, update:
         if request.auth != null
         && request.auth.uid == request.resource.data.uid
+        && !(request.resource.data.homeScore == 0 && request.resource.data.awayScore == 0)
         && request.time.toMillis()
            < get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.kickoff - 600000;
       allow delete: if false;
