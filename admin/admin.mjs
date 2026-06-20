@@ -18,8 +18,14 @@ const db = getFirestore();
 
 /* ===================== แก้ข้อมูลตรงนี้แต่ละวัน ===================== */
 
-// 1) คะแนนยกมา (สัปดาห์แรก ที่ไม่มีประวัติในแอป) — ตั้งครั้งเดียว/อัปเดตเมื่อแก้
+// 1) คะแนนรวมล่าสุด (วันนี้) — ใส่ยอดรวมปัจจุบันของแต่ละคน
 const CARRY = { "กราฟ":37, "กุ้ย":35, "นน":35, "BB":33, "กอล์ฟ":33, "ต้น":31 };
+
+// 1.2) คะแนนเมื่อวาน (ใช้คิด "+วันนี้" = วันนี้-เมื่อวาน และลูกศรขึ้น/ลงอันดับ)
+const PREV  = { "กุ้ย":31, "BB":30, "นน":29, "กราฟ":29, "กอล์ฟ":28, "ต้น":21 };
+
+// 1.3) ป้ายชุดล่าสุด (คืน→เช้า) โชว์บนหน้าคะแนน
+const BATCH = "ชุดล่าสุด · คืน 19 → เช้า 20 มิ.ย. (เวลาไทย)";
 
 // 1.5) ทายแชมป์ของทุกคน (ทายครบแล้ว) + ล็อก/เปิดเผย
 const CHAMP_PICKS = {
@@ -58,7 +64,15 @@ async function list() {
 async function apply() {
   if (Object.keys(CARRY).length) {
     await db.doc("config/carry").set(CARRY, { merge:true });
-    console.log("✓ คะแนนยกมา:", CARRY);
+    console.log("✓ คะแนนวันนี้:", CARRY);
+  }
+  if (Object.keys(PREV).length) {
+    await db.doc("config/prev").set(PREV, { merge:true });
+    console.log("✓ คะแนนเมื่อวาน:", PREV);
+  }
+  if (BATCH) {
+    await db.doc("config/tournament").set({ batchLabel:BATCH }, { merge:true });
+    console.log("✓ ป้ายชุด:", BATCH);
   }
   if (Object.keys(CHAMP_PICKS).length) {
     await db.doc("config/champPicks").set(CHAMP_PICKS, { merge:true });

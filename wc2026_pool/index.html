@@ -1,180 +1,124 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>ทายบอลโลก 2026 by Kui chin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700;800&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2f3a; --txt:#e8eaed; --mut:#9aa0aa;
-          --accent:#22c55e; --accent2:#3b82f6; --warn:#f59e0b; --bad:#ef4444; }
-  * { box-sizing:border-box; }
-  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans Thai",sans-serif;
-         background:var(--bg); color:var(--txt); font-size:15px; }
-  h1,h2,h3 { margin:0 0 8px; }
-  .wrap { max-width:760px; margin:0 auto; padding:16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
-  input,select,button { font:inherit; }
-  input,select { background:#11141a; color:var(--txt); border:1px solid var(--line);
-                 border-radius:8px; padding:9px 10px; width:100%; }
-  label { display:block; font-size:13px; color:var(--mut); margin:8px 0 4px; }
-  button { background:var(--accent); color:#04210f; border:none; border-radius:8px;
-           padding:10px 14px; font-weight:700; cursor:pointer; }
-  button.sec { background:#283042; color:var(--txt); }
-  button.g { background:#fff; color:#202124; border:1px solid #dadce0; }
-  button.sm { padding:6px 10px; font-size:13px; }
-  button:disabled { opacity:.45; cursor:not-allowed; }
-  .row { display:flex; gap:8px; align-items:center; }
-  .row > * { flex:1; }
-  .nav { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
-  .nav button { flex:1; background:#283042; color:var(--txt); }
-  .nav button.active { background:var(--accent2); color:#fff; }
-  .mut { color:var(--mut); font-size:13px; }
-  .pill { display:inline-block; padding:2px 8px; border-radius:99px; font-size:12px; }
-  .pill.open { background:#0f3d24; color:#7ee2a8; }
-  .pill.lock { background:#3d1f1f; color:#f3a3a3; }
-  .pill.done { background:#1f2a3d; color:#9cc3f3; }
-  .score { display:flex; gap:6px; align-items:center; }
-  .score input { width:56px; text-align:center; font-size:18px; font-weight:700; }
-  .vs { color:var(--mut); }
-  table { width:100%; border-collapse:collapse; }
-  th,td { padding:8px 6px; text-align:left; border-bottom:1px solid var(--line); }
-  th { color:var(--mut); font-size:12px; font-weight:600; }
-  .rank { font-weight:800; color:var(--accent); }
-  .me { background:#16241a; }
-  .hidden { display:none; }
-  .teams { font-weight:700; }
-  .grp { font-size:11px; color:var(--mut); }
-  .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
-           background:#283042; color:#fff; padding:10px 16px; border-radius:8px;
-           opacity:0; transition:opacity .2s; z-index:50; }
-  .toast.show { opacity:1; }
-  .warn { background:#2a2410; border-color:#5a4a14; }
+  :root{ --bg:#070809; --panel:#0B0D11; --card:#14171D; --line:#232830; --line2:#2A303A;
+         --ink:#EEF1F4; --mut:#8A929E; --dim:#5b626d; --green:#1FB85E; --greenL:#5fcf94;
+         --blue:#2D7DF6; --red:#EF3E42; --gold:#caa75a; --inkField:#0E1116; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:radial-gradient(120% 80% at 50% -10%, #14181f 0%, #070809 55%);
+        font-family:'IBM Plex Sans Thai',sans-serif; -webkit-font-smoothing:antialiased; color:var(--ink); }
+  .k{ font-family:'Kanit',sans-serif; }
+  input{ outline:none; -webkit-appearance:none; }
+  input::placeholder{ color:var(--dim); }
+  ::-webkit-scrollbar{ width:0; height:0; }
+  .app{ max-width:460px; margin:0 auto; min-height:100vh; min-height:100dvh; background:var(--panel);
+        display:flex; flex-direction:column; position:relative; overflow:hidden; }
+  .stripes{ display:flex; gap:5px; }
+  .stripes div{ height:7px; border-radius:99px; }
+  .field{ width:100%; height:42px; padding:0 13px; font-size:13px; color:var(--ink); background:var(--inkField);
+          border:1px solid var(--line2); border-radius:11px; font-family:'IBM Plex Sans Thai'; }
+  .btnG{ display:flex;align-items:center;justify-content:center; background:var(--green); color:var(--greenD,#04210F);
+         border:none; border-radius:12px; font-family:'Kanit'; font-weight:700; cursor:pointer; }
+  .hidden{ display:none !important; }
+  #loginView,#identityView,#appView{ position:relative; z-index:1; }
+  .app::before{ content:""; position:absolute; inset:0; background:url("assets/hero.jpg") center/cover no-repeat;
+                filter:grayscale(1) brightness(.65); opacity:.05; pointer-events:none; z-index:0; }
+  #loginView{ background:linear-gradient(180deg, rgba(7,8,9,.42) 0%, rgba(7,8,9,.80) 48%, rgba(7,8,9,.94) 74%, #070809 100%), url("assets/hero.jpg") top center/cover no-repeat; }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  @keyframes toastIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+  @keyframes shine{0%{transform:translateX(-130%) skewX(-18deg)}55%,100%{transform:translateX(360%) skewX(-18deg)}}
+  @keyframes glowPulse{0%,100%{opacity:.45;transform:scale(1)}50%{opacity:.95;transform:scale(1.12)}}
+  @keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="app">
 
-  <!-- ====== LOGIN (Google) ====== -->
-  <div id="loginView">
-    <div class="card">
-      <h1>⚽ ทายบอลโลก 2026 <span style="font-size:14px;color:var(--mut);font-weight:400">by Kui chin</span></h1>
-      <p class="mut">ล็อกอินด้วย Google ครั้งเดียว — กันสวมรอย แก้โพยคนอื่นไม่ได้ โปร่งใส 100%</p>
-      <div style="height:6px"></div>
-      <button id="googleBtn" class="g">🔓 เข้าด้วยบัญชี Google</button>
-      <p id="liMsg" class="mut"></p>
-    </div>
-  </div>
-
-  <!-- ====== IDENTITY SETUP (ครั้งแรก) ====== -->
-  <div id="nameView" class="hidden">
-    <div class="card">
-      <h2>คุณคือใครในวง?</h2>
-      <p class="mut">เลือกชื่อตัวเองจากรายชื่อวง (ผูกกับบัญชี Google นี้ครั้งเดียว เพื่อรับคะแนนสะสมเดิม)</p>
-      <select id="rosterSel"></select>
-      <div id="newNameWrap" class="hidden">
-        <label>ชื่อสมาชิกใหม่ (เริ่มที่ 0 แต้ม)</label>
-        <input id="nameInput" placeholder="พิมพ์ชื่อ" autocomplete="off" />
+  <!-- ============ LOGIN ============ -->
+  <div id="loginView" style="flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:46px 26px 40px;">
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+      <div class="stripes" style="margin-bottom:22px;">
+        <div style="width:46px;background:#EF3E42;"></div><div style="width:46px;background:#18A957;"></div><div style="width:46px;background:#2D7DF6;"></div>
       </div>
-      <div style="height:10px"></div>
-      <button id="nameSave">ยืนยัน เข้าวง</button>
+      <div class="k" style="font-weight:500;font-size:15px;letter-spacing:3px;color:var(--mut);text-transform:uppercase;">World Cup 2026</div>
+      <h1 class="k" style="margin:6px 0 0;font-weight:800;font-size:54px;line-height:.98;letter-spacing:-.5px;">ทายบอล<br>โลก<span style="color:var(--green);">.</span></h1>
+      <p style="margin:18px 0 0;font-size:15px;line-height:1.6;color:var(--mut);max-width:300px;">โพยเดียว ทั้งวง โปร่งใส 100% — ทายสกอร์ ทายคนยิง ทายแชมป์ แล้วไล่บี้กันบนตารางคะแนนสด</p>
+    </div>
+    <div>
+      <div id="googleBtn" style="display:flex;align-items:center;justify-content:center;gap:11px;height:56px;background:#fff;border-radius:15px;cursor:pointer;font-family:'Kanit';font-weight:700;font-size:16px;color:#1a1d22;">
+        <div style="width:22px;height:22px;border-radius:50%;background:conic-gradient(#EA4335 0 25%,#FBBC05 25% 50%,#34A853 50% 75%,#4285F4 75% 100%);"></div>
+        เข้าด้วยบัญชี Google
+      </div>
+      <p id="liMsg" style="text-align:center;margin:14px 0 0;font-size:12.5px;color:var(--dim);">ล็อกอินครั้งเดียว · กันสวมรอย · แก้โพยคนอื่นไม่ได้</p>
+      <p class="k" style="text-align:center;margin:16px 0 0;font-size:12px;color:#3f454e;letter-spacing:1px;">BY KUI CHIN · เพื่อนกินเหล้า FC</p>
     </div>
   </div>
 
-  <!-- ====== APP ====== -->
-  <div id="appView" class="hidden">
-    <div class="row" style="margin-bottom:10px">
-      <h2 style="margin:0">สวัสดี <span id="meName"></span> 👋</h2>
-      <div style="flex:0"><button class="sec sm" id="logoutBtn">ออก</button></div>
+  <!-- ============ IDENTITY ============ -->
+  <div id="identityView" class="hidden" style="flex:1;display:flex;flex-direction:column;padding:34px 26px 32px;">
+    <div class="stripes" style="margin-bottom:26px;">
+      <div style="width:30px;height:6px;background:#EF3E42;"></div><div style="width:30px;height:6px;background:#18A957;"></div><div style="width:30px;height:6px;background:#2D7DF6;"></div>
     </div>
-    <div class="nav">
-      <button data-tab="fixtures" class="active">🎯 ทายผล</button>
-      <button data-tab="champion">👑 แชมป์</button>
-      <button data-tab="board">📊 คะแนน</button>
-      <button data-tab="admin" id="adminTab" class="hidden">🛠️ แอดมิน</button>
+    <h2 class="k" style="margin:0;font-weight:800;font-size:34px;line-height:1.05;">คุณคือใคร?</h2>
+    <p style="margin:12px 0 26px;font-size:14px;color:var(--mut);line-height:1.55;">เลือกชื่อตัวเองจากรายชื่อวง — ผูกกับบัญชี Google นี้ครั้งเดียว เพื่อรับคะแนนสะสมเดิม</p>
+    <div id="rosterChips" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+    <div id="newNameWrap" class="hidden" style="margin-top:14px;">
+      <input id="newName" class="field" placeholder="ชื่อสมาชิกใหม่ (เริ่ม 0 แต้ม)" />
     </div>
+    <div style="flex:1;"></div>
+    <div id="confirmIdentity" class="btnG" style="height:54px;font-size:16px;">ยืนยัน</div>
+  </div>
 
-    <!-- FIXTURES -->
-    <div id="tab-fixtures">
-      <div id="fixturesList"></div>
-      <p id="fxEmpty" class="mut hidden">ยังไม่มีคู่ให้ทาย — รอแอดมินเพิ่มคู่</p>
-    </div>
-
-    <!-- CHAMPION -->
-    <div id="tab-champion" class="hidden">
-      <div class="card">
-        <h3>👑 ทายแชมป์ (+10 ต่อทีมที่เป็นแชมป์จริง)</h3>
-        <p class="mut" id="champLockMsg"></p>
-        <div id="champForm">
-          <label>แชมป์ทีมที่ 1</label>
-          <input id="champ1" list="teamList" placeholder="พิมพ์ชื่อทีม" />
-          <label>แชมป์ทีมที่ 2</label>
-          <input id="champ2" list="teamList" placeholder="พิมพ์ชื่อทีม" />
-          <datalist id="teamList"></datalist>
-          <div style="height:10px"></div>
-          <button id="champSave">บันทึกแชมป์</button>
+  <!-- ============ APP ============ -->
+  <div id="appView" class="hidden" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+    <!-- header -->
+    <div style="flex:none;padding:14px 22px 14px;border-bottom:1px solid #1a1e25;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="stripes" style="margin-bottom:6px;"><div style="width:16px;height:4px;background:#EF3E42;"></div><div style="width:16px;height:4px;background:#18A957;"></div><div style="width:16px;height:4px;background:#2D7DF6;"></div></div>
+          <div class="k" style="font-weight:800;font-size:21px;line-height:1;letter-spacing:-.2px;">ทายบอลโลก <span style="color:var(--green);">26</span></div>
         </div>
-        <div id="champTable"></div>
-      </div>
-    </div>
-
-    <!-- BOARD -->
-    <div id="tab-board" class="hidden">
-      <div class="card">
-        <h3>📊 ตารางคะแนนสด</h3>
-        <table id="boardTable"><thead><tr><th>#</th><th>ผู้เล่น</th><th>ยกมา</th><th>รายคู่</th><th>แชมป์</th><th>รวม</th></tr></thead><tbody></tbody></table>
-        <p class="mut" id="boardChamp"></p>
-      </div>
-    </div>
-
-    <!-- ADMIN -->
-    <div id="tab-admin" class="hidden">
-      <div class="card">
-        <h3>➕ เพิ่มคู่แข่งขัน</h3>
-        <div class="row"><input id="amHome" placeholder="ทีมเหย้า" /><input id="amAway" placeholder="ทีมเยือน" /></div>
-        <div class="row" style="margin-top:8px"><input id="amGroup" placeholder="กลุ่ม/รอบ เช่น A นัด2" /><input id="amKick" type="datetime-local" /></div>
-        <div style="height:8px"></div>
-        <button id="amAdd">เพิ่มคู่</button>
-        <div style="height:10px"></div>
-        <button id="amSeed" class="sec sm">📥 นำเข้าโปรแกรมนัด 3 กลุ่ม A-D (ตรวจเวลาก่อนแชร์!)</button>
-      </div>
-      <div class="card">
-        <h3>✅ กรอกผล / คนยิง</h3>
-        <select id="amMatchSel"></select>
-        <div class="row" style="margin-top:8px">
-          <input id="amHs" type="number" min="0" placeholder="สกอร์เหย้า" />
-          <input id="amAs" type="number" min="0" placeholder="สกอร์เยือน" />
+        <div style="display:flex;align-items:center;gap:9px;">
+          <div style="text-align:right;line-height:1;">
+            <div class="k" id="meRank" style="font-size:11px;color:var(--mut);letter-spacing:.5px;">—</div>
+            <div class="k" id="meTotal" style="font-weight:800;font-size:22px;">0<span style="font-size:11px;color:var(--mut);font-weight:500;margin-left:2px;">แต้ม</span></div>
+          </div>
+          <div id="logoutBtn" class="k" style="height:34px;padding:0 11px;border-radius:10px;background:#171b22;border:1px solid #262b33;display:flex;align-items:center;color:var(--mut);font-weight:700;font-size:12px;cursor:pointer;">ออก</div>
+          <img id="mePhoto" referrerpolicy="no-referrer" style="width:38px;height:38px;border-radius:50%;box-shadow:0 0 0 1.5px #2a2f38;flex:none;object-fit:cover;" alt="" />
         </div>
-        <label>คนยิงจริง (คั่นด้วย , )</label>
-        <input id="amScorers" placeholder="เช่น วินิซิอุส, คุนญ่า" />
-        <label>ตัวที่ไม่ได้ลงสนาม (เฉพาะที่มีในโพย — ใช้ตัดสินคนยิงชื่อ2)</label>
-        <input id="amDnp" placeholder="เช่น เนย์มาร์, พูลิซิช" />
-        <div style="height:8px"></div>
-        <button id="amResult">บันทึกผล</button>
-      </div>
-      <div class="card warn">
-        <h3>🏆 ตั้งแชมป์ทัวร์นาเมนต์ (ตอนจบ)</h3>
-        <input id="amChampion" list="teamList" placeholder="ทีมแชมป์จริง" />
-        <div style="height:8px"></div>
-        <button id="amSetChamp" class="sec">ตั้งแชมป์ (ให้ +10)</button>
       </div>
     </div>
+
+    <!-- scroll -->
+    <div style="flex:1;overflow-y:auto;padding:16px 18px 24px;min-height:0;">
+      <div id="tab-fixtures"></div>
+      <div id="tab-champion" class="hidden"></div>
+      <div id="tab-board" class="hidden"></div>
+      <div id="tab-admin" class="hidden"></div>
+    </div>
+
+    <!-- bottom nav -->
+    <div id="bottomNav" style="flex:none;display:flex;border-top:1px solid #1a1e25;background:#0c0e12;padding:6px 10px 18px;"></div>
   </div>
 
-  <p class="mut" style="text-align:center;margin-top:20px">กติกา: ชนะ+1 · เสมอ+2 · สกอร์เป๊ะ+3 · คนยิง+1 · แชมป์+10</p>
+  <div id="toast" class="hidden k" style="position:absolute;bottom:90px;left:50%;transform:translateX(-50%);background:var(--ink);color:#0B0D11;font-weight:700;font-size:14px;padding:11px 20px;border-radius:12px;white-space:nowrap;box-shadow:0 10px 30px -8px rgba(0,0,0,.6);z-index:30;"></div>
 </div>
-<div id="toast" class="toast"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc,
-         onSnapshot, query, orderBy }
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, onSnapshot, query, orderBy }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-/* ==========================================================================
-   1) ตั้งค่า — แก้ก่อนใช้งาน (ดู SETUP.md)
-   ========================================================================== */
+/* ===== config ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyAedCt1NUxlRb0FUv9IBYo6W-9emARcyWo",
   authDomain: "wc2026-fc378.firebaseapp.com",
@@ -184,375 +128,449 @@ const firebaseConfig = {
   appId: "1:57497802236:web:2fa37e0869fb9653774e79",
   measurementId: "G-1XHSCEYBSC",
 };
-const ADMIN_EMAILS = ["ton.itthiphon@gmail.com"];   // ใครเป็นแอดมิน (ตามอีเมล Google)
-const ROSTER = ["กราฟ","กุ้ย","นน","BB","กอล์ฟ","ต้น"];   // สมาชิกวงเดิม (คะแนนยกมาตั้งในสคริปต์แอดมิน → config/carry)
-const TEAMS = ["บราซิล","อาร์เจนตินา","ฝรั่งเศส","สเปน","อังกฤษ","โปรตุเกส","เยอรมนี",
-  "เนเธอร์แลนด์","เบลเยียม","อิตาลี","โครเอเชีย","อุรุกวัย","โคลอมเบีย","โมร็อกโก",
-  "สหรัฐฯ","เม็กซิโก","แคนาดา","ญี่ปุ่น","เกาหลีใต้","ออสเตรเลีย","สวิตเซอร์แลนด์",
-  "เดนมาร์ก","เซเนกัล","สวีเดน","ออสเตรีย","ตุรกี","อิหร่าน","เอกวาดอร์","ปารากวัย",
-  "สกอตแลนด์","กานา","นอร์เวย์","แอฟริกาใต้","เช็ก","กาตาร์","บอสเนีย","เฮติ","ปานามา"];
+const ADMIN_EMAILS = ["ton.itthiphon@gmail.com"];
+const ROSTER = ["กราฟ","กุ้ย","นน","BB","กอล์ฟ","ต้น"];
+const LOCK_BEFORE_MS = 10*60*1000;
 
-// โปรแกรมนัด 3 กลุ่ม A-D (คำนวณจาก round-robin) — ⚠️ เวลาเป็นค่าเริ่มต้น ตรวจ/แก้ก่อนแชร์
-const SEED_FIXTURES = [
-  { home:"เช็ก", away:"เม็กซิโก", group:"A นัด3", kickoff:"2026-06-25T08:00" },
-  { home:"แอฟริกาใต้", away:"เกาหลีใต้", group:"A นัด3", kickoff:"2026-06-25T08:00" },
-  { home:"แคนาดา", away:"สวิตเซอร์แลนด์", group:"B นัด3", kickoff:"2026-06-26T02:00" },
-  { home:"บอสเนีย", away:"กาตาร์", group:"B นัด3", kickoff:"2026-06-26T02:00" },
-  { home:"บราซิล", away:"สกอตแลนด์", group:"C นัด3", kickoff:"2026-06-27T08:00" },
-  { home:"โมร็อกโก", away:"เฮติ", group:"C นัด3", kickoff:"2026-06-27T08:00" },
-  { home:"สหรัฐฯ", away:"ตุรกี", group:"D นัด3", kickoff:"2026-06-27T05:00" },
-  { home:"ออสเตรเลีย", away:"ปารากวัย", group:"D นัด3", kickoff:"2026-06-27T05:00" },
-];
+const TEAMS = {
+  "บราซิล":{code:"BRA",color:"#E0A800",dark:true},"อาร์เจนตินา":{code:"ARG",color:"#74a9d8",dark:true},
+  "ฝรั่งเศส":{code:"FRA",color:"#274fa3"},"สเปน":{code:"ESP",color:"#c8102e"},"อังกฤษ":{code:"ENG",color:"#c7283b"},
+  "โปรตุเกส":{code:"POR",color:"#0e7a3b"},"เยอรมนี":{code:"GER",color:"#2b2f38"},"เนเธอร์แลนด์":{code:"NED",color:"#e2620e"},
+  "เบลเยียม":{code:"BEL",color:"#caa227",dark:true},"อิตาลี":{code:"ITA",color:"#1e6fb0"},"โครเอเชีย":{code:"CRO",color:"#c8324b"},
+  "โมร็อกโก":{code:"MAR",color:"#a01e2b"},"สหรัฐฯ":{code:"USA",color:"#b0203c"},"เม็กซิโก":{code:"MEX",color:"#0f7a4a"},
+  "แคนาดา":{code:"CAN",color:"#d52b1e"},"ญี่ปุ่น":{code:"JPN",color:"#bc002d"},"เกาหลีใต้":{code:"KOR",color:"#1e3a8a"},
+  "ออสเตรเลีย":{code:"AUS",color:"#FFCD00",dark:true},"สกอตแลนด์":{code:"SCO",color:"#27488f"},"สวีเดน":{code:"SWE",color:"#1f6ab0"},
+  "เดนมาร์ก":{code:"DEN",color:"#c60c30"},"เซเนกัล":{code:"SEN",color:"#1a8a4a"},"เอกวาดอร์":{code:"ECU",color:"#ffce00",dark:true},
+  "คูราเซา":{code:"CUR",color:"#1a3a8f"},"ตูนิเซีย":{code:"TUN",color:"#c1121f"},"ไอวอรีโคสต์":{code:"CIV",color:"#f77f00",dark:true},
+  "เฮติ":{code:"HAI",color:"#15317e"},"สวิตเซอร์แลนด์":{code:"SUI",color:"#d52b1e"},"เช็ก":{code:"CZE",color:"#11457e"},
+  "แอฟริกาใต้":{code:"RSA",color:"#007a4d"},"กาตาร์":{code:"QAT",color:"#8d1b3d"},"บอสเนีย":{code:"BIH",color:"#1b3a8f"},
+  "ปานามา":{code:"PAN",color:"#d21034"},"ตุรกี":{code:"TUR",color:"#e30a17"},"ปารากวัย":{code:"PAR",color:"#d52b1e"},
+  "แอลจีเรีย":{code:"ALG",color:"#1a7a4a"},"จอร์แดน":{code:"JOR",color:"#007a3d"},"ออสเตรีย":{code:"AUT",color:"#ed2939"},
+  "อิรัก":{code:"IRQ",color:"#1a7a4a"},"นอร์เวย์":{code:"NOR",color:"#ba0c2f"},"อุซเบกิสถาน":{code:"UZB",color:"#1eb53a"},
+  "โคลอมเบีย":{code:"COL",color:"#fcd116",dark:true},"อุรุกวัย":{code:"URU",color:"#4a8fd6",dark:true},
+  "อิหร่าน":{code:"IRN",color:"#239f40"},"กานา":{code:"GHA",color:"#1a7a4a"},
+};
+const CHAMP_TEAMS = ["บราซิล","อาร์เจนตินา","ฝรั่งเศส","สเปน","อังกฤษ","โปรตุเกส","เยอรมนี","เนเธอร์แลนด์","เบลเยียม","อิตาลี","โครเอเชีย","โมร็อกโก"];
+const FLAGS = {
+  "บราซิล":"🇧🇷","อาร์เจนตินา":"🇦🇷","ฝรั่งเศส":"🇫🇷","สเปน":"🇪🇸","อังกฤษ":"🏴󠁧󠁢󠁥󠁮󠁧󠁿","โปรตุเกส":"🇵🇹","เยอรมนี":"🇩🇪",
+  "เนเธอร์แลนด์":"🇳🇱","เบลเยียม":"🇧🇪","อิตาลี":"🇮🇹","โครเอเชีย":"🇭🇷","โมร็อกโก":"🇲🇦","สหรัฐฯ":"🇺🇸","เม็กซิโก":"🇲🇽",
+  "แคนาดา":"🇨🇦","ญี่ปุ่น":"🇯🇵","เกาหลีใต้":"🇰🇷","ออสเตรเลีย":"🇦🇺","สกอตแลนด์":"🏴󠁧󠁢󠁳󠁣󠁴󠁿","สวีเดน":"🇸🇪","เดนมาร์ก":"🇩🇰",
+  "เซเนกัล":"🇸🇳","เอกวาดอร์":"🇪🇨","คูราเซา":"🇨🇼","ตูนิเซีย":"🇹🇳","ไอวอรีโคสต์":"🇨🇮","เฮติ":"🇭🇹","สวิตเซอร์แลนด์":"🇨🇭",
+  "เช็ก":"🇨🇿","แอฟริกาใต้":"🇿🇦","กาตาร์":"🇶🇦","บอสเนีย":"🇧🇦","ปานามา":"🇵🇦","ตุรกี":"🇹🇷","ปารากวัย":"🇵🇾","แอลจีเรีย":"🇩🇿",
+  "จอร์แดน":"🇯🇴","ออสเตรีย":"🇦🇹","อิรัก":"🇮🇶","นอร์เวย์":"🇳🇴","อุซเบกิสถาน":"🇺🇿","โคลอมเบีย":"🇨🇴","อุรุกวัย":"🇺🇾","อิหร่าน":"🇮🇷","กานา":"🇬🇭",
+};
+const fe = n => FLAGS[n] || "";
 
-/* ==========================================================================
-   2) Firebase init
-   ========================================================================== */
-const app  = initializeApp(firebaseConfig);
-const db   = getFirestore(app);
+/* ===== init ===== */
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-/* ==========================================================================
-   3) สถานะ + helper
-   ========================================================================== */
-let me = null;              // { uid, name, email }
-let matches = [];
-let allPreds = [];          // โพยทุกคน (โปร่งใส)
-let myPreds = {};
-const LOCK_BEFORE_MS = 10 * 60 * 1000;   // ปิดรับโพยก่อนเตะ 10 นาที
-const $ = s => document.querySelector(s);
-const toast = msg => { const t=$("#toast"); t.textContent=msg; t.classList.add("show");
-                       setTimeout(()=>t.classList.remove("show"), 1800); };
-const isAdmin = () => me && ADMIN_EMAILS.includes(me.email);
-const now = () => Date.now();
-const norm = s => (s||"").trim().toLowerCase();
-TEAMS.forEach(t => { const o=document.createElement("option"); o.value=t; $("#teamList").appendChild(o); });
+/* ===== state ===== */
+let me = null;              // {uid,email,name,photo}
+let matches = [], allPreds = [], myPreds = {};
+let carry = {}, champPicks = {}, tournament = {}, playersByName = {}, prev = {};
+let tab = "fixtures", filter = "open", pickName = ROSTER[0];
+const expanded = {};
+let nowTs = Date.now();
 
-/* ==========================================================================
-   4) คิดแต้ม (ฟังก์ชันบริสุทธิ์ — กติกาวง + กฎคนยิงเป๊ะ)
-   ========================================================================== */
-function scoreMatch(pred, m) {
-  if (!pred || !m || m.status !== "finished") return 0;
-  let pts = 0;
-  const actual = m.homeScore > m.awayScore ? "home" : m.homeScore < m.awayScore ? "away" : "draw";
-  const predResult = pred.homeScore > pred.awayScore ? "home" : pred.homeScore < pred.awayScore ? "away" : "draw";
-  if (predResult === actual) pts += (actual === "draw") ? 2 : 1;                 // ผล
-  if (pred.homeScore === m.homeScore && pred.awayScore === m.awayScore) pts += 3; // สกอร์เป๊ะ
-  // คนยิง
-  if (pred.homeScore === 0 && pred.awayScore === 0) {
-    // ทาย 0-0 = ทายว่า "ไม่มีใครยิง" → ได้ +1 ถ้าผลจริงออก 0-0 จริง
-    if (m.homeScore === 0 && m.awayScore === 0) pts += 1;
+const $ = s => document.querySelector(s);
+const esc = s => (s||"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const norm = s => (s||"").trim().toLowerCase();
+const isAdmin = () => me && ADMIN_EMAILS.includes(me.email);
+const team = n => TEAMS[n] || {code:(n||"").slice(0,3), color:"#3A3F49"};
+function flag(n, sm){ const t=team(n); const w=sm?34:42,h=sm?24:30,fs=sm?11:13;
+  return `<div class="k" style="display:flex;align-items:center;justify-content:center;width:${w}px;height:${h}px;border-radius:6px;font-weight:700;font-size:${fs}px;letter-spacing:.5px;background:${t.color};color:${t.dark?"#1a1a1a":"#fff"};flex:none;">${esc(t.code)}</div>`; }
+function silhouetteHTML(s){ const i=Math.round(s*.62);
+  return `<div style="width:${s}px;height:${s}px;border-radius:50%;background:#1b1f27;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 1.5px #2a2f38;"><svg width="${i}" height="${i}" viewBox="0 0 38 38"><circle cx="19" cy="14.5" r="6.4" fill="#5b626d"></circle><path d="M7.5 32.5c0-6.6 5.2-10.5 11.5-10.5s11.5 3.9 11.5 10.5z" fill="#5b626d"></path></svg></div>`; }
+function avatarHTML(photo,s){ s=s||34;
+  if(photo) return `<img class="ava" data-s="${s}" referrerpolicy="no-referrer" src="${esc(photo)}" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;flex:none;box-shadow:0 0 0 1.5px #2a2f38;">`;
+  return silhouetteHTML(s); }
+function bindAvatars(box){ box.querySelectorAll("img.ava").forEach(img=>{ img.onerror=()=>{
+  const t=document.createElement("template"); t.innerHTML=silhouetteHTML(+img.dataset.s); img.replaceWith(t.content.firstChild); }; }); }
+let toastT;
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.remove("hidden");
+  t.style.animation="toastIn .2s ease"; clearTimeout(toastT); toastT=setTimeout(()=>t.classList.add("hidden"),1800); }
+
+/* ===== scoring (กติกาวง) ===== */
+function scoreMatch(p, m){
+  if(!p||!m||m.status!=="finished") return 0;
+  let pts=0;
+  const actual = m.homeScore>m.awayScore?"h":m.homeScore<m.awayScore?"a":"d";
+  const g = p.homeScore>p.awayScore?"h":p.homeScore<p.awayScore?"a":"d";
+  if(g===actual) pts += actual==="d"?2:1;
+  if(p.homeScore===m.homeScore && p.awayScore===m.awayScore) pts+=3;
+  if(p.homeScore===0 && p.awayScore===0){
+    if(m.homeScore===0 && m.awayScore===0) pts+=1;   // ทาย 0-0 = ทายว่าไม่มีใครยิง
   } else {
-    const s1 = norm(pred.scorer1), s2 = norm(pred.scorer2);
-    const scored = (m.scorers || []).map(norm);
-    const dnp    = (m.dnp || []).map(norm);
-    // กฎเป๊ะ: ชื่อ1 ยิง → +1 ; ถ้าชื่อ1 "ไม่ได้ลง" และชื่อ2 ยิง → +1
-    if (s1 && scored.includes(s1)) pts += 1;
-    else if (s1 && dnp.includes(s1) && s2 && scored.includes(s2)) pts += 1;
+    const s1=norm(p.scorer1), s2=norm(p.scorer2), sc=(m.scorers||[]).map(norm), dnp=(m.dnp||[]).map(norm);
+    if(s1 && sc.includes(s1)) pts+=1;
+    else if(s1 && dnp.includes(s1) && s2 && sc.includes(s2)) pts+=1;
   }
   return pts;
 }
+const lockTs = m => (m.kickoff||0) - LOCK_BEFORE_MS;
+const stateOf = m => m.status==="finished" ? "done" : (nowTs>=lockTs(m) ? "locked" : "open");
+function countdown(ms){ if(ms<=0) return "ปิดรับแล้ว";
+  const s=Math.floor(ms/1000), d=Math.floor(s/86400);
+  if(d>=1) return "ปิดใน "+d+" วัน "+Math.floor((s%86400)/3600)+" ชม.";
+  const p=n=>String(n).padStart(2,"0");
+  return "ปิดใน "+Math.floor(s/3600)+":"+p(Math.floor((s%3600)/60))+":"+p(s%60); }
+const fmtKo = m => m.kickoff ? new Date(m.kickoff).toLocaleString("th-TH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "";
 
-/* ==========================================================================
-   5) Auth (Google)
-   ========================================================================== */
-$("#googleBtn").onclick = async () => {
-  if (firebaseConfig.apiKey === "ใส่ของคุณ") {
-    $("#liMsg").textContent = "⚠️ ยังไม่ได้ใส่ Firebase config — เปิด index.html ใส่ค่าจริงจาก Firebase ก่อน (ดู SETUP.md ขั้น 3)";
-    return;
-  }
-  try { await signInWithPopup(auth, provider); }
-  catch (e) {
-    const hint = e.code === "auth/network-request-failed"
-      ? " — เช็ก: ใส่ config จริงครบ? / เน็ตต่ออยู่? / เปิดผ่าน http ไม่ใช่ file://"
-      : e.code === "auth/unauthorized-domain"
-      ? " — เอาโดเมนนี้ไปใส่ใน Firebase → Authentication → Settings → Authorized domains"
-      : e.code === "auth/operation-not-allowed"
-      ? " — ยังไม่ได้เปิด Google ใน Firebase → Authentication → Sign-in method"
-      : "";
-    $("#liMsg").textContent = "เข้าไม่สำเร็จ: " + (e.code || e.message) + hint;
-  }
+/* ===== auth ===== */
+$("#googleBtn").onclick = async ()=>{
+  if(firebaseConfig.apiKey==="ใส่ของคุณ"){ $("#liMsg").textContent="⚠️ ยังไม่ได้ใส่ Firebase config"; return; }
+  try{ await signInWithPopup(auth, provider); }
+  catch(e){ const h = e.code==="auth/unauthorized-domain" ? " — เพิ่มโดเมนใน Authorized domains" : e.code==="auth/operation-not-allowed" ? " — เปิด Google ใน Authentication" : "";
+    $("#liMsg").textContent="เข้าไม่สำเร็จ: "+(e.code||e.message)+h; }
 };
-$("#logoutBtn").onclick = () => signOut(auth);
+$("#logoutBtn").onclick = ()=> signOut(auth);
 
-onAuthStateChanged(auth, async user => {
-  if (!user) { showView("login"); me = null; return; }
-  try {
-    const snap = await getDoc(doc(db, "players", user.uid));
-    if (!snap.exists() || !snap.data().name) {
-      me = { uid:user.uid, email:user.email, name:"" };
-      await showNameScreen();
-      showView("name");
-    } else {
-      me = { uid:user.uid, email:user.email, name:snap.data().name };
-      enterApp();
-    }
-  } catch (e) {
-    showView("login");
-    $("#liMsg").textContent = "อ่านข้อมูลไม่ได้: " + (e.code || e.message) +
-      " — น่าจะยังไม่ได้วาง/Publish กฎ Rules ใน Firestore (SETUP.md ขั้น 4)";
-  }
+onAuthStateChanged(auth, async user=>{
+  if(!user){ show("login"); me=null; return; }
+  try{
+    const snap = await getDoc(doc(db,"players",user.uid));
+    me = {uid:user.uid, email:user.email, photo:user.photoURL||"", name: snap.exists()?snap.data().name:""};
+    if(!me.name){ await showIdentity(); show("identity"); }
+    else { try{ await setDoc(doc(db,"players",me.uid),{photo:me.photo,email:me.email},{merge:true}); }catch(e){} enterApp(); }
+  }catch(e){ show("login"); $("#liMsg").textContent="อ่านข้อมูลไม่ได้: "+(e.code||e.message)+" — ยังไม่ได้ Publish Rules?"; }
 });
 
-// เติม dropdown ด้วยรายชื่อวงที่ "ยังไม่มีใครจอง" + ตัวเลือกสมาชิกใหม่
-async function showNameScreen() {
+function show(v){ $("#loginView").classList.toggle("hidden",v!=="login");
+  $("#identityView").classList.toggle("hidden",v!=="identity");
+  $("#appView").classList.toggle("hidden",v!=="app"); }
+
+async function showIdentity(){
   const snap = await getDocs(collection(db,"players"));
-  const taken = new Set();
-  snap.forEach(d => { const p = d.data(); if (p.name && p.uid !== me.uid) taken.add(p.name); });
-  const sel = $("#rosterSel");
-  const avail = ROSTER.filter(n => !taken.has(n));
-  sel.innerHTML = avail.map(n => `<option value="${n}">${n}</option>`).join("")
-    + `<option value="__new__">+ สมาชิกใหม่…</option>`;
-  $("#newNameWrap").classList.toggle("hidden", avail.length > 0);
-}
-$("#rosterSel").onchange = e =>
-  $("#newNameWrap").classList.toggle("hidden", e.target.value !== "__new__");
-
-$("#nameSave").onclick = async () => {
-  const v = $("#rosterSel").value;
-  const name = v === "__new__" ? $("#nameInput").value.trim() : v;
-  if (!name) { toast("เลือกชื่อหรือพิมพ์ชื่อก่อน"); return; }
-  try {
-    await setDoc(doc(db,"players", me.uid),
-      { uid:me.uid, email:me.email, name, champ1:"", champ2:"" }, { merge:true });
-    me.name = name;
-    enterApp();
-  } catch (e) { toast("บันทึกไม่ได้: " + (e.code||e.message) + " — วาง Rules หรือยัง?"); }
-};
-
-function showView(v) {
-  $("#loginView").classList.toggle("hidden", v!=="login");
-  $("#nameView").classList.toggle("hidden", v!=="name");
-  $("#appView").classList.toggle("hidden", v!=="app");
-}
-
-function enterApp() {
-  showView("app");
-  $("#meName").textContent = me.name;
-  $("#adminTab").classList.toggle("hidden", !isAdmin());
-  watchData();
-  renderChampion();
-}
-
-/* ==========================================================================
-   6) แท็บ
-   ========================================================================== */
-document.querySelectorAll(".nav button").forEach(b => b.onclick = () => {
-  document.querySelectorAll(".nav button").forEach(x => x.classList.remove("active"));
-  b.classList.add("active");
-  ["fixtures","champion","board","admin"].forEach(t =>
-    $("#tab-"+t).classList.toggle("hidden", t !== b.dataset.tab));
-  if (b.dataset.tab === "champion") renderChampion();
-});
-
-/* ==========================================================================
-   7) ฟังข้อมูลสด
-   ========================================================================== */
-function watchData() {
-  onSnapshot(query(collection(db,"matches"), orderBy("kickoff")), snap => {
-    matches = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-    renderFixtures(); renderAdminMatchSelect(); renderBoard();
-  });
-  onSnapshot(collection(db,"predictions"), snap => {
-    allPreds = snap.docs.map(d => d.data());
-    myPreds = {};
-    allPreds.forEach(p => { if (p.uid === me.uid) myPreds[p.matchId] = p; });
-    renderFixtures(); renderBoard();
-  });
-}
-
-/* ==========================================================================
-   8) หน้าทายผล (+ โปร่งใส/ล็อก/กันลอก)
-   ========================================================================== */
-function renderFixtures() {
-  const box = $("#fixturesList"); box.innerHTML = "";
-  $("#fxEmpty").classList.toggle("hidden", matches.length > 0);
-  matches.forEach(m => {
-    const locked = m.status === "finished" || now() >= ((m.kickoff || 0) - LOCK_BEFORE_MS);
-    const kick = m.kickoff ? new Date(m.kickoff).toLocaleString("th-TH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "";
-    const pill = m.status==="finished" ? `<span class="pill done">จบ ${m.homeScore}-${m.awayScore}</span>`
-               : locked ? `<span class="pill lock">ปิดรับ</span>`
-               : `<span class="pill open">เปิดทาย</span>`;
-    const mp = allPreds.filter(p => p.matchId === m.id);
-    const c = document.createElement("div"); c.className="card";
-    let html = `<div class="row"><div><span class="grp">${m.group||""} · ${kick}</span><br>
-        <span class="teams">${m.home}</span> <span class="vs">vs</span> <span class="teams">${m.away}</span></div>
-        <div style="flex:0">${pill}</div></div>`;
-
-    if (!locked) {
-      const p = myPreds[m.id] || { homeScore:"", awayScore:"", scorer1:"", scorer2:"" };
-      html += `<div class="score" style="margin-top:10px">
-          <input type="number" min="0" id="hs_${m.id}" value="${p.homeScore}" placeholder="0">
-          <span class="vs">-</span>
-          <input type="number" min="0" id="as_${m.id}" value="${p.awayScore}" placeholder="0">
-          <span class="mut" style="flex:2">สกอร์ที่ทาย (0-0 = ไม่ต้องทายคนยิง)</span></div>
-        <div class="row" style="margin-top:8px">
-          <input id="s1_${m.id}" value="${p.scorer1||""}" placeholder="คนยิง ชื่อ1 (ตัวจบสกอร์)">
-          <input id="s2_${m.id}" value="${p.scorer2||""}" placeholder="คนยิง ชื่อ2 (สำรอง)"></div>
-        <div class="row" style="margin-top:8px;align-items:center">
-          <button class="sm" id="save_${m.id}" style="flex:0">บันทึกโพยคู่นี้</button>
-          <span class="mut">🔒 ${mp.length} คนส่งแล้ว · เปิดดูของทุกคนเมื่อปิดรับ</span></div>`;
-    } else {
-      const earned = m.status==="finished" && myPreds[m.id] ? ` · คุณได้ ${scoreMatch(myPreds[m.id], m)} แต้ม` : "";
-      html += `<div style="margin-top:10px"><div class="mut">📋 โพยทุกคน (${mp.length} คน)${earned}</div>
-        <table><thead><tr><th>ผู้เล่น</th><th>สกอร์</th><th>คนยิง</th><th>แต้ม</th></tr></thead><tbody>` +
-        (mp.length ? mp.map(p => {
-          const pts = m.status==="finished" ? scoreMatch(p,m) : "";
-          const sc = [p.scorer1,p.scorer2].filter(Boolean).join(", ");
-          const meCls = p.uid===me.uid ? ' class="me"' : '';
-          return `<tr${meCls}><td>${p.player}</td><td>${p.homeScore}-${p.awayScore}</td><td class="mut">${sc||"-"}</td><td>${pts!==""?`<b>${pts}</b>`:""}</td></tr>`;
-        }).join("") : `<tr><td colspan="4" class="mut">ไม่มีคนส่งโพย</td></tr>`) +
-        `</tbody></table></div>`;
-    }
-    c.innerHTML = html;
+  const taken = new Set(); snap.forEach(d=>{const p=d.data(); if(p.name&&p.uid!==me.uid) taken.add(p.name);});
+  const avail = ROSTER.filter(n=>!taken.has(n));
+  pickName = avail[0] || "__new__";
+  const box = $("#rosterChips"); box.innerHTML="";
+  const opts = [...avail, "__new__"];
+  opts.forEach(n=>{
+    const sel = n===pickName;
+    const label = n==="__new__" ? "+ สมาชิกใหม่" : n;
+    const c = document.createElement("div"); c.className="k";
+    c.style.cssText = `font-weight:700;font-size:16px;padding:11px 20px;border-radius:13px;cursor:pointer;background:${sel?"#1FB85E":"#14171D"};color:${sel?"#04210F":"#EEF1F4"};border:1px solid ${sel?"#1FB85E":"#262b33"};`;
+    c.textContent = label;
+    c.onclick = ()=>{ pickName=n; showIdentityRefresh(); };
     box.appendChild(c);
-    if (!locked) {
-      $("#save_"+m.id).onclick = () => savePred(m);
-      // ทาย 0-0 → ปิดช่องคนยิง (เท่ากับทายว่าไม่มีใครยิง)
-      const upd = () => {
-        const zero = parseInt($("#hs_"+m.id).value)===0 && parseInt($("#as_"+m.id).value)===0;
-        const s1=$("#s1_"+m.id), s2=$("#s2_"+m.id);
-        s1.disabled = s2.disabled = zero;
-        if (zero) { s1.value=""; s2.value=""; s1.placeholder="0-0 = ไม่มีคนยิง"; }
-        else { s1.placeholder="คนยิง ชื่อ1 (ตัวจบสกอร์)"; }
-      };
-      $("#hs_"+m.id).oninput = upd; $("#as_"+m.id).oninput = upd; upd();
-    }
   });
+  $("#newNameWrap").classList.toggle("hidden", pickName!=="__new__");
 }
-
-async function savePred(m) {
-  if (now() >= (m.kickoff||0) - LOCK_BEFORE_MS) { toast("คู่นี้ปิดรับแล้ว (ก่อนเตะ 10 นาที)"); renderFixtures(); return; }
-  const hs = parseInt($("#hs_"+m.id).value), as = parseInt($("#as_"+m.id).value);
-  if (isNaN(hs) || isNaN(as)) { toast("ใส่สกอร์ให้ครบ"); return; }
-  const zeroZero = hs === 0 && as === 0;   // ทาย 0-0 → ไม่เก็บคนยิง (เท่ากับทายว่าไม่มีใครยิง)
-  const pred = { uid:me.uid, player:me.name, matchId:m.id, homeScore:hs, awayScore:as,
-                 scorer1: zeroZero ? "" : $("#s1_"+m.id).value.trim(),
-                 scorer2: zeroZero ? "" : $("#s2_"+m.id).value.trim() };
-  try { await setDoc(doc(db,"predictions", `${m.id}__${me.uid}`), pred); toast("บันทึกแล้ว ✅"); }
-  catch (e) { toast("บันทึกไม่ได้ (อาจปิดรับแล้ว)"); }
+function showIdentityRefresh(){
+  [...$("#rosterChips").children].forEach((c)=>{
+    const isNew = c.textContent==="+ สมาชิกใหม่";
+    const n = isNew ? "__new__" : c.textContent;
+    const sel = n===pickName;
+    c.style.background = sel?"#1FB85E":"#14171D"; c.style.color = sel?"#04210F":"#EEF1F4";
+    c.style.border = "1px solid "+(sel?"#1FB85E":"#262b33");
+  });
+  $("#newNameWrap").classList.toggle("hidden", pickName!=="__new__");
 }
+$("#confirmIdentity").onclick = async ()=>{
+  const name = pickName==="__new__" ? $("#newName").value.trim() : pickName;
+  if(!name){ toast("เลือกหรือพิมพ์ชื่อก่อน"); return; }
+  try{ await setDoc(doc(db,"players",me.uid),{uid:me.uid,email:me.email,name,photo:me.photo,champ1:"",champ2:""},{merge:true});
+    me.name=name; enterApp(); }
+  catch(e){ toast("บันทึกไม่ได้: "+(e.code||e.message)); }
+};
 
-/* ==========================================================================
-   9) ทายแชมป์
-   ========================================================================== */
-async function renderChampion() {
-  const [picksSnap, cfg, mySnap] = await Promise.all([
-    getDoc(doc(db,"config","champPicks")),
-    getDoc(doc(db,"config","tournament")),
-    getDoc(doc(db,"players", me.uid)),
-  ]);
-  const picks = picksSnap.exists() ? picksSnap.data() : {};
-  const locked = cfg.exists() && (cfg.data().picksLocked || cfg.data().championLocked);
-  $("#champForm").classList.toggle("hidden", locked);
-  if (locked) {
-    $("#champLockMsg").textContent = "🔒 ปิดรับทายแชมป์แล้ว — ทายของทุกคน:";
-    const names = Object.keys(picks).length ? Object.keys(picks) : ROSTER;
-    $("#champTable").innerHTML =
-      `<table><thead><tr><th>ผู้เล่น</th><th>แชมป์ 1</th><th>แชมป์ 2</th></tr></thead><tbody>`
-      + names.map(n => { const cls=n===me.name?' class="me"':''; const a=picks[n]||[];
-          return `<tr${cls}><td>${n}</td><td>${a[0]||"-"}</td><td>${a[1]||"-"}</td></tr>`; }).join("")
-      + `</tbody></table>`;
+function enterApp(){
+  show("app");
+  setAvatar();
+  renderNav(); watchData();
+}
+function initialAvatar(name){
+  const d=document.createElement("div"); d.id="mePhoto";
+  d.style.cssText="width:38px;height:38px;border-radius:50%;background:#1b1f27;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 1.5px #2a2f38;overflow:hidden;";
+  d.innerHTML=`<svg width="38" height="38" viewBox="0 0 38 38" aria-hidden="true"><circle cx="19" cy="14.5" r="6.4" fill="#5b626d"/><path d="M7.5 32.5c0-6.6 5.2-10.5 11.5-10.5s11.5 3.9 11.5 10.5z" fill="#5b626d"/></svg>`;
+  return d;
+}
+function setAvatar(){
+  const el=$("#mePhoto"); if(!el) return;
+  if(me.photo && el.tagName==="IMG"){
+    el.referrerPolicy="no-referrer";
+    el.onerror=()=>{ const f=initialAvatar(me.name); el.replaceWith(f); };
+    el.src=me.photo;
   } else {
-    $("#champTable").innerHTML = "";
-    $("#champLockMsg").textContent = "เลือก 2 ทีม (ก่อนปิดรับ)";
-    if (mySnap.exists()) { $("#champ1").value=mySnap.data().champ1||""; $("#champ2").value=mySnap.data().champ2||""; }
+    el.replaceWith(initialAvatar(me.name));
   }
 }
-$("#champSave").onclick = async () => {
-  await updateDoc(doc(db,"players", me.uid),
-    { champ1:$("#champ1").value.trim(), champ2:$("#champ2").value.trim() });
-  toast("บันทึกแชมป์แล้ว 👑"); renderBoard();
-};
 
-/* ==========================================================================
-   10) ตารางคะแนนสด
-   ========================================================================== */
-async function renderBoard() {
-  const [players, cfg, carrySnap, picksSnap] = await Promise.all([
-    getDocs(collection(db,"players")),
-    getDoc(doc(db,"config","tournament")),
-    getDoc(doc(db,"config","carry")),
-    getDoc(doc(db,"config","champPicks")),
-  ]);
-  const champion = cfg.exists() ? norm(cfg.data().champion) : "";
-  const carry = carrySnap.exists() ? carrySnap.data() : {};   // { ชื่อ: คะแนนยกมา }
-  const picks = picksSnap.exists() ? picksSnap.data() : {};   // { ชื่อ: [ทีม1,ทีม2] }
-  const mById = Object.fromEntries(matches.map(m => [m.id, m]));
-  // รวมรายชื่อจาก: คนที่ล็อกอินแล้ว + คะแนนยกมา + ทายแชมป์ → โชว์ครบทุกคน
-  const playerByName = {};
-  players.forEach(pl => { const d = pl.data(); if (d.name) playerByName[d.name] = d; });
-  const names = new Set([...Object.keys(carry), ...Object.keys(picks), ...Object.keys(playerByName)]);
-  const rows = [];
-  names.forEach(name => {
-    const d = playerByName[name];
-    let matchPts = 0;
-    if (d) allPreds.forEach(p => { if (p.uid === d.uid) matchPts += scoreMatch(p, mById[p.matchId]); });
-    let champPts = 0;
-    if (champion) champPts = (picks[name]||[]).map(norm).filter(t => t===champion).length * 10;
-    const carryPts = carry[name] || 0;
-    rows.push({ name, carryPts, matchPts, champPts, total:carryPts+matchPts+champPts });
+/* ===== data ===== */
+function watchData(){
+  onSnapshot(query(collection(db,"matches"),orderBy("kickoff")), snap=>{
+    matches = snap.docs.map(d=>({id:d.id,...d.data()})); renderAll();
   });
-  rows.sort((a,b) => b.total - a.total);
-  const tb = $("#boardTable").querySelector("tbody"); tb.innerHTML = "";
-  rows.forEach((r,i) => {
-    const tr = document.createElement("tr"); if (r.name===me.name) tr.className="me";
-    tr.innerHTML = `<td class="rank">${i+1}</td><td>${r.name}</td><td class="mut">${r.carryPts||""}</td>
-                    <td>${r.matchPts}</td><td>${r.champPts||""}</td><td><b>${r.total}</b></td>`;
-    tb.appendChild(tr);
+  onSnapshot(collection(db,"predictions"), snap=>{
+    allPreds = snap.docs.map(d=>d.data()); myPreds={};
+    allPreds.forEach(p=>{ if(p.uid===me.uid) myPreds[p.matchId]=p; }); renderAll();
   });
-  $("#boardChamp").textContent = champion ? `แชมป์ทัวร์นาเมนต์: ${cfg.data().champion}` : "ยังไม่ตั้งแชมป์";
+  onSnapshot(collection(db,"config"), snap=>{
+    snap.forEach(d=>{ if(d.id==="carry")carry=d.data(); if(d.id==="champPicks")champPicks=d.data(); if(d.id==="tournament")tournament=d.data(); if(d.id==="prev")prev=d.data(); });
+    renderAll();
+  });
+  onSnapshot(collection(db,"players"), snap=>{
+    playersByName={}; snap.forEach(d=>{ const p=d.data(); if(p.name) playersByName[p.name]={photo:p.photo||"",email:p.email||"",uid:p.uid}; });
+    renderAll();
+  });
+}
+function renderAll(){ renderHeader(); renderFixtures(); renderChampion(); renderBoard(); renderAdmin(); }
+
+/* ===== board calc (ใช้ร่วม) ===== */
+function rankMap(tot){ const a=Object.entries(tot).map(([n,t])=>({n,t})).sort((x,y)=>y.t-x.t); const r={}; a.forEach((x,i)=>r[x.n]=i+1); return r; }
+function computeBoard(){
+  const champion = norm(tournament.champion||"");
+  const names = new Set([...Object.keys(carry),...Object.keys(champPicks),...Object.keys(playersByName),...Object.keys(prev),...ROSTER]);
+  const cur={};
+  names.forEach(name=>{ let champPts=0; if(champion) champPts=(champPicks[name]||[]).map(norm).filter(t=>t===champion).length*10;
+    cur[name]=(carry[name]||0)+champPts; });
+  const curRank=rankMap(cur);
+  const havePrev=Object.keys(prev).length>0;
+  const prevRank=havePrev?rankMap(prev):{};
+  const rows=[...names].map(name=>{
+    const total=cur[name];
+    const todayPts=(name in prev)?(total-prev[name]):0;
+    let move=0; if(havePrev && (name in prevRank)) move=prevRank[name]-curRank[name];  // >0 = ขึ้น
+    return {name,total,todayPts,move,photo:(playersByName[name]||{}).photo||""};
+  });
+  rows.sort((a,b)=>b.total-a.total);
+  rows.forEach((r,i)=>r.rank=i+1);
+  return rows;
 }
 
-/* ==========================================================================
-   11) แอดมิน
-   ========================================================================== */
-$("#amAdd").onclick = async () => {
-  if (!isAdmin()) return;
-  const home=$("#amHome").value.trim(), away=$("#amAway").value.trim();
-  const kick=$("#amKick").value, group=$("#amGroup").value.trim();
-  if (!home||!away||!kick) { toast("กรอกทีม + เวลาเตะให้ครบ"); return; }
-  await setDoc(doc(db,"matches","m_"+Date.now()),
-    { home, away, group, kickoff:new Date(kick).getTime(),
-      homeScore:0, awayScore:0, scorers:[], dnp:[], status:"upcoming" });
-  $("#amHome").value=$("#amAway").value=$("#amGroup").value="";
-  toast("เพิ่มคู่แล้ว ✅");
-};
+/* ===== header ===== */
+function renderHeader(){
+  const rows=computeBoard(); const mine=rows.find(r=>r.name===me.name);
+  $("#meRank").textContent = mine?("อันดับ "+mine.rank):"—";
+  $("#meTotal").innerHTML = (mine?mine.total:0)+`<span style="font-size:11px;color:var(--mut);font-weight:500;margin-left:2px;">แต้ม</span>`;
+}
 
-$("#amSeed").onclick = async () => {
-  if (!isAdmin()) return;
-  for (const f of SEED_FIXTURES) {
-    const id = "seed_" + norm(f.home+"_"+f.away+"_"+f.group).replace(/[^a-z0-9ก-๙_]/g,"");
-    await setDoc(doc(db,"matches",id),
-      { home:f.home, away:f.away, group:f.group, kickoff:new Date(f.kickoff).getTime(),
-        homeScore:0, awayScore:0, scorers:[], dnp:[], status:"upcoming" }, { merge:true });
+/* ===== nav ===== */
+function renderNav(){
+  const tabs=[["fixtures","ทายผล"],["champion","แชมป์"],["board","คะแนน"]];
+  if(isAdmin()) tabs.push(["admin","แอดมิน"]);
+  const nav=$("#bottomNav"); nav.innerHTML="";
+  tabs.forEach(([k,label])=>{
+    const active=tab===k;
+    const d=document.createElement("div");
+    d.style.cssText="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 0;cursor:pointer;";
+    d.innerHTML=`<div style="width:22px;height:3px;border-radius:99px;background:${active?"#1FB85E":"transparent"};"></div>
+      <div class="k" style="font-weight:${active?700:500};font-size:12px;color:${active?"#EEF1F4":"#5b626d"};">${label}</div>`;
+    d.onclick=()=>{ tab=k; ["fixtures","champion","board","admin"].forEach(t=>$("#tab-"+t).classList.toggle("hidden",t!==k)); renderNav(); };
+    nav.appendChild(d);
+  });
+}
+
+/* ===== fixtures ===== */
+function renderFixtures(){
+  const box=$("#tab-fixtures");
+  const openCount=matches.filter(m=>stateOf(m)==="open").length;
+  const filters=[["all","ทั้งหมด"],["open","เปิดทาย"],["locked","ปิดรับ"],["done","จบแล้ว"]];
+  let html=`<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 14px;">
+      <h2 class="k" style="margin:0;font-weight:800;font-size:26px;">โปรแกรมทาย</h2>
+      <span class="k" style="font-size:12px;color:var(--mut);">${openCount} คู่เปิดทาย</span></div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding:0 4px 2px;">`;
+  filters.forEach(([k,label])=>{ const a=filter===k;
+    html+=`<div data-f="${k}" class="k flt" style="flex:none;font-weight:600;font-size:13px;padding:8px 16px;border-radius:99px;cursor:pointer;white-space:nowrap;background:${a?"#EEF1F4":"#14171D"};color:${a?"#0B0D11":"#8A929E"};border:1px solid ${a?"#EEF1F4":"#262b33"};">${label}</div>`; });
+  html+=`</div>`;
+
+  let list=matches.map(m=>({m,st:stateOf(m)}));
+  if(filter!=="all") list=list.filter(x=>x.st===filter);
+  if(!list.length) html+=`<p class="k" style="color:var(--dim);text-align:center;margin-top:30px;">ไม่มีคู่ในหมวดนี้</p>`;
+
+  list.forEach(({m,st})=>{
+    const rowBase="display:flex;align-items:center;gap:12px;padding:7px 0;";
+    const pill = st==="done" ? `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#16243a;color:#9cc3f3;">จบ ${m.homeScore}-${m.awayScore}</div>`
+      : st==="locked" ? `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#3a1c1f;color:#f0a3a8;">ปิดรับ</div>`
+      : `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#10301f;color:#5fcf94;">เปิดทาย</div>`;
+    let inner=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;">
+        <div class="k" style="font-size:12px;color:var(--mut);">${esc(m.group||"")} · ${fmtKo(m)}</div>${pill}</div>`;
+
+    if(st==="open"){
+      const p=myPreds[m.id]||{};
+      const sBox=`width:52px;height:46px;text-align:center;font-family:'Kanit';font-weight:700;font-size:25px;color:#EEF1F4;background:#0E1116;border:1px solid #2A303A;border-radius:11px;`;
+      inner+=`<div style="${rowBase}">${flag(m.home)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.home)} ${fe(m.home)}</div>
+          <input id="hs_${m.id}" inputmode="numeric" maxlength="2" value="${p.homeScore??""}" placeholder="0" style="${sBox}"></div>
+        <div style="${rowBase}">${flag(m.away)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.away)} ${fe(m.away)}</div>
+          <input id="as_${m.id}" inputmode="numeric" maxlength="2" value="${p.awayScore??""}" placeholder="0" style="${sBox}"></div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+          <input id="s1_${m.id}" class="field" value="${esc(p.scorer1||"")}" placeholder="คนยิง ตัวจบสกอร์">
+          <input id="s2_${m.id}" class="field" value="${esc(p.scorer2||"")}" placeholder="คนยิง สำรอง"></div>
+        <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;">
+          <span class="k" id="cd_${m.id}" style="font-size:11.5px;color:#5b626d;">⏱ ${countdown(lockTs(m)-nowTs)}</span>
+          <div id="save_${m.id}" class="k btnG" style="font-weight:700;font-size:14px;padding:9px 18px;">บันทึกโพย</div></div>`;
+    } else {
+      const done=st==="done";
+      const scStyle=w=>`font-family:'Kanit';font-weight:800;font-size:26px;width:52px;text-align:center;color:${w?"#1FB85E":"#EEF1F4"};`;
+      inner+=`<div style="${rowBase}">${flag(m.home)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.home)} ${fe(m.home)}</div>
+          <div style="${scStyle(done&&m.homeScore>m.awayScore)}">${done?m.homeScore:"–"}</div></div>
+        <div style="${rowBase}">${flag(m.away)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.away)} ${fe(m.away)}</div>
+          <div style="${scStyle(done&&m.awayScore>m.homeScore)}">${done?m.awayScore:"–"}</div></div>`;
+      const raw=allPreds.filter(x=>x.matchId===m.id).map(p=>({...p,pts:done?scoreMatch(p,m):null}));
+      if(done) raw.sort((a,b)=>b.pts-a.pts);
+      const mine=raw.find(r=>r.uid===me.uid);
+      const note=done?("คุณได้ "+(mine?mine.pts:0)+" แต้มจากคู่นี้"):("ปิดรับแล้ว · "+raw.length+" คนส่งโพย");
+      const exp=!!expanded[m.id];
+      inner+=`<div style="margin-top:13px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #232830;padding-top:12px;">
+          <span class="k" style="font-size:12.5px;color:var(--mut);">${note}</span>
+          <div data-toggle="${m.id}" class="k" style="font-weight:600;font-size:12.5px;color:#2D7DF6;cursor:pointer;">${exp?"ซ่อนโพย ▴":"ดูโพยทั้งหมด ("+raw.length+") ▾"}</div></div>`;
+      if(exp){ inner+=`<div style="margin-top:10px;">`;
+        if(!raw.length) inner+=`<div class="k" style="color:var(--dim);padding:8px 10px;">ไม่มีคนส่งโพย</div>`;
+        raw.forEach(p=>{ const isMe=p.uid===me.uid; const sc=[p.scorer1,p.scorer2].filter(Boolean).join(" / ")||"—";
+          inner+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;margin-bottom:4px;background:${isMe?"#16241a":"transparent"};border:1px solid ${isMe?"#1f5a39":"transparent"};">
+            <div class="k" style="width:64px;font-weight:600;font-size:13.5px;">${esc(p.player)}</div>
+            <div class="k" style="width:42px;font-weight:700;font-size:14px;color:#cfd4db;">${p.homeScore}-${p.awayScore}</div>
+            <div style="flex:1;font-size:12px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(sc)}</div>
+            <div class="k" style="width:26px;text-align:right;font-weight:800;font-size:15px;color:${done?(p.pts>0?"#1FB85E":"#5b626d"):"transparent"};">${done?p.pts:""}</div></div>`; });
+        inner+=`</div>`; }
+    }
+    html+=`<div style="background:#14171D;border:1px solid #232830;border-radius:18px;padding:15px;margin-bottom:13px;">${inner}</div>`;
+  });
+  box.innerHTML=html;
+
+  // handlers
+  box.querySelectorAll(".flt").forEach(el=> el.onclick=()=>{ filter=el.dataset.f; renderFixtures(); });
+  box.querySelectorAll("[data-toggle]").forEach(el=> el.onclick=()=>{ const id=el.dataset.toggle; expanded[id]=!expanded[id]; renderFixtures(); });
+  list.forEach(({m,st})=>{ if(st!=="open") return;
+    const hs=$("#hs_"+m.id), as=$("#as_"+m.id), s1=$("#s1_"+m.id), s2=$("#s2_"+m.id);
+    const sanit=e=>{ e.target.value=e.target.value.replace(/\D/g,"").slice(0,2); upd(); };
+    const upd=()=>{ const z=parseInt(hs.value)===0&&parseInt(as.value)===0; s1.disabled=s2.disabled=z;
+      if(z){ s1.value="";s2.value=""; s1.placeholder="0-0 = ไม่มีคนยิง"; } else s1.placeholder="คนยิง ตัวจบสกอร์"; };
+    hs.oninput=sanit; as.oninput=sanit; upd();
+    $("#save_"+m.id).onclick=()=>savePred(m);
+  });
+}
+async function savePred(m){
+  if(nowTs>=lockTs(m)){ toast("ปิดรับแล้ว"); renderFixtures(); return; }
+  const hs=parseInt($("#hs_"+m.id).value), as=parseInt($("#as_"+m.id).value);
+  if(isNaN(hs)||isNaN(as)){ toast("ใส่สกอร์ให้ครบ"); return; }
+  const zero=hs===0&&as===0;
+  const pred={uid:me.uid,player:me.name,matchId:m.id,homeScore:hs,awayScore:as,
+    scorer1:zero?"":$("#s1_"+m.id).value.trim(), scorer2:zero?"":$("#s2_"+m.id).value.trim()};
+  try{ await setDoc(doc(db,"predictions",`${m.id}__${me.uid}`),pred); toast("บันทึกโพยแล้ว ✓"); }
+  catch(e){ toast("บันทึกไม่ได้ (อาจปิดรับ)"); }
+}
+
+/* ===== champion ===== */
+function renderChampion(){
+  const box=$("#tab-champion");
+  const locked = !!(tournament.picksLocked||tournament.championLocked);
+  let html=`<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 14px;">
+      <h2 class="k" style="margin:0;font-weight:800;font-size:26px;">ทายแชมป์</h2>
+      <span class="k" style="font-size:12px;color:var(--green);">ทีมละ +10</span></div>`;
+  const mine = champPicks[me.name]||[];
+  html+=`<div style="background:linear-gradient(135deg,#1a1410,#14171D);border:1px solid #3a2f1e;border-radius:18px;padding:16px;margin-bottom:14px;">
+      <div class="k" style="font-size:12px;color:var(--gold);letter-spacing:.5px;margin-bottom:12px;">โพยแชมป์ของคุณ · ${locked?"🔒 ปิดรับแล้ว":"เปิดให้แอดมินจัดการ"}</div>
+      <div style="display:flex;gap:11px;">`;
+  [0,1].forEach(i=>{ const n=mine[i];
+    html+=`<div style="flex:1;background:#0E1116;border:1px solid #2a2418;border-radius:13px;padding:13px;display:flex;align-items:center;gap:11px;">
+        ${n?flag(n):`<div class="k" style="width:42px;height:30px;border-radius:6px;background:#222730;color:#5b626d;display:flex;align-items:center;justify-content:center;font-weight:700;">–</div>`}
+        <div><div class="k" style="font-size:10px;color:var(--mut);">แชมป์ ${i+1}</div>
+        <div class="k" style="font-weight:700;font-size:15px;">${n?esc(n)+" "+fe(n):"ยังไม่เลือก"}</div></div></div>`; });
+  html+=`</div></div>`;
+
+  html+=`<div class="k" style="font-weight:700;font-size:14px;margin:4px 4px 11px;">โพยแชมป์ของเพื่อน</div>`;
+  const others=Object.keys(champPicks).filter(n=>n!==me.name);
+  if(!others.length) html+=`<p class="k" style="color:var(--dim);margin:0 4px;">ยังไม่มีข้อมูล</p>`;
+  others.forEach(n=>{ const tms=champPicks[n]||[]; const ph=(playersByName[n]||{}).photo||"";
+    html+=`<div style="display:flex;align-items:center;gap:12px;background:#14171D;border:1px solid #232830;border-radius:13px;padding:12px 14px;margin-bottom:9px;">
+        ${avatarHTML(ph,38)}
+        <div class="k" style="width:48px;flex:none;font-weight:700;font-size:15px;">${esc(n)}</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:7px;">`;
+    tms.forEach(t=>{ html+=`<div style="display:flex;align-items:center;gap:9px;">${flag(t,true)}<span class="k" style="font-weight:600;font-size:14px;color:#cfd4db;">${esc(t)} ${fe(t)}</span></div>`; });
+    html+=`</div></div>`; });
+  box.innerHTML=html; bindAvatars(box);
+}
+
+/* ===== board ===== */
+function renderBoard(){
+  const box=$("#tab-board");
+  const rows=computeBoard();
+  const champion=tournament.champion||"";
+  const todayChip=t=> t>0
+    ? `<div class="k" style="font-weight:700;font-size:12px;padding:3px 9px;border-radius:99px;background:#10301f;color:#5fcf94;white-space:nowrap;">+${t}</div>`
+    : `<div class="k" style="font-weight:700;font-size:12px;padding:3px 9px;border-radius:99px;background:#1a1e25;color:#5b626d;white-space:nowrap;">+0</div>`;
+  let html=`<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 14px;">
+      <h2 class="k" style="margin:0;font-weight:800;font-size:26px;">ตารางคะแนน</h2>
+      <span class="k" style="font-size:11px;color:var(--mut);display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:#1FB85E;animation:pulse 1.6s infinite;"></span>สด</span></div>`;
+  if(tournament.batchLabel) html+=`<div style="display:flex;align-items:center;gap:8px;margin:0 4px 14px;padding:9px 13px;background:#14171D;border:1px solid #232830;border-radius:12px;">
+      <span class="k" style="font-weight:700;font-size:10px;letter-spacing:1px;color:#5fcf94;background:#10301f;padding:3px 8px;border-radius:6px;">อัพเดต</span>
+      <span style="font-size:12px;color:var(--mut);">${esc(tournament.batchLabel)}</span></div>`;
+  const moveHTML=mv=> mv>0?`<span class="k" style="font-size:11px;color:#1FB85E;">▲</span>`:mv<0?`<span class="k" style="font-size:11px;color:#EF3E42;">▼</span>`:`<span class="k" style="font-size:11px;color:#5b626d;">–</span>`;
+  if(rows.length){
+    const L=rows[0]; const isMe=L.name===me.name;
+    html+=`<div style="position:relative;background:linear-gradient(135deg,#113322 0%,#0f1f17 50%,#14171D 100%);border:1px solid #2a7a4e;border-radius:22px;padding:20px;margin-bottom:18px;overflow:hidden;box-shadow:0 0 0 1px rgba(31,184,94,.12),0 20px 44px -20px rgba(31,184,94,.5);">
+        <div style="position:absolute;top:0;left:0;width:55%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.16),transparent);animation:shine 4.6s ease-in-out infinite;pointer-events:none;"></div>
+        <div style="position:relative;display:flex;align-items:center;gap:9px;">
+          <span class="k" style="font-weight:700;font-size:12px;letter-spacing:3px;color:#5fcf94;text-transform:uppercase;">★ จ่าฝูง</span>
+          ${isMe?`<span class="k" style="font-weight:700;font-size:10px;letter-spacing:1px;color:#fff;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);padding:2px 8px;border-radius:99px;">คุณ</span>`:""}</div>
+        <div style="display:flex;align-items:center;gap:15px;margin-top:14px;position:relative;">
+          <div style="flex:none;animation:floatY 3.4s ease-in-out infinite;box-shadow:0 8px 20px -4px rgba(31,184,94,.7);border-radius:50%;">${avatarHTML(L.photo,54)}</div>
+          <div style="flex:1;min-width:0;">
+            <div class="k" style="font-weight:800;font-size:32px;color:#fff;line-height:1;">${esc(L.name)}</div>
+            <div class="k" style="display:inline-block;margin-top:9px;font-weight:700;font-size:12px;color:#04210F;background:#1FB85E;padding:4px 12px;border-radius:99px;white-space:nowrap;box-shadow:0 0 16px -2px rgba(31,184,94,.85);">+${L.todayPts} วันนี้</div></div>
+          <div style="flex:none;text-align:right;line-height:.82;position:relative;">
+            <div style="position:absolute;inset:-22px;background:radial-gradient(circle,rgba(31,184,94,.38),transparent 70%);animation:glowPulse 2.6s ease-in-out infinite;pointer-events:none;"></div>
+            <div class="k" style="position:relative;font-weight:800;font-size:56px;color:#27d26e;text-shadow:0 0 24px rgba(31,184,94,.65);">${L.total}</div>
+            <div class="k" style="position:relative;font-size:11px;color:#5fcf94;letter-spacing:1px;">แต้มรวม</div></div></div></div>`;
+    html+=`<div style="display:flex;align-items:center;padding:0 14px 8px;" class="k"><div style="width:30px;font-size:11px;color:#5b626d;">#</div><div style="flex:1;font-size:11px;color:#5b626d;">ผู้เล่น</div><div style="margin-right:10px;font-size:11px;color:#5b626d;">วันนี้</div><div style="width:42px;text-align:right;font-size:11px;color:#5b626d;">รวม</div></div>`;
+    rows.slice(1).forEach(r=>{ const m_=r.name===me.name;
+      html+=`<div style="display:flex;align-items:center;gap:8px;padding:13px 14px;border-radius:14px;margin-bottom:8px;background:${m_?"#16241a":"#14171D"};border:1px solid ${m_?"#1f5a39":"#232830"};">
+          <div class="k" style="width:24px;font-weight:800;font-size:18px;color:#5b626d;">${String(r.rank).padStart(2,"0")}</div>
+          ${avatarHTML(r.photo,34)}
+          <div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px;"><span class="k" style="font-weight:700;font-size:16px;">${esc(r.name)}</span>${moveHTML(r.move)}${m_?`<span class="k" style="font-weight:700;font-size:10px;color:#5fcf94;background:#10301f;padding:2px 8px;border-radius:99px;">คุณ</span>`:""}</div>
+          ${todayChip(r.todayPts)}
+          <div class="k" style="width:42px;text-align:right;font-weight:800;font-size:24px;">${r.total}</div></div>`; });
   }
-  toast(`นำเข้า ${SEED_FIXTURES.length} คู่แล้ว — อย่าลืมตรวจเวลา!`);
-};
-
-function renderAdminMatchSelect() {
-  const sel = $("#amMatchSel"); if (!sel) return;
-  sel.innerHTML = matches.map(m =>
-    `<option value="${m.id}">${m.home} vs ${m.away} ${m.status==="finished"?`(${m.homeScore}-${m.awayScore})`:""}</option>`).join("");
+  html+=`<div style="text-align:center;margin-top:8px;font-size:11px;color:#3f454e;">${champion?("แชมป์: "+esc(champion)+" · "):""}ชนะ +1 · เสมอ +2 · สกอร์เป๊ะ +3 · คนยิง +1 · แชมป์ +10</div>`;
+  box.innerHTML=html; bindAvatars(box);
 }
 
-$("#amResult").onclick = async () => {
-  if (!isAdmin()) return;
-  const id = $("#amMatchSel").value; if (!id) return;
-  const hs=parseInt($("#amHs").value), as=parseInt($("#amAs").value);
-  if (isNaN(hs)||isNaN(as)) { toast("ใส่สกอร์จริงให้ครบ"); return; }
-  const scorers = $("#amScorers").value.split(",").map(s=>s.trim()).filter(Boolean);
-  const dnp = $("#amDnp").value.split(",").map(s=>s.trim()).filter(Boolean);
-  await updateDoc(doc(db,"matches",id), { homeScore:hs, awayScore:as, scorers, dnp, status:"finished" });
-  toast("บันทึกผลแล้ว — คิดแต้มอัตโนมัติ ✅");
-};
+/* ===== admin ===== */
+function renderAdmin(){
+  if(!isAdmin()) return;
+  const box=$("#tab-admin");
+  const joined=Object.entries(playersByName);
+  const joinedNames=new Set(joined.map(([n])=>n));
+  const notYet=ROSTER.filter(n=>!joinedNames.has(n));
+  let html=`<div style="display:flex;align-items:center;gap:8px;margin:0 4px 6px;">
+      <h2 class="k" style="margin:0;font-weight:800;font-size:26px;">ใครเข้ามาแล้ว</h2>
+      <span class="k" style="font-weight:600;font-size:10px;letter-spacing:1px;color:#EF3E42;border:1px solid #5a2227;border-radius:6px;padding:3px 7px;">STAFF</span></div>
+    <div class="k" style="font-size:12px;color:var(--mut);margin:0 4px 14px;">จับคู่บัญชีแล้ว ${joined.length}/${ROSTER.length} คน</div>`;
+  if(!joined.length) html+=`<p class="k" style="color:var(--dim);margin:0 4px;">ยังไม่มีใครจับคู่</p>`;
+  joined.forEach(([name,p])=>{
+    html+=`<div style="display:flex;align-items:center;gap:12px;background:#14171D;border:1px solid #232830;border-radius:14px;padding:12px 14px;margin-bottom:9px;">
+        ${avatarHTML(p.photo,40)}
+        <div style="flex:1;min-width:0;">
+          <div class="k" style="font-weight:700;font-size:16px;">${esc(name)}</div>
+          <div style="font-size:11.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(p.email||"")}</div></div>
+        <span class="k" style="font-weight:700;font-size:10px;color:#5fcf94;background:#10301f;padding:3px 9px;border-radius:99px;">เข้าแล้ว</span></div>`;
+  });
+  if(notYet.length){
+    html+=`<div class="k" style="font-size:13px;color:var(--dim);margin:16px 4px 10px;">ยังไม่เข้า (${notYet.length})</div>`;
+    notYet.forEach(n=>{
+      html+=`<div style="display:flex;align-items:center;gap:12px;background:#0f1116;border:1px dashed #262b33;border-radius:14px;padding:12px 14px;margin-bottom:8px;opacity:.7;">
+          ${silhouetteHTML(40)}
+          <div class="k" style="flex:1;font-weight:600;font-size:15px;color:var(--mut);">${esc(n)}</div>
+          <span class="k" style="font-size:11px;color:var(--dim);">รอเข้า</span></div>`;
+    });
+  }
+  box.innerHTML=html; bindAvatars(box);
+}
 
-$("#amSetChamp").onclick = async () => {
-  if (!isAdmin()) return;
-  const champion = $("#amChampion").value.trim(); if (!champion) return;
-  await setDoc(doc(db,"config","tournament"), { champion, championLocked:true }, { merge:true });
-  toast("ตั้งแชมป์แล้ว 🏆"); renderBoard();
-};
+/* ===== countdown tick (ไม่ re-render รบกวนการพิมพ์) ===== */
+setInterval(()=>{
+  const prev=matches.map(m=>stateOf(m)).join(",");
+  nowTs=Date.now();
+  if(tab==="fixtures"){
+    matches.forEach(m=>{ if(stateOf(m)==="open"){ const el=$("#cd_"+m.id); if(el) el.textContent="⏱ "+countdown(lockTs(m)-nowTs); } });
+    if(matches.map(m=>stateOf(m)).join(",")!==prev) renderFixtures();   // มีคู่เพิ่ง "ปิดรับ" → re-render
+  }
+},1000);
 </script>
 </body>
 </html>
