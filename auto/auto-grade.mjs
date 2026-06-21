@@ -207,6 +207,7 @@ async function gradeScorers(p, matchId, actualScorers, useQwen, playedSet) {
   for (const d of preds) {
     const pr=d.data();
     if (pr.homeScore===0 && pr.awayScore===0) continue;   // 0-0 แอปคิดเอง
+    if (pr.scorerManual) continue;                        // แอดมินติ๊กมือ → auto ไม่ทับ
     const s1 = scorerHitOne(pr.scorer1, actualScorers, qwenMap);   // คนแรกยิงไหม
     const s2 = scorerHitOne(pr.scorer2, actualScorers, qwenMap);   // คนสองยิงไหม
     // คนแรกลงเล่นไหม (ตัวจริง/ลงมา) · ไม่รู้ lineup → ถือว่าลง (สำรองไม่ activate)

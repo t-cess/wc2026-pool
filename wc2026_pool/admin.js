@@ -10,8 +10,7 @@ async function commitScorers(matchId){   // เขียนคนยิงที
   for(const p of preds){ const pid=`${p.matchId}__${p.uid}`;
     if(pid in S.scorerStage){ const v=S.scorerStage[pid];
       const s1=v===1, s2=v===2, ok=v!==0, s1played=(v!==2);   // คนสองได้ = คนแรกไม่ได้ลง
-      if(s1!==!!p.s1hit || s2!==!!p.s2hit || ok!==!!p.scorerOk){
-        try{ await setDoc(poolDoc("predictions",pid),{scorerOk:ok,s1hit:s1,s2hit:s2,s1played},{merge:true}); }catch(e){ toast("คนยิงบันทึกไม่ได้ (Rules?)"); } }
+      try{ await setDoc(poolDoc("predictions",pid),{scorerOk:ok,s1hit:s1,s2hit:s2,s1played,scorerManual:true},{merge:true}); }catch(e){ toast("คนยิงบันทึกไม่ได้ (Rules?)"); }   // scorerManual = auto จะไม่ทับ
       delete S.scorerStage[pid]; } }
 }
 const TEAM_LIST = Object.keys(TEAMS).sort((a,b)=>a.localeCompare(b,"th"));

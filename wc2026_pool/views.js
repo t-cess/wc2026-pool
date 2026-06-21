@@ -115,7 +115,7 @@ export function renderFixtures(){
           else { const ps=[]; if(p.scorer1)ps.push(nm(p.scorer1, showPts&&p.s1hit)); if(p.scorer2)ps.push(nm(p.scorer2, showPts&&p.s2hit&&!p.s1played)); scH=ps.join(` <span style="color:#3f454e;">/</span> `)||"—"; }
           inner+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;margin-bottom:4px;background:${isMe?"#16241a":"transparent"};border:1px solid ${isMe?"#1f5a39":"transparent"};">
             <div class="k" style="width:46px;flex:none;font-weight:600;font-size:13.5px;">${esc(p.player)}</div>
-            <div class="k" style="width:58px;flex:none;font-weight:700;font-size:14px;color:${resG?'#1FB85E':'#cfd4db'};">${p.homeScore}-${p.awayScore}${exact?' ⭐':resG?' ✓':''}</div>
+            <div class="k" style="width:58px;flex:none;font-weight:700;font-size:14px;color:${resG?'#1FB85E':'#cfd4db'};">${p.homeScore}-${p.awayScore}${exact?' 🔥':resG?' ✓':''}</div>
             <div style="flex:1;min-width:0;font-size:12px;word-break:break-word;line-height:1.3;">${scH}</div>
             <div class="k" style="width:30px;flex:none;text-align:right;font-weight:800;font-size:15px;color:${showPts?(p.pts>0?"#1FB85E":"#5b626d"):"transparent"};">${showPts?(p.pts>0?"+"+p.pts:p.pts):""}</div></div>`; });
         inner+=`</div>`; }
