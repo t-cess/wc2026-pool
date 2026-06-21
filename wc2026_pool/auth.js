@@ -75,9 +75,10 @@ function blockScreen(title,msg){
 }
 
 async function showIdentity(){
-  // โหลดสมาชิก + carry "ของวงนี้" จริง (ตอน login ยังไม่ได้ watchData → S.carry ยังว่าง)
-  const [pSnap, cSnap] = await Promise.all([ getDocs(poolCol("players")), getDoc(poolDoc("config","carry")) ]);
+  // โหลดสมาชิก + carry + bind "ของวงนี้" (ตอน login ยังไม่ได้ watchData → S ยังว่าง)
+  const [pSnap, cSnap, bSnap] = await Promise.all([ getDocs(poolCol("players")), getDoc(poolDoc("config","carry")), getDoc(poolDoc("config","bind")) ]);
   const taken = new Set(); pSnap.forEach(d=>{const p=d.data(); if(p.name&&p.uid!==S.me.uid) taken.add(p.name);});
+  if(bSnap.exists()) Object.values(bSnap.data()).forEach(nm=>{ if(nm) taken.add(nm); });   // ชื่อที่ผูกอีเมลไว้ = จองให้คนนั้น ไม่ให้คนอื่นเลือก (แม้ยังไม่ login)
   const carryNames = cSnap.exists() ? Object.keys(cSnap.data()) : [];
   const base = carryNames.length ? carryNames : (POOL_ID ? [] : ROSTER);   // วงหลัก: fallback ROSTER · วงรอง: ใช้รายชื่อจริง (ว่าง=รอแอดมิน)
   const avail = base.filter(n=>!taken.has(n));
