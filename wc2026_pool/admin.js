@@ -5,11 +5,13 @@ import { TEAMS, fe, CHAMP_TEAMS } from "./config.js";
 import { $, esc, flag, avatarHTML, silhouetteHTML, bindAvatars, toast, isAdmin } from "./utils.js";
 import { stateOf } from "./scoring.js";
 
-async function commitScorers(matchId){   // เขียน scorerOk ที่ติ๊กค้างไว้ ลง DB
+async function commitScorers(matchId){   // เขียนคนยิงที่ติ๊กค้างไว้ ลง DB · stage: 0=ไม่มี 1=คนแรก 2=คนสอง
   const preds=S.allPreds.filter(p=>p.matchId===matchId);
   for(const p of preds){ const pid=`${p.matchId}__${p.uid}`;
     if(pid in S.scorerStage){ const v=S.scorerStage[pid];
-      if(v!==!!p.scorerOk){ try{ await setDoc(poolDoc("predictions",pid),{scorerOk:v},{merge:true}); }catch(e){ toast("คนยิงบันทึกไม่ได้ (Rules?)"); } }
+      const s1=v===1, s2=v===2, ok=v!==0, s1played=(v!==2);   // คนสองได้ = คนแรกไม่ได้ลง
+      if(s1!==!!p.s1hit || s2!==!!p.s2hit || ok!==!!p.scorerOk){
+        try{ await setDoc(poolDoc("predictions",pid),{scorerOk:ok,s1hit:s1,s2hit:s2,s1played},{merge:true}); }catch(e){ toast("คนยิงบันทึกไม่ได้ (Rules?)"); } }
       delete S.scorerStage[pid]; } }
 }
 const TEAM_LIST = Object.keys(TEAMS).sort((a,b)=>a.localeCompare(b,"th"));
@@ -27,12 +29,15 @@ export function renderAdmin(){
   const glocked=!!(selM&&selM.status==="finished"&&!S.gameEdit);   // จบเกมแล้ว = ล็อก จนกว่ากดแก้ไข
   let gradeRows="";
   if(selM){ const preds=S.allPreds.filter(p=>p.matchId===selM.id);
-    gradeRows=preds.length?preds.map(p=>{ const sc=[p.scorer1,p.scorer2].filter(Boolean).join(" / ")||"(ไม่ใส่คนยิง)"; const zero=p.homeScore===0&&p.awayScore===0; const pid=`${p.matchId}__${p.uid}`;
-      const ok=(pid in S.scorerStage)?S.scorerStage[pid]:!!p.scorerOk;
+    gradeRows=preds.length?preds.map(p=>{ const zero=p.homeScore===0&&p.awayScore===0; const pid=`${p.matchId}__${p.uid}`;
+      const stage=(pid in S.scorerStage)?S.scorerStage[pid]:(p.s1hit?1:(p.s2hit?2:(p.scorerOk?1:0)));   // 0/1/2
+      const nm=(t,on)=>`<span style="color:${on?'#5fcf94':'var(--mut)'};${on?'font-weight:700;':''}">${esc(t)}</span>`;
+      const scTxt = `${p.scorer1?nm(p.scorer1,stage===1):""}${p.scorer1&&p.scorer2?' <span style="color:#3f454e;">/</span> ':""}${p.scorer2?nm(p.scorer2,stage===2):""}`||"(ไม่ใส่คนยิง)";
+      const btn=(n)=>`<div data-pick="${pid}:${n}" class="k" style="cursor:pointer;flex:none;font-weight:800;font-size:13px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:${stage===n?"#10301f":"#23272f"};color:${stage===n?"#5fcf94":"#8A929E"};border:1px solid ${stage===n?"#1f5a39":"#333"};">${n}</div>`;
       const tick = zero ? `<span class="k" style="font-size:11px;color:#5b626d;flex:none;">0-0</span>`
-        : glocked ? `<span class="k" style="flex:none;font-weight:700;font-size:12px;color:${ok?"#5fcf94":"#5b626d"};">${ok?"✓ ได้":"—"}</span>`
-        : `<div data-okp="${pid}" class="k" style="cursor:pointer;flex:none;font-weight:700;font-size:12px;padding:5px 10px;border-radius:8px;background:${ok?"#10301f":"#23272f"};color:${ok?"#5fcf94":"#8A929E"};border:1px solid ${ok?"#1f5a39":"#333"};">${ok?"✓ ให้คนยิง":"ให้คนยิง"}</div>`;
-      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #1c2129;"><div class="k" style="width:50px;flex:none;font-weight:600;font-size:13px;">${esc(p.player)}</div><div class="k" style="width:38px;flex:none;font-weight:700;">${p.homeScore}-${p.awayScore}</div><div style="flex:1;min-width:0;font-size:12px;color:var(--mut);word-break:break-word;line-height:1.3;">${esc(sc)}</div>${tick}</div>`; }).join(""):`<div class="k" style="color:var(--dim);padding:10px;">ยังไม่มีคนส่งโพยคู่นี้</div>`;
+        : glocked ? `<span class="k" style="flex:none;font-weight:700;font-size:12px;color:${stage?"#5fcf94":"#5b626d"};">${stage===1?"✓ คน1":stage===2?"✓ คน2":"—"}</span>`
+        : `<div style="display:flex;gap:5px;flex:none;">${p.scorer1?btn(1):""}${p.scorer2?btn(2):""}</div>`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #1c2129;"><div class="k" style="width:48px;flex:none;font-weight:600;font-size:13px;">${esc(p.player)}</div><div class="k" style="width:36px;flex:none;font-weight:700;">${p.homeScore}-${p.awayScore}</div><div style="flex:1;min-width:0;font-size:12px;word-break:break-word;line-height:1.3;">${scTxt}</div>${tick}</div>`; }).join(""):`<div class="k" style="color:var(--dim);padding:10px;">ยังไม่มีคนส่งโพยคู่นี้</div>`;
   }
   const stBtn=`width:40px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#283042;color:#EEF1F4;font-size:24px;font-weight:700;cursor:pointer;user-select:none;flex:none;`;
   const stInp=`width:48px;height:44px;text-align:center;font-family:'Kanit';font-weight:800;font-size:22px;color:#EEF1F4;background:#0E1116;border:1px solid #2A303A;border-radius:10px;flex:none;`;
@@ -82,9 +87,12 @@ export function renderAdmin(){
       <div class="k" style="font-size:11px;color:var(--mut);margin:10px 0 6px;">เพิ่มสมาชิก → เขา login มาเลือกชื่อนี้ได้ + ผูกคะแนนยกมา</div>
       <div style="display:flex;gap:8px;"><input id="amMemName" class="field" placeholder="ชื่อสมาชิกใหม่"><input id="amMemCarry" class="field" inputmode="numeric" placeholder="ยกมา" style="width:90px;"></div>
       <div id="amMemAdd" class="k btnG" style="height:42px;font-size:14px;margin-top:8px;">เพิ่มสมาชิก</div></div>`;
-  box.querySelectorAll("[data-okp]").forEach(el=>el.onclick=()=>{ const pid=el.dataset.okp; const p=S.allPreds.find(x=>`${x.matchId}__${x.uid}`===pid);
-    const cur=(pid in S.scorerStage)?S.scorerStage[pid]:!!(p&&p.scorerOk); const nv=!cur; S.scorerStage[pid]=nv;   // ค้างไว้ บันทึกตอนกดอัพเดต/จบเกม
-    el.textContent=nv?"✓ ให้คนยิง":"ให้คนยิง"; el.style.background=nv?"#10301f":"#23272f"; el.style.color=nv?"#5fcf94":"#8A929E"; el.style.border="1px solid "+(nv?"#1f5a39":"#333"); });
+  box.querySelectorAll("[data-pick]").forEach(el=>el.onclick=()=>{ const [pid,nStr]=el.dataset.pick.split(":"); const n=+nStr;
+    const p=S.allPreds.find(x=>`${x.matchId}__${x.uid}`===pid);
+    const cur=(pid in S.scorerStage)?S.scorerStage[pid]:(p&&p.s1hit?1:(p&&p.s2hit?2:(p&&p.scorerOk?1:0)));
+    const nv=(cur===n)?0:n; S.scorerStage[pid]=nv;   // กดซ้ำปุ่มที่จม=ยกเลิก · กดอีกปุ่ม=สลับ (ปุ่มเดียว)
+    box.querySelectorAll(`[data-pick^="${pid}:"]`).forEach(b=>{ const bn=+b.dataset.pick.split(":")[1]; const on=nv===bn;
+      b.style.background=on?"#10301f":"#23272f"; b.style.color=on?"#5fcf94":"#8A929E"; b.style.border="1px solid "+(on?"#1f5a39":"#333"); }); });
   box.querySelectorAll("[data-delmem]").forEach(el=>el.onclick=async()=>{ const n=el.dataset.delmem; if(!confirm(`ลบสมาชิก "${n}"? (ลบคะแนนยกมา + ปลดการจับคู่)`))return;
     const c2={...S.carry}; delete c2[n]; await setDoc(poolDoc("config","carry"),c2);  // ไม่ merge = ลบ key
     const p=S.playersByName[n]; if(p&&p.uid){ try{ await deleteDoc(poolDoc("players",p.uid)); }catch(e){} }

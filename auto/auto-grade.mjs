@@ -50,6 +50,7 @@ async function fetchEspn(dateStr) {
     }));
     const scorers = goals.map(g=>g.name).filter(Boolean);
     return {
+      id: e.id,                                                     // ไว้ดึง lineup
       home: th(home.team?.displayName), away: th(away.team?.displayName),
       hs: parseInt(home.score), as: parseInt(away.score),
       final: !!e.status?.type?.completed,
@@ -59,6 +60,19 @@ async function fetchEspn(dateStr) {
       scorers, goals,
     };
   });
+}
+
+// ดึงรายชื่อ "คนที่ลงเล่น" (ตัวจริง+สำรองที่ลงมา) → Set ของ norm(ชื่อ ESPN) · ใช้กฎคนยิงสำรอง
+async function fetchLineup(eventId) {
+  try {
+    const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`);
+    const d = await r.json();
+    const played = new Set();
+    for (const t of (d.rosters||[])) for (const pl of (t.roster||[])) {
+      if (pl.starter || pl.subbedIn) { const n=pl.athlete?.displayName; if(n) played.add(norm(n)); }
+    }
+    return played;
+  } catch(e){ return new Set(); }
 }
 
 // ถาม Qwen เฉพาะชื่อที่ไม่อยู่ในดิก (เจาะจง yes/no) — ผ่าน gateway แบบ OpenAI chat/completions
@@ -84,20 +98,22 @@ async function askQwen(actualScorers, items) {
   } catch(e){ console.log("  ⚠️ Qwen ล้มเหลว:", e.message); return {}; }
 }
 
+function scorerHitOne(s, actualScorers, qwenMap) {   // ชื่อเดียวตรงคนยิงจริงไหม
+  if (!s) return false;
+  const acts = actualScorers.map(norm);
+  const canon = resolve(s);
+  if (canon && acts.includes(norm(canon))) return true;        // ในดิก + ตรงคนยิงจริง
+  if (!canon && qwenMap[s] === true) return true;              // Qwen บอกตรง
+  return false;
+}
 function scorerHit(pred, actualScorers, qwenMap) {
   if (pred.homeScore===0 && pred.awayScore===0) return null; // 0-0 แอปคิดเอง
-  const acts = actualScorers.map(norm);
-  for (const s of [pred.scorer1, pred.scorer2]) {
-    if (!s) continue;
-    const canon = resolve(s);
-    if (canon && acts.includes(norm(canon))) return true;     // เจอในดิก + ตรงคนยิงจริง
-    if (!canon && qwenMap[s] === true) return true;            // Qwen บอกตรง
-  }
-  return false;
+  return scorerHitOne(pred.scorer1, actualScorers, qwenMap) || scorerHitOne(pred.scorer2, actualScorers, qwenMap);
 }
 
 const DRY = process.argv.includes("--dry-run");
 const FORCE = process.argv.includes("--force");   // ข้าม live-window gate (ไว้เทส)
+const REGRADE = process.argv.includes("--regrade");   // ตรวจซ้ำคู่ที่ autoGraded แล้ว (backfill s1hit/s2hit)
 let anyLive = false;                               // มีคู่กำลังเตะรอบนี้ไหม (ให้ workflow loop วนต่อ)
 
 // มีคู่ที่ "อยู่ในเวลาเตะ" ไหม = ตั้งแต่เตะก่อน 5 นาที จนถึงจบ+3 ชม. และยังไม่ตรวจ
@@ -177,7 +193,7 @@ async function autoAddNext() {
 
 // ตรวจคนยิงทุกโพยในคู่ → ตั้ง scorerOk (เขียนเฉพาะที่เปลี่ยน)
 // useQwen=false (สด: ดิกอย่างเดียว เร็ว ไม่เรียก Qwen) · true (จบ: ดิก + Qwen กวาดชื่อใหม่)
-async function gradeScorers(p, matchId, actualScorers, useQwen) {
+async function gradeScorers(p, matchId, actualScorers, useQwen, playedSet) {
   const preds = (await col(p,"predictions").get()).docs.filter(d=>d.data().matchId===matchId);
   let qwenMap = {};
   if (useQwen) {
@@ -186,13 +202,21 @@ async function gradeScorers(p, matchId, actualScorers, useQwen) {
       [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !resolve(s)) unknown.add(s); }); });
     qwenMap = await askQwen(actualScorers, [...unknown]);
   }
+  const lineupKnown = playedSet && playedSet.size>0;
   let changed = 0;
   for (const d of preds) {
-    const pr=d.data(); const ok=scorerHit(pr, actualScorers, qwenMap);
-    if (ok===null || ok===!!pr.scorerOk) continue;   // ไม่เปลี่ยน → ไม่เขียน
+    const pr=d.data();
+    if (pr.homeScore===0 && pr.awayScore===0) continue;   // 0-0 แอปคิดเอง
+    const s1 = scorerHitOne(pr.scorer1, actualScorers, qwenMap);   // คนแรกยิงไหม
+    const s2 = scorerHitOne(pr.scorer2, actualScorers, qwenMap);   // คนสองยิงไหม
+    // คนแรกลงเล่นไหม (ตัวจริง/ลงมา) · ไม่รู้ lineup → ถือว่าลง (สำรองไม่ activate)
+    const canon1 = resolve(pr.scorer1);
+    const s1played = lineupKnown ? !!(canon1 && playedSet.has(norm(canon1))) : true;
+    const ok = s1 || (!s1played && s2);   // คนยิง = คนแรกยิง หรือ (คนแรกไม่ได้ลง และคนสองยิง)
+    if (ok===!!pr.scorerOk && s1===!!pr.s1hit && s2===!!pr.s2hit && s1played===!!pr.s1played) continue;   // ไม่เปลี่ยน
     changed++;
-    if (DRY) console.log(`[${p.id}]   [DRY] ${pr.player}: "${[pr.scorer1,pr.scorer2].filter(Boolean).join(" / ")||"-"}" → scorerOk=${ok}`);
-    else await d.ref.set({ scorerOk:ok }, {merge:true});
+    if (DRY) console.log(`[${p.id}]   [DRY] ${pr.player}: "${[pr.scorer1,pr.scorer2].filter(Boolean).join(" / ")||"-"}" → ok=${ok} (s1ยิง=${s1} คนแรกลง=${s1played} s2ยิง=${s2})`);
+    else await d.ref.set({ scorerOk:ok, s1hit:s1, s2hit:s2, s1played:s1played }, {merge:true});
   }
   return changed;
 }
@@ -215,7 +239,7 @@ async function run() {
     const ms = await col(p,"matches").get();
     for (const mdoc of ms.docs) {
       const m = mdoc.data();
-      if (m.status==="finished" && m.autoGraded) continue;       // ตรวจจบแล้ว ข้าม
+      if (m.status==="finished" && m.autoGraded && !REGRADE) continue;   // ตรวจจบแล้ว ข้าม (--regrade = ทำซ้ำ)
       const ev = espn.find(e => e.home===m.home && e.away===m.away);
       if (!ev || ev.state==="pre") continue;                      // ESPN ยังไม่มี/ยังไม่เตะ
       // 🔴 ระหว่างเกม: อัพเดตสกอร์ + นาฬิกา ทุกรอบ (แอปคิดแต้มสด, ยังไม่ตรวจคนยิง)
@@ -223,15 +247,17 @@ async function run() {
         anyLive = true;
         console.log(`[${p.id}] ${DRY?"[DRY] ":""}🔴 สด ${m.home} ${ev.hs}-${ev.as} ${m.away} · ${ev.clock}`);
         if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, live:true, clock:ev.clock, goals:ev.goals }, {merge:true});
-        const n = await gradeScorers(p, mdoc.id, ev.scorers, false);   // ⚽ ตรวจคนยิงสด (ดิกอย่างเดียว → +1 ขึ้นทันที)
+        const luLive = await fetchLineup(ev.id);
+        const n = await gradeScorers(p, mdoc.id, ev.scorers, false, luLive);   // ⚽ ตรวจคนยิงสด (ดิก + กฎคนแรกลงเล่น)
         if (n) console.log(`[${p.id}]   ⚽ +1 คนยิงสด ${n} โพย`);
         continue;
       }
       // 1) จบแล้ว: เขียนผล + ปิด live
       console.log(`[${p.id}] ${DRY?"[DRY] จะเขียนผล":"✓ ผล"} ${m.home} ${ev.hs}-${ev.as} ${m.away} | ยิง: ${ev.scorers.join(", ")||"-"}`);
       if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, goals:ev.goals, status:"finished", autoGraded:true, finishedAt:Date.now(), live:false, clock:"จบ" }, {merge:true});
-      // 2) ตรวจคนยิงเต็ม (ดิก + Qwen กวาดชื่อใหม่)
-      const n = await gradeScorers(p, mdoc.id, ev.scorers, true);
+      // 2) ตรวจคนยิงเต็ม (ดิก + Qwen กวาดชื่อใหม่ + กฎคนแรกลงเล่น)
+      const luFin = await fetchLineup(ev.id);
+      const n = await gradeScorers(p, mdoc.id, ev.scorers, true, luFin);
       console.log(`[${p.id}]   ตรวจคนยิง (จบ) เปลี่ยน ${n} โพย`);
     }
   }

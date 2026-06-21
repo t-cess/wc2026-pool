@@ -105,11 +105,18 @@ export function renderFixtures(){
           <div data-toggle="${m.id}" class="k" style="font-weight:600;font-size:12.5px;color:#2D7DF6;cursor:pointer;">${exp?"ซ่อนโพย ▴":"ดูโพยทั้งหมด ("+raw.length+") ▾"}</div></div>`;
       if(exp){ inner+=`<div style="margin-top:10px;">`;
         if(!raw.length) inner+=`<div class="k" style="color:var(--dim);padding:8px 10px;">ไม่มีคนส่งโพย</div>`;
-        raw.forEach(p=>{ const isMe=p.uid===S.me.uid; const sc=[p.scorer1,p.scorer2].filter(Boolean).join(" / ")||"—";
+        raw.forEach(p=>{ const isMe=p.uid===S.me.uid; const zero=p.homeScore===0&&p.awayScore===0;
+          const sgn=(a,b)=>(a>b)-(a<b);
+          const resG=showPts && sgn(p.homeScore,p.awayScore)===sgn(m.homeScore,m.awayScore);   // ผลทาย (แพ้/ชนะ/เสมอ) ถูก
+          const exact=showPts && p.homeScore===m.homeScore && p.awayScore===m.awayScore;        // สกอร์เป๊ะ → มงกุฎ
+          const nm=(t,g)=>g?`<span style="color:#1FB85E;font-weight:700;">${esc(t)} ✓</span>`:`<span style="color:var(--mut);">${esc(t)}</span>`;
+          let scH;
+          if(zero) scH=`<span style="color:var(--mut);">ไม่มีคนยิง</span>`;
+          else { const ps=[]; if(p.scorer1)ps.push(nm(p.scorer1, showPts&&p.s1hit)); if(p.scorer2)ps.push(nm(p.scorer2, showPts&&p.s2hit&&!p.s1played)); scH=ps.join(` <span style="color:#3f454e;">/</span> `)||"—"; }
           inner+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;margin-bottom:4px;background:${isMe?"#16241a":"transparent"};border:1px solid ${isMe?"#1f5a39":"transparent"};">
-            <div class="k" style="width:50px;flex:none;font-weight:600;font-size:13.5px;">${esc(p.player)}</div>
-            <div class="k" style="width:36px;flex:none;font-weight:700;font-size:14px;color:#cfd4db;">${p.homeScore}-${p.awayScore}</div>
-            <div style="flex:1;min-width:0;font-size:12px;color:var(--mut);word-break:break-word;line-height:1.3;">${esc(sc)}</div>
+            <div class="k" style="width:46px;flex:none;font-weight:600;font-size:13.5px;">${esc(p.player)}</div>
+            <div class="k" style="width:58px;flex:none;font-weight:700;font-size:14px;color:${resG?'#1FB85E':'#cfd4db'};">${p.homeScore}-${p.awayScore}${exact?' ⭐':resG?' ✓':''}</div>
+            <div style="flex:1;min-width:0;font-size:12px;word-break:break-word;line-height:1.3;">${scH}</div>
             <div class="k" style="width:30px;flex:none;text-align:right;font-weight:800;font-size:15px;color:${showPts?(p.pts>0?"#1FB85E":"#5b626d"):"transparent"};">${showPts?(p.pts>0?"+"+p.pts:p.pts):""}</div></div>`; });
         inner+=`</div>`; }
     }
