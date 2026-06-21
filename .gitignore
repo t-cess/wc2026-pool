@@ -6,3 +6,4 @@ auto/serviceAccount.json
 auto/node_modules
 auto/auto-grade.log
 auto/.lock
+.firebase/

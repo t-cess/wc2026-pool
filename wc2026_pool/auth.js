@@ -1,6 +1,6 @@
 /* ===== auth: login / เลือกตัวตน / เข้าแอป (รองรับหลายวง + admin gate) ===== */
 import { S, rosterNames } from "./state.js";
-import { firebaseConfig, POOL_ID } from "./config.js";
+import { firebaseConfig, POOL_ID, ROSTER } from "./config.js";
 import { auth, provider, poolDoc, poolCol, getDoc, getDocs, setDoc,
   signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "./firebase.js";
 import { $, toast, isAdmin } from "./utils.js";
@@ -75,9 +75,12 @@ function blockScreen(title,msg){
 }
 
 async function showIdentity(){
-  const snap = await getDocs(poolCol("players"));
-  const taken = new Set(); snap.forEach(d=>{const p=d.data(); if(p.name&&p.uid!==S.me.uid) taken.add(p.name);});
-  const avail = rosterNames().filter(n=>!taken.has(n));
+  // โหลดสมาชิก + carry "ของวงนี้" จริง (ตอน login ยังไม่ได้ watchData → S.carry ยังว่าง)
+  const [pSnap, cSnap] = await Promise.all([ getDocs(poolCol("players")), getDoc(poolDoc("config","carry")) ]);
+  const taken = new Set(); pSnap.forEach(d=>{const p=d.data(); if(p.name&&p.uid!==S.me.uid) taken.add(p.name);});
+  const carryNames = cSnap.exists() ? Object.keys(cSnap.data()) : [];
+  const base = carryNames.length ? carryNames : (POOL_ID ? [] : ROSTER);   // วงหลัก: fallback ROSTER · วงรอง: ใช้รายชื่อจริง (ว่าง=รอแอดมิน)
+  const avail = base.filter(n=>!taken.has(n));
   if(!avail.length){ blockScreen("รอแอดมินเพิ่มชื่อ","ยังไม่มีชื่อของคุณในวงทายผลบอลนี้ — บอกแอดมินให้เพิ่มชื่อก่อนนะ"); return; }
   show("identity");
   $("#identityView h2").textContent="คุณคือใคร?";

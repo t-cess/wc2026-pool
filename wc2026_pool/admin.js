@@ -141,7 +141,7 @@ export function renderAdmin(){
     try{ await setDoc(poolDoc("config","admins"),{emails},{merge:true}); S.admins=emails;
       if(isPlayer&&pname){ const cv=(S.carry&&S.carry[pname])||0;
         await setDoc(poolDoc("config","carry"),{[pname]:cv},{merge:true}); S.carry[pname]=cv;       // เป็นสมาชิก roster
-        await setDoc(poolDoc("config","bind"),{[em]:pname},{merge:true}); }                         // login ด้วยอีเมลนี้ → ได้ชื่อนี้อัตโนมัติ
+        await setDoc(poolDoc("config","bind"),{[em]:pname},{merge:true}); }                          // login ด้วยอีเมลนี้ → ได้ชื่อนี้อัตโนมัติ
       toast(isPlayer?`เพิ่มแอดมิน+ผู้เล่น "${pname}" ✓`:"เพิ่มแอดมินแล้ว ✓"); renderAdmin();
     }catch(e){ toast("เพิ่มไม่ได้ (Rules?)"); }
   };
