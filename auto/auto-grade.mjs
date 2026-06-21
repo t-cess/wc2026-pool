@@ -46,7 +46,11 @@ async function fetchEspn(dateStr) {
     return {
       home: th(home.team?.displayName), away: th(away.team?.displayName),
       hs: parseInt(home.score), as: parseInt(away.score),
-      final: !!e.status?.type?.completed, scorers,
+      final: !!e.status?.type?.completed,
+      state: e.status?.type?.state,                                  // pre | in | post
+      live: e.status?.type?.state === "in",                          // กำลังเตะ
+      clock: e.status?.type?.shortDetail || e.status?.displayClock || "",  // "67'" / "HT" / "FT"
+      scorers,
     };
   });
 }
@@ -174,19 +178,26 @@ async function run() {
   const now = new Date();
   const ds = [-1,0,1].map(o=>{ const d=new Date(now); d.setDate(d.getDate()+o);
     return d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0"); });
-  const espn = (await Promise.all(ds.map(fetchEspn))).flat().filter(e=>e.final);
-  console.log("ESPN คู่ที่จบ:", espn.map(e=>`${e.home} ${e.hs}-${e.as} ${e.away}`).join(" | ")||"(ไม่มี)");
+  const espn = (await Promise.all(ds.map(fetchEspn))).flat();   // เอาทั้ง จบ + สด
+  console.log("ESPN จบ:", espn.filter(e=>e.final).map(e=>`${e.home} ${e.hs}-${e.as} ${e.away}`).join(" | ")||"-",
+    "· สด:", espn.filter(e=>e.live).map(e=>`${e.home} ${e.hs}-${e.as} ${e.away} ${e.clock}`).join(" | ")||"-");
 
   for (const p of POOLS) {
     const ms = await col(p,"matches").get();
     for (const mdoc of ms.docs) {
       const m = mdoc.data();
-      if (m.status==="finished" && m.autoGraded) continue;       // ตรวจแล้ว ข้าม
+      if (m.status==="finished" && m.autoGraded) continue;       // ตรวจจบแล้ว ข้าม
       const ev = espn.find(e => e.home===m.home && e.away===m.away);
-      if (!ev) continue;                                          // ESPN ยังไม่มี/ยังไม่จบ
-      // 1) เขียนผลจริง
+      if (!ev || ev.state==="pre") continue;                      // ESPN ยังไม่มี/ยังไม่เตะ
+      // 🔴 ระหว่างเกม: อัพเดตสกอร์ + นาฬิกา ทุกรอบ (แอปคิดแต้มสด, ยังไม่ตรวจคนยิง)
+      if (!ev.final) {
+        console.log(`[${p.id}] ${DRY?"[DRY] ":""}🔴 สด ${m.home} ${ev.hs}-${ev.as} ${m.away} · ${ev.clock}`);
+        if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, live:true, clock:ev.clock }, {merge:true});
+        continue;
+      }
+      // 1) จบแล้ว: เขียนผล + ปิด live
       console.log(`[${p.id}] ${DRY?"[DRY] จะเขียนผล":"✓ ผล"} ${m.home} ${ev.hs}-${ev.as} ${m.away} | ยิง: ${ev.scorers.join(", ")||"-"}`);
-      if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, status:"finished", autoGraded:true, finishedAt:Date.now() }, {merge:true});
+      if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, status:"finished", autoGraded:true, finishedAt:Date.now(), live:false, clock:"จบ" }, {merge:true});
       // 2) ตรวจคนยิง
       const preds = (await col(p,"predictions").get()).docs.filter(d=>d.data().matchId===mdoc.id);
       const unknown = new Set();
