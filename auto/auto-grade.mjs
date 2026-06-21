@@ -263,7 +263,9 @@ async function run() {
     }
   }
   }   // ปิด else (live)
-  try { await autoAddNext(); } catch(e){ console.log("⚠️ auto-add ล้มเหลว:", e.message); }
+  // autoAdd อ่านคู่ 48ชม. = ตัวกิน read หลักตอน idle → รันแค่ทุก ~5 นาที (stateless, pinger ยิงทุก 1 นาทีก็โดน gate)
+  if (FORCE || DRY || new Date().getMinutes() % 5 === 0)
+    try { await autoAddNext(); } catch(e){ console.log("⚠️ auto-add ล้มเหลว:", e.message); }
   console.log("เสร็จ ✅", new Date().toLocaleString("th-TH"));
   console.log("__LIVE__:" + (anyLive ? 1 : 0));   // สัญญาณให้ workflow loop: 1=ยังมีบอลสด วนต่อ
 }
