@@ -288,7 +288,6 @@ export function openPlayerSheet(name){
         <div style="flex:1;min-width:0;"><div class="k" style="font-weight:800;font-size:20px;">${esc(name)}</div>
           <div style="font-size:11px;color:var(--mut);">ยกมา ${row.carryPts} · รายคู่ ${row.matchPts} · แชมป์ ${row.champPts}</div></div>
         <div style="text-align:right;"><div class="k" style="font-weight:800;font-size:24px;color:#27d26e;">${row.total}</div><div style="font-size:10px;color:var(--mut);">รวม</div></div></div>
-      <div class="k" style="font-size:11px;color:var(--mut);margin-bottom:2px;">แต้มรายคู่ · ล่าสุดบน</div>
       ${rowsHtml}
       <div id="pSheetClose" class="k btnG" style="margin-top:16px;height:44px;font-size:14px;">ปิด</div></div>`;
   document.body.appendChild(sheet);
