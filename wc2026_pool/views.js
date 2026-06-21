@@ -193,6 +193,7 @@ export function renderBoard(){
         <div style="position:absolute;top:0;left:0;width:55%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.16),transparent);animation:shine 4.6s ease-in-out infinite;pointer-events:none;"></div>
         <div style="position:relative;display:flex;align-items:center;gap:9px;">
           <span class="k" style="font-weight:700;font-size:12px;letter-spacing:3px;color:#5fcf94;text-transform:uppercase;">★ จ่าฝูง</span>
+          <span style="font-size:14px;">${moveHTML(L.move)}</span>
           ${isMe?`<span class="k" style="font-weight:700;font-size:10px;letter-spacing:1px;color:#fff;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);padding:2px 8px;border-radius:99px;">คุณ</span>`:""}</div>
         <div style="display:flex;align-items:center;gap:15px;margin-top:14px;position:relative;">
           <div style="position:relative;flex:none;animation:floatY 3.4s ease-in-out infinite;">
