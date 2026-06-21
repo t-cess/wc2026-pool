@@ -7,6 +7,10 @@ on:
         description: "ข้าม live-window gate (ไว้เทสนอกเวลาบอล)"
         type: boolean
         default: false
+      regrade:
+        description: "ตรวจซ้ำทุกคู่ (เก็บตกคู่ที่ค้าง/ไม่ได้ตรวจ เช่นหลัง DB ล่ม)"
+        type: boolean
+        default: false
   schedule:
     - cron: "*/5 * * * *"        # สำรอง · ตัวขับหลัก = cron-job.org ยิงทุก 1 นาที
 
@@ -32,4 +36,5 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           QWEN_TOKEN: ${{ secrets.QWEN_TOKEN }}
           FORCE_FLAG: ${{ inputs.force && '--force' || '' }}
-        run: node auto-grade.mjs $FORCE_FLAG || true
+          REGRADE_FLAG: ${{ inputs.regrade && '--regrade' || '' }}
+        run: node auto-grade.mjs $FORCE_FLAG $REGRADE_FLAG || true
