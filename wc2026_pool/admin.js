@@ -1,8 +1,8 @@
 /* ===== admin: เพิ่มคู่ / กรอกผล / แชมป์ / ป้าย / คะแนนยกมา / สมาชิก ===== */
 import { S, rosterNames } from "./state.js";
 import { db, doc, setDoc, updateDoc, deleteDoc, poolDoc } from "./firebase.js";   // matches → doc(db) top-level ใช้ร่วม · config/players/predictions → poolDoc แยกวง
-import { TEAMS, fe, CHAMP_TEAMS } from "./config.js";
-import { $, esc, flag, avatarHTML, silhouetteHTML, bindAvatars, toast, isAdmin } from "./utils.js";
+import { TEAMS, fe, CHAMP_TEAMS, POOL_ID, genCode } from "./config.js";
+import { $, esc, flag, avatarHTML, silhouetteHTML, bindAvatars, toast, isAdmin, isSuper } from "./utils.js";
 import { stateOf } from "./scoring.js";
 
 async function commitScorers(matchId){   // เขียนคนยิงที่ติ๊กค้างไว้ ลง DB · stage: 0=ไม่มี 1=คนแรก 2=คนสอง
@@ -45,20 +45,29 @@ export function renderAdmin(){
     return `<div style="display:flex;align-items:center;gap:10px;background:#14171D;border:1px solid #232830;border-radius:12px;padding:10px 12px;margin-bottom:7px;">${claimed?avatarHTML(p.photo,34):silhouetteHTML(34)}<div style="flex:1;min-width:0;"><div class="k" style="font-weight:700;">${esc(n)}</div><div style="font-size:11px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc(p.email||""):"ยังไม่ล็อกอิน"}</div></div>${claimed?`<span class="k" style="font-size:10px;color:#5fcf94;background:#10301f;padding:3px 8px;border-radius:99px;">เข้าแล้ว</span>`:`<span class="k" style="font-size:10px;color:#5b626d;">รอเข้า</span>`}<div data-delmem="${esc(n)}" class="k" style="cursor:pointer;color:#EF3E42;font-size:12px;font-weight:700;padding:5px 9px;border:1px solid #5a2227;border-radius:8px;">ลบ</div></div>`; }).join("")||`<div class="k" style="color:var(--dim);">ยังไม่มีสมาชิก</div>`;
   box.innerHTML=`
     <div style="display:flex;align-items:center;gap:8px;margin:0 4px 16px;"><h2 class="k" style="margin:0;font-weight:800;font-size:26px;">แอดมิน</h2><span class="k" style="font-weight:600;font-size:10px;letter-spacing:1px;color:#EF3E42;border:1px solid #5a2227;border-radius:6px;padding:3px 7px;">STAFF</span></div>
+    ${isSuper()?`<div style="background:#161226;border:1px solid #2e2546;border-radius:16px;padding:15px;margin-bottom:13px;">
+      <div class="k" style="font-weight:700;font-size:15px;color:#b9a6f0;margin-bottom:4px;">🏟️ จัดการวง <span style="font-size:10px;color:#6b5fa0;font-weight:600;">· เฉพาะ super</span></div>
+      <div class="k" style="font-size:12px;color:var(--mut);margin-bottom:12px;">วงปัจจุบัน: <b style="color:#cfc2f5;">${POOL_ID?esc(POOL_ID):"วงหลัก"}</b></div>
+      <div style="display:flex;gap:8px;margin-bottom:7px;"><input id="npName" class="field" placeholder="ชื่อวงใหม่ (เช่น วงออฟฟิศ)"><div id="npCreate" class="k btnG" style="width:92px;height:44px;font-size:13px;flex:none;">+ สร้างวง</div></div>
+      <div id="npResult" class="k" style="font-size:12px;line-height:1.5;color:#5fcf94;margin-bottom:12px;word-break:break-all;"></div>
+      <div class="k" style="font-size:12px;color:var(--mut);margin-bottom:7px;border-top:1px solid #2e2546;padding-top:12px;">แอดมินของวงนี้ — ดูแลสมาชิก/ตรวจคนยิงได้ (แต่แตะตารางคู่ไม่ได้)</div>
+      ${(S.admins||[]).map(e=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><div class="k" style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(e)}</div><div data-deladmin="${esc(e)}" class="k" style="cursor:pointer;color:#EF3E42;font-size:11px;font-weight:700;padding:4px 9px;border:1px solid #5a2227;border-radius:8px;">ถอด</div></div>`).join("")||`<div class="k" style="color:var(--dim);font-size:12px;margin-bottom:6px;">— ยังไม่มี (ต้น = super ดูแลได้อยู่แล้ว) —</div>`}
+      <div style="display:flex;gap:8px;margin-top:4px;"><input id="npAdminEmail" class="field" inputmode="email" placeholder="อีเมลแอดมินใหม่"><div id="npAddAdmin" class="k btnG" style="width:92px;height:44px;font-size:13px;flex:none;">+ เพิ่ม</div></div></div>
     <div style="background:#14171D;border:1px solid #232830;border-radius:16px;padding:15px;margin-bottom:13px;">
-      <div class="k" style="font-weight:700;font-size:15px;margin-bottom:12px;">➕ เพิ่มคู่แข่งขัน</div>
+      <div class="k" style="font-weight:700;font-size:15px;margin-bottom:12px;">➕ เพิ่มคู่แข่งขัน <span style="font-size:10px;color:#5b626d;font-weight:600;">· ใช้ร่วมทุกวง</span></div>
       <div style="display:flex;gap:8px;margin-bottom:8px;"><select id="amHome" class="field">${teamOpts()}</select><select id="amAway" class="field">${teamOpts()}</select></div>
       <div style="display:flex;gap:8px;margin-bottom:8px;"><select id="amGroup" class="field">${groupOpts}</select><select id="amRound" class="field">${roundOpts}</select></div>
       <input id="amKick" class="field" placeholder="📅 แตะเลือกวัน-เวลาเตะ" readonly style="margin-bottom:12px;cursor:pointer;">
-      <div id="amAdd" class="k btnG" style="height:44px;font-size:14px;">เพิ่มคู่</div></div>
+      <div id="amAdd" class="k btnG" style="height:44px;font-size:14px;">เพิ่มคู่</div></div>`:""}
     <div style="background:#14171D;border:1px solid #232830;border-radius:16px;padding:15px;margin-bottom:13px;">
       <div class="k" style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;margin-bottom:12px;">✅ กรอกผล + ให้แต้มคนยิง${glocked?'<span style="font-size:11px;color:#9cc3f3;font-weight:600;">🔒 จบแล้ว</span>':''}</div>
       <select id="amSel" class="field" style="margin-bottom:8px;">${opts}</select>
-      ${selM?`<div style="${glocked?'opacity:.55;pointer-events:none;':''}">
+      ${selM?`${isSuper()?`<div style="${glocked?'opacity:.55;pointer-events:none;':''}">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">${flag(selM.home)}<div class="k" style="flex:1;min-width:0;font-weight:600;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(selM.home)} ${fe(selM.home)}</div><div style="display:flex;align-items:center;gap:6px;flex:none;"><div data-step="Hs:-1" class="k" style="${stBtn}">−</div><input id="amHs" inputmode="numeric" value="${selM.homeScore||0}" ${glocked?"disabled":""} style="${stInp}"><div data-step="Hs:1" class="k" style="${stBtn}">+</div></div></div>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">${flag(selM.away)}<div class="k" style="flex:1;min-width:0;font-weight:600;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(selM.away)} ${fe(selM.away)}</div><div style="display:flex;align-items:center;gap:6px;flex:none;"><div data-step="As:-1" class="k" style="${stBtn}">−</div><input id="amAs" inputmode="numeric" value="${selM.awayScore||0}" ${glocked?"disabled":""} style="${stInp}"><div data-step="As:1" class="k" style="${stBtn}">+</div></div></div></div>
-      ${glocked?`<div id="amGameEdit" class="k" style="height:44px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:#9cc3f3;font-weight:700;font-size:14px;cursor:pointer;">🔓 แก้ไขผล (คู่นี้จบแล้ว)</div>`:`<div style="display:flex;gap:8px;"><div id="amLive" class="k" style="flex:1;height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:#3a1c1f;color:#ff6b6b;font-weight:700;font-size:13px;cursor:pointer;">🔴 อัพเดตสด</div><div id="amResult" class="k btnG" style="flex:1;height:42px;font-size:14px;">จบเกม</div></div><div class="k" style="font-size:10.5px;color:#5b626d;margin-top:4px;">อัพเดตสด = สกอร์ realtime + คิดแต้มทันที · จบเกม = ปิดผลถาวร</div>`}
-      <div id="amDel" class="k" style="height:36px;margin-top:8px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #5a2227;color:#EF3E42;font-weight:700;font-size:13px;cursor:pointer;">ลบคู่</div>
+      ${glocked?`<div id="amGameEdit" class="k" style="height:44px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:#9cc3f3;font-weight:700;font-size:14px;cursor:pointer;">🔓 แก้ไขผล (คู่นี้จบแล้ว)</div>`:`<div style="display:flex;gap:8px;"><div id="amLive" class="k" style="flex:1;height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:#3a1c1f;color:#ff6b6b;font-weight:700;font-size:13px;cursor:pointer;">🔴 อัพเดตสด</div><div id="amResult" class="k btnG" style="flex:1;height:42px;font-size:14px;">จบเกม</div></div><div class="k" style="font-size:10.5px;color:#5b626d;margin-top:4px;">อัพเดตสด = สกอร์ realtime + คิดแต้มทันที · จบเกม = ปิดผลถาวร</div>`}`
+      :`<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;padding:11px;background:#0E1116;border:1px solid #232830;border-radius:11px;">${flag(selM.home)}<span class="k" style="font-weight:800;font-size:21px;color:#EEF1F4;">${selM.homeScore||0} - ${selM.awayScore||0}</span>${flag(selM.away)}<span class="k" style="font-size:11px;color:${selM.status==='finished'?'#9cc3f3':'#5b626d'};margin-left:4px;">${selM.status==='finished'?'🔒 จบแล้ว':'รอผล'}</span></div><div class="k" style="font-size:11px;color:var(--mut);text-align:center;margin-bottom:4px;">สกอร์อัปเดตอัตโนมัติ — ติ๊กได้แค่คนยิงของวงนี้ (กัน AI อ่านชื่อพลาด)</div>`}
+      ${isSuper()?`<div id="amDel" class="k" style="height:36px;margin-top:8px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #5a2227;color:#EF3E42;font-weight:700;font-size:13px;cursor:pointer;">ลบคู่</div>`:""}
       <div class="k" style="font-size:12px;color:var(--mut);margin:14px 0 4px;">ติ๊กคนยิงถูก (+1)${glocked?" — กดแก้ไขผลก่อนถึงติ๊กได้":" — ติ๊กแล้วกดอัพเดต/จบเกม ถึงบันทึก"}</div>
       <div style="background:#0E1116;border:1px solid #232830;border-radius:11px;overflow:hidden;">${gradeRows}</div>`:`<div class="k" style="color:var(--dim);">— ไม่มีคู่ที่ปิดรับ —</div>`}</div>
     <div style="background:#1a1410;border:1px solid #3a2f1e;border-radius:16px;padding:15px;margin-bottom:13px;">
@@ -100,15 +109,32 @@ export function renderAdmin(){
   if($("#amMemAdd")) $("#amMemAdd").onclick=async()=>{ const n=$("#amMemName").value.trim(); if(!n){toast("ใส่ชื่อ");return;} const v=parseInt($("#amMemCarry").value)||0; await setDoc(poolDoc("config","carry"),{...S.carry,[n]:v},{merge:true}); S.carry[n]=v; toast("เพิ่มสมาชิกแล้ว ✓"); renderAdmin(); };
   if($("#acEdit")) $("#acEdit").onclick=()=>{ S.carryEdit=true; renderAdmin(); };
   if($("#acSave")) $("#acSave").onclick=async()=>{ if(!confirm("บันทึกคะแนนยกมาใหม่? (กระทบยอดรวมทุกคน)"))return; const c2={...(S.carry||{})}; box.querySelectorAll("[data-carry]").forEach(i=>{c2[i.dataset.carry]=parseInt(i.value)||0;}); await setDoc(poolDoc("config","carry"),c2,{merge:true}); Object.assign(S.carry,c2); S.carryEdit=false; toast("บันทึกคะแนนยกมาแล้ว"); renderAdmin(); };
-  $("#amAdd").onclick=async()=>{ const h=$("#amHome").value,a=$("#amAway").value;
+  if($("#amAdd")) $("#amAdd").onclick=async()=>{ const h=$("#amHome").value,a=$("#amAway").value;
     const sel=S.fp&&S.fp.selectedDates[0]; const k=sel?sel.getTime():0;
     const g=[$("#amGroup").value,$("#amRound").value].filter(Boolean).join(" · ");
     if(!h||!a||!k){toast("เลือกทีม 2 ทีม + วัน-เวลา");return;} if(h===a){toast("เลือกทีมซ้ำ");return;}
     await setDoc(doc(db,"matches","m_"+Date.now()),{home:h,away:a,group:g,kickoff:k,homeScore:0,awayScore:0,scorers:[],status:"upcoming"}); toast("เพิ่มคู่แล้ว ✓"); renderAdmin(); };
   if(window.flatpickr && $("#amKick")) S.fp=flatpickr("#amKick",{enableTime:true,time_24hr:true,minuteIncrement:30,disableMobile:true,
     formatDate:d=>d.toLocaleString("th-TH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" น."});
-  const lockRound=()=>{ const g=$("#amGroup").value; const ko=g && !g.startsWith("กลุ่ม"); const r=$("#amRound"); r.disabled=ko; if(ko)r.value=""; r.style.opacity=ko?".5":"1"; };
-  $("#amGroup").onchange=lockRound; lockRound();
+  if($("#amGroup")){ const lockRound=()=>{ const g=$("#amGroup").value; const ko=g && !g.startsWith("กลุ่ม"); const r=$("#amRound"); r.disabled=ko; if(ko)r.value=""; r.style.opacity=ko?".5":"1"; };
+    $("#amGroup").onchange=lockRound; lockRound(); }
+  if($("#npCreate")) $("#npCreate").onclick=async()=>{ const name=$("#npName").value.trim(); if(!name){toast("ใส่ชื่อวง");return;}
+    const code=genCode();
+    try{ await setDoc(doc(db,"pools",code,"config","meta"),{name,owner:S.me.email,createdAt:Date.now()});
+      await setDoc(doc(db,"pools",code,"config","admins"),{emails:[]});
+      const link=location.origin+location.pathname+"?pool="+code;
+      $("#npResult").innerHTML=`สร้างวง "<b>${esc(name)}</b>" ✓ โค้ด <b>${code}</b><br><span style="color:#9cc3f3;">${esc(link)}</span><br><span style="color:var(--mut);">เปิดลิงก์นี้แล้วมาเพิ่มแอดมินของวงได้</span>`;
+      try{ await navigator.clipboard.writeText(link); toast("สร้างวง + ก๊อปลิงก์แล้ว ✓"); }catch(e){ toast("สร้างวงแล้ว ✓"); }
+    }catch(e){ toast("สร้างวงไม่ได้ (Rules?)"); }
+  };
+  if($("#npAddAdmin")) $("#npAddAdmin").onclick=async()=>{ const em=$("#npAdminEmail").value.trim().toLowerCase(); if(!em||!em.includes("@")){toast("ใส่อีเมลให้ถูก");return;}
+    const emails=[...new Set([...(S.admins||[]),em])];
+    try{ await setDoc(poolDoc("config","admins"),{emails},{merge:true}); S.admins=emails; toast("เพิ่มแอดมินแล้ว ✓"); renderAdmin(); }catch(e){ toast("เพิ่มไม่ได้ (Rules?)"); }
+  };
+  box.querySelectorAll("[data-deladmin]").forEach(el=>el.onclick=async()=>{ const em=el.dataset.deladmin; if(!confirm(`ถอดแอดมิน ${em}?`))return;
+    const emails=(S.admins||[]).filter(x=>x!==em);
+    try{ await setDoc(poolDoc("config","admins"),{emails}); S.admins=emails; toast("ถอดแล้ว"); renderAdmin(); }catch(e){ toast("ถอดไม่ได้ (Rules?)"); }
+  });
   $("#amSel").onchange=e=>{ S.adminSel=e.target.value; S.gameEdit=false; renderAdmin(); };
   if($("#amGameEdit")) $("#amGameEdit").onclick=()=>{ S.gameEdit=true; renderAdmin(); };
   box.querySelectorAll("[data-step]").forEach(el=>el.onclick=()=>{ const [f,d]=el.dataset.step.split(":"); const inp=$("#am"+f); let v=(parseInt(inp.value)||0)+parseInt(d); v=Math.max(0,Math.min(99,v)); inp.value=v; });

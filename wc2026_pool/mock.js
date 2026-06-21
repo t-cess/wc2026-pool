@@ -5,7 +5,13 @@ import { renderAll } from "./data.js";
 
 export function startMock(){
   const now = Date.now(), H = 3600000;
-  S.me = { uid:"u_ton", name:"ต้น", email:"ton.itthiphon@gmail.com", photo:"" };
+  // ?as=admin = แอดมินวงธรรมดา (ไม่ใช่ super) · ?as=super = ต้น (default) — ไว้เทส gate แอดมิน
+  const asParam = new URLSearchParams(location.search).get("as");
+  const asAdmin = asParam==="admin";
+  S.me = asAdmin ? { uid:"u_kui", name:"กุ้ย", email:"kui@example.com", photo:"" }
+                 : { uid:"u_ton", name:"ต้น", email:"ton.itthiphon@gmail.com", photo:"" };
+  S.admins = asAdmin ? ["kui@example.com"] : ["graf@example.com"];   // แอดมินวง = isAdmin true แต่ isSuper false · super มีตัวอย่างไว้ดูลิสต์
+  if(asParam) S.tab = "admin";                     // เด้งเข้าแท็บแอดมินเลย
   S.carry = { "ต้น":30, "กราฟ":35, "กุ้ย":33, "BB":28, "กอล์ฟ":25 };
   S.matches = S.allMatches = [
     // เปิดทาย + ทายแล้ว

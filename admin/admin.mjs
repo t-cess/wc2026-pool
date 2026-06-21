@@ -5,8 +5,10 @@
 //   1) วางไฟล์กุญแจไว้ที่  admin/serviceAccount.json  (ดูวิธีโหลดใน README ด้านล่างของไฟล์นี้)
 //   2) cd admin && npm install
 // รัน:
-//   node admin.mjs list     → โชว์คู่ทั้งหมด + id (เอาไว้กรอกผล)
-//   node admin.mjs          → ลงข้อมูลที่กำหนดในบล็อกด้านล่าง
+//   node admin.mjs list            → โชว์คู่ทั้งหมด + id (matches ใช้ร่วม top-level)
+//   node admin.mjs                 → ลงข้อมูลในบล็อกด้านล่าง (config = วงหลัก · matches = top-level)
+//   node admin.mjs --pool=CODE     → config (carry/prev/batch/champPicks/แชมป์) ลงวง CODE แทน
+//                                     · matches ยังลง top-level เสมอ (คู่ชุดเดียวกันทุกวง)
 
 import { readFileSync } from "node:fs";
 import { initializeApp, cert } from "firebase-admin/app";
@@ -15,6 +17,13 @@ import { getFirestore } from "firebase-admin/firestore";
 const sa = JSON.parse(readFileSync(new URL("./serviceAccount.json", import.meta.url)));
 initializeApp({ credential: cert(sa) });
 const db = getFirestore();
+
+// เลือกวง: --pool=CODE → เขียน "config ของวงนั้น" (carry/prev/batch/champPicks/แชมป์)
+//   matches (ADD_MATCHES/RESULTS/list) = ใช้ร่วม top-level เสมอ (คู่ชุดเดียวกันทุกวง)
+const poolArg = process.argv.find(a => a.startsWith("--pool="));
+const POOL = poolArg ? poolArg.slice("--pool=".length).trim() : "";
+const cfgDoc = name => POOL ? db.doc(`pools/${POOL}/config/${name}`) : db.doc(`config/${name}`);
+const poolLabel = POOL ? `วง ${POOL}` : "วงหลัก (top-level)";
 
 /* ===================== แก้ข้อมูลตรงนี้แต่ละวัน ===================== */
 
@@ -62,24 +71,25 @@ async function list() {
 }
 
 async function apply() {
+  console.log(`— เขียนลง: ${poolLabel} (config) · matches = ใช้ร่วม top-level —`);
   if (Object.keys(CARRY).length) {
-    await db.doc("config/carry").set(CARRY, { merge:true });
+    await cfgDoc("carry").set(CARRY, { merge:true });
     console.log("✓ คะแนนวันนี้:", CARRY);
   }
   if (Object.keys(PREV).length) {
-    await db.doc("config/prev").set(PREV, { merge:true });
+    await cfgDoc("prev").set(PREV, { merge:true });
     console.log("✓ คะแนนเมื่อวาน:", PREV);
   }
   if (BATCH) {
-    await db.doc("config/tournament").set({ batchLabel:BATCH }, { merge:true });
+    await cfgDoc("tournament").set({ batchLabel:BATCH }, { merge:true });
     console.log("✓ ป้ายชุด:", BATCH);
   }
   if (Object.keys(CHAMP_PICKS).length) {
-    await db.doc("config/champPicks").set(CHAMP_PICKS, { merge:true });
+    await cfgDoc("champPicks").set(CHAMP_PICKS, { merge:true });
     console.log("✓ ทายแชมป์ทุกคน:", Object.keys(CHAMP_PICKS).join(", "));
   }
   if (LOCK_PICKS) {
-    await db.doc("config/tournament").set({ picksLocked:true }, { merge:true });
+    await cfgDoc("tournament").set({ picksLocked:true }, { merge:true });
     console.log("✓ ล็อกทายแชมป์แล้ว");
   }
   for (const m of ADD_MATCHES) {
@@ -99,13 +109,13 @@ async function apply() {
     console.log("✓ กรอกผล:", r.id, `${r.homeScore}-${r.awayScore}`);
   }
   if (CHAMPION) {
-    await db.doc("config/tournament").set({ champion:CHAMPION, championLocked:true }, { merge:true });
+    await cfgDoc("tournament").set({ champion:CHAMPION, championLocked:true }, { merge:true });
     console.log("✓ ตั้งแชมป์:", CHAMPION);
   }
   console.log("เสร็จ ✅");
 }
 
-const cmd = process.argv[2];
+const cmd = process.argv.slice(2).find(a => !a.startsWith("--"));   // ข้าม flag เช่น --pool=
 (cmd === "list" ? list() : apply())
   .then(() => process.exit(0))
   .catch(e => { console.error("❌", e.message); process.exit(1); });
