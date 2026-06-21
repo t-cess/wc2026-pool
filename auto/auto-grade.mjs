@@ -5,6 +5,7 @@
 import { readFileSync } from "node:fs";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { matchScorer } from "./namematch.mjs";   // อ่านชื่อ: input = คนใน candidate set ไหน (ดิก+substring+นามสกุล)
 
 const here = new URL(".", import.meta.url);
 const sa = process.env.FIREBASE_SERVICE_ACCOUNT
@@ -28,14 +29,6 @@ async function listPools() {
 // ESPN อังกฤษ -> ไทย (ตามทีมในระบบ)
 const T = {"Netherlands":"เนเธอร์แลนด์","Sweden":"สวีเดน","Germany":"เยอรมนี","Ivory Coast":"ไอวอรีโคสต์","Côte d'Ivoire":"ไอวอรีโคสต์","Ecuador":"เอกวาดอร์","Curacao":"คูราเซา","Curaçao":"คูราเซา","Tunisia":"ตูนิเซีย","Japan":"ญี่ปุ่น","Brazil":"บราซิล","Argentina":"อาร์เจนตินา","France":"ฝรั่งเศส","Spain":"สเปน","England":"อังกฤษ","Portugal":"โปรตุเกส","Belgium":"เบลเยียม","Italy":"อิตาลี","Croatia":"โครเอเชีย","Morocco":"โมร็อกโก","United States":"สหรัฐฯ","USA":"สหรัฐฯ","Mexico":"เม็กซิโก","Canada":"แคนาดา","South Korea":"เกาหลีใต้","Korea Republic":"เกาหลีใต้","Australia":"ออสเตรเลีย","Scotland":"สกอตแลนด์","Denmark":"เดนมาร์ก","Senegal":"เซเนกัล","Switzerland":"สวิตเซอร์แลนด์","Czechia":"เช็ก","Czech Republic":"เช็ก","South Africa":"แอฟริกาใต้","Qatar":"กาตาร์","Bosnia & Herzegovina":"บอสเนีย","Bosnia and Herzegovina":"บอสเนีย","Panama":"ปานามา","Turkey":"ตุรกี","Türkiye":"ตุรกี","Paraguay":"ปารากวัย","Algeria":"แอลจีเรีย","Jordan":"จอร์แดน","Austria":"ออสเตรีย","Iraq":"อิรัก","Norway":"นอร์เวย์","Uzbekistan":"อุซเบกิสถาน","Colombia":"โคลอมเบีย","Uruguay":"อุรุกวัย","Iran":"อิหร่าน","Ghana":"กานา","Haiti":"เฮติ","Cape Verde":"เคปเวิร์ด","Saudi Arabia":"ซาอุดีอาระเบีย","New Zealand":"นิวซีแลนด์","Egypt":"อียิปต์","Bosnia-Herzegovina":"บอสเนีย","Congo DR":"คองโก"};
 const th = en => T[en] || en;
-
-const norm = s => (s||"").trim().toLowerCase().replace(/\s+/g," ");
-// พจนานุกรม: ข้อความ -> canonical
-const ALIAS2CANON = {};
-for (const [canon, arr] of Object.entries(aliases)) { if(canon[0]==="_")continue;
-  ALIAS2CANON[norm(canon)] = canon;
-  for (const a of arr) ALIAS2CANON[norm(a)] = canon; }
-const resolve = txt => ALIAS2CANON[norm(txt)] || null;   // null = ไม่รู้จัก (ส่ง Qwen)
 
 async function fetchEspn(dateStr) {
   const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`;
@@ -66,17 +59,17 @@ async function fetchEspn(dateStr) {
   });
 }
 
-// ดึงรายชื่อ "คนที่ลงเล่น" (ตัวจริง+สำรองที่ลงมา) → Set ของ norm(ชื่อ ESPN) · ใช้กฎคนยิงสำรอง
+// ดึงรายชื่อ "คนที่ลงเล่น" (ตัวจริง+สำรองที่ลงมา) → array ชื่อ ESPN จริง · ใช้กฎคนยิงสำรอง (s1played)
 async function fetchLineup(eventId) {
   try {
     const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`);
     const d = await r.json();
-    const played = new Set();
+    const played = [];
     for (const t of (d.rosters||[])) for (const pl of (t.roster||[])) {
-      if (pl.starter || pl.subbedIn) { const n=pl.athlete?.displayName; if(n) played.add(norm(n)); }
+      if (pl.starter || pl.subbedIn) { const n=pl.athlete?.displayName; if(n) played.push(n); }
     }
     return played;
-  } catch(e){ return new Set(); }
+  } catch(e){ return []; }
 }
 
 // ถาม Qwen เฉพาะชื่อที่ไม่อยู่ในดิก (เจาะจง yes/no) — ผ่าน gateway แบบ OpenAI chat/completions
@@ -104,10 +97,8 @@ async function askQwen(actualScorers, items) {
 
 function scorerHitOne(s, actualScorers, qwenMap) {   // ชื่อเดียวตรงคนยิงจริงไหม
   if (!s) return false;
-  const acts = actualScorers.map(norm);
-  const canon = resolve(s);
-  if (canon && acts.includes(norm(canon))) return true;        // ในดิก + ตรงคนยิงจริง
-  if (!canon && qwenMap[s] === true) return true;              // Qwen บอกตรง
+  if (matchScorer(s, actualScorers, aliases)) return true;     // ดิก+substring+นามสกุล ตรงคนยิงจริง
+  if (qwenMap[s] === true) return true;                        // Qwen บอกตรง (ชื่อใหม่ที่ดิกไม่มี)
   return false;
 }
 function scorerHit(pred, actualScorers, qwenMap) {
@@ -195,16 +186,16 @@ async function autoAddNext() {
 
 // ตรวจคนยิงทุกโพยในคู่ → ตั้ง scorerOk (เขียนเฉพาะที่เปลี่ยน)
 // useQwen=false (สด: ดิกอย่างเดียว เร็ว ไม่เรียก Qwen) · true (จบ: ดิก + Qwen กวาดชื่อใหม่)
-async function gradeScorers(p, matchId, actualScorers, useQwen, playedSet) {
+async function gradeScorers(p, matchId, actualScorers, useQwen, lineup) {
   const preds = (await col(p,"predictions").get()).docs.filter(d=>d.data().matchId===matchId);
   let qwenMap = {};
   if (useQwen) {
     const unknown = new Set();
     preds.forEach(d=>{ const pr=d.data(); if(pr.homeScore===0&&pr.awayScore===0)return;
-      [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !resolve(s)) unknown.add(s); }); });
+      [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !matchScorer(s, actualScorers, aliases)) unknown.add(s); }); });   // ชื่อที่ดิกอ่านไม่ออก → Qwen
     qwenMap = await askQwen(actualScorers, [...unknown]);
   }
-  const lineupKnown = playedSet && playedSet.size>0;
+  const lineupKnown = lineup && lineup.length>0;
   let changed = 0;
   for (const d of preds) {
     const pr=d.data();
@@ -213,8 +204,7 @@ async function gradeScorers(p, matchId, actualScorers, useQwen, playedSet) {
     const s1 = scorerHitOne(pr.scorer1, actualScorers, qwenMap);   // คนแรกยิงไหม
     const s2 = scorerHitOne(pr.scorer2, actualScorers, qwenMap);   // คนสองยิงไหม
     // คนแรกลงเล่นไหม (ตัวจริง/ลงมา) · ไม่รู้ lineup → ถือว่าลง (สำรองไม่ activate)
-    const canon1 = resolve(pr.scorer1);
-    const s1played = lineupKnown ? !!(canon1 && playedSet.has(norm(canon1))) : true;
+    const s1played = lineupKnown ? !!matchScorer(pr.scorer1, lineup, aliases) : true;
     const ok = s1 || (!s1played && s2);   // คนยิง = คนแรกยิง หรือ (คนแรกไม่ได้ลง และคนสองยิง)
     if (ok===!!pr.scorerOk && s1===!!pr.s1hit && s2===!!pr.s2hit && s1played===!!pr.s1played) continue;   // ไม่เปลี่ยน
     changed++;
