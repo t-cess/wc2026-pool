@@ -36,15 +36,21 @@ export function startAuth(){
     try{
       S.me = {uid:user.uid, email:user.email, photo:user.photoURL||"", name:""};
       // อ่าน meta + admins + player พร้อมกัน (เร็วกว่าเรียงต่อกัน 3 รอบ)
-      const [metaSnap, adminSnap, playerSnap] = await Promise.all([
+      const [metaSnap, adminSnap, playerSnap, bindSnap] = await Promise.all([
         POOL_ID ? getDoc(poolDoc("config","meta")) : Promise.resolve(null),
         getDoc(poolDoc("config","admins")).catch(()=>null),
         getDoc(poolDoc("players",user.uid)),
+        getDoc(poolDoc("config","bind")).catch(()=>null),
       ]);
       if(POOL_ID && !(metaSnap && metaSnap.exists())){ blockScreen("ไม่พบวงทายผลบอลนี้","โค้ดไม่ถูกต้อง หรือวงทายผลบอลนี้ยังไม่ถูกสร้าง"); return; }
       if(metaSnap && metaSnap.exists()) S.poolMeta = metaSnap.data();
       S.admins = (adminSnap && adminSnap.exists()) ? (adminSnap.data().emails||[]) : [];
       S.me.name = playerSnap.exists() ? playerSnap.data().name : "";
+      // แอดมินที่ super ติ๊ก "เป็นผู้เล่นด้วย" + ผูกชื่อไว้ (config/bind) → สร้าง player ให้อัตโนมัติตอน login ครั้งแรก
+      if(!S.me.name && bindSnap && bindSnap.exists()){
+        const boundName = bindSnap.data()[S.me.email];
+        if(boundName){ await setDoc(poolDoc("players",S.me.uid),{uid:S.me.uid,email:S.me.email,name:boundName,photo:S.me.photo,champ1:"",champ2:""},{merge:true}); S.me.name=boundName; }
+      }
       if(S.me.name){ enterApp(); setDoc(poolDoc("players",S.me.uid),{photo:S.me.photo,email:S.me.email},{merge:true}).catch(()=>{}); }  // เข้าก่อน แล้วซิงก์รูปทีหลัง
       else if(isAdmin()){ enterApp(); }                 // แอดมินล้วน — เข้าดูแลได้ ไม่ต้องมีชื่อ
       else { await showIdentity(); }                     // ผู้เล่น: เลือกชื่อที่แอดมินเพิ่มไว้ (ไม่มี → block)
