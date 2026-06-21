@@ -18,7 +18,7 @@ export function scoreMatch(p, m){
 export const lockTs = m => (m.kickoff||0) - LOCK_BEFORE_MS;
 export const stateOf = m => m.status==="finished" ? "done" : (S.nowTs>=lockTs(m) ? "locked" : "open");
 
-export function rankMap(tot){ const a=Object.entries(tot).map(([n,t])=>({n,t})).sort((x,y)=>y.t-x.t); const r={}; a.forEach((x,i)=>r[x.n]=i+1); return r; }
+export function rankMap(tot){ const a=Object.entries(tot).map(([n,t])=>({n,t})).sort((x,y)=> y.t-x.t || x.n.localeCompare(y.n,"th")); const r={}; a.forEach((x,i)=>r[x.n]=i+1); return r; }   // ตัด tie ด้วยตัวอักษร = ตรงกับตาราง (ลูกศรไม่เพี้ยน)
 export function isToday(ts){ if(!ts) return false; return ymdNYC(ts)===ymdNYC(S.nowTs); }
 export function computeBoard(){
   const champion = norm(S.tournament.champion||"");
