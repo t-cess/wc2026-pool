@@ -1,7 +1,7 @@
 /* ===== views: header / nav / fixtures / champion / board ===== */
 import { S, rosterNames } from "./state.js";
 import { poolDoc, setDoc } from "./firebase.js";
-import { fe } from "./config.js";
+import { fe, CHAMP_TEAMS } from "./config.js";
 import { $, esc, flag, avatarHTML, bindAvatars, toast, countdown, fmtKo, isAdmin } from "./utils.js";
 import { stateOf, lockTs, scoreMatch, computeBoard } from "./scoring.js";
 import { renderAdmin } from "./admin.js";
@@ -149,15 +149,22 @@ export function renderChampion(){
       <h2 class="k" style="margin:0;font-weight:800;font-size:26px;">ทายแชมป์</h2>
       <span class="k" style="font-size:12px;color:var(--green);">ทีมละ +10</span></div>`;
   const mine = S.champPicks[S.me.name]||[];
+  const canPick = !locked && !!S.me.name;   // ผู้เล่นเลือกแชมป์เองได้เมื่อยังไม่ล็อก
   html+=`<div style="background:linear-gradient(135deg,#1a1410,#14171D);border:1px solid #3a2f1e;border-radius:18px;padding:16px;margin-bottom:14px;">
-      <div class="k" style="font-size:12px;color:var(--gold);letter-spacing:.5px;margin-bottom:12px;">โพยแชมป์ของคุณ · ${locked?"🔒 ปิดรับแล้ว":"เปิดให้แอดมินจัดการ"}</div>
-      <div style="display:flex;gap:11px;">`;
-  [0,1].forEach(i=>{ const n=mine[i];
-    html+=`<div style="flex:1;background:#0E1116;border:1px solid #2a2418;border-radius:13px;padding:13px;display:flex;align-items:center;gap:11px;">
-        ${n?flag(n):`<div class="k" style="width:42px;height:30px;border-radius:6px;background:#222730;color:#5b626d;display:flex;align-items:center;justify-content:center;font-weight:700;">–</div>`}
-        <div><div class="k" style="font-size:10px;color:var(--mut);">แชมป์ ${i+1}</div>
-        <div class="k" style="font-weight:700;font-size:15px;">${n?esc(n)+" "+fe(n):"ยังไม่เลือก"}</div></div></div>`; });
-  html+=`</div></div>`;
+      <div class="k" style="font-size:12px;color:var(--gold);letter-spacing:.5px;margin-bottom:12px;">โพยแชมป์ของคุณ · ${locked?"🔒 ปิดรับแล้ว":"เลือกได้เลย · ทีมละ +10"}</div>`;
+  if(canPick){
+    const opt = sel => `<option value="">— เลือกทีม —</option>`+CHAMP_TEAMS.map(n=>`<option value="${esc(n)}" ${n===sel?"selected":""}>${fe(n)} ${esc(n)}</option>`).join("");
+    html+=`<div style="display:flex;gap:11px;"><select id="myChamp0" class="field">${opt(mine[0])}</select><select id="myChamp1" class="field">${opt(mine[1])}</select></div>
+      <div id="myChampSave" class="k btnG" style="height:42px;margin-top:11px;font-size:14px;background:var(--gold);color:#1a1410;">บันทึกทายแชมป์</div></div>`;
+  } else {
+    html+=`<div style="display:flex;gap:11px;">`;
+    [0,1].forEach(i=>{ const n=mine[i];
+      html+=`<div style="flex:1;background:#0E1116;border:1px solid #2a2418;border-radius:13px;padding:13px;display:flex;align-items:center;gap:11px;">
+          ${n?flag(n):`<div class="k" style="width:42px;height:30px;border-radius:6px;background:#222730;color:#5b626d;display:flex;align-items:center;justify-content:center;font-weight:700;">–</div>`}
+          <div><div class="k" style="font-size:10px;color:var(--mut);">แชมป์ ${i+1}</div>
+          <div class="k" style="font-weight:700;font-size:15px;">${n?esc(n)+" "+fe(n):"ยังไม่เลือก"}</div></div></div>`; });
+    html+=`</div></div>`;
+  }
 
   html+=`<div class="k" style="font-weight:700;font-size:14px;margin:4px 4px 11px;">โพยแชมป์ของเพื่อน</div>`;
   const others=Object.keys(S.champPicks).filter(n=>n!==S.me.name);
@@ -170,6 +177,12 @@ export function renderChampion(){
     tms.forEach(t=>{ html+=`<div style="display:flex;align-items:center;gap:9px;">${flag(t,true)}<span class="k" style="font-weight:600;font-size:14px;color:#cfd4db;">${esc(t)} ${fe(t)}</span></div>`; });
     html+=`</div></div>`; });
   box.innerHTML=html; bindAvatars(box);
+  if($("#myChampSave")) $("#myChampSave").onclick=async()=>{
+    const c1=$("#myChamp0").value, c2=$("#myChamp1").value;
+    if(c1&&c2&&c1===c2){ toast("เลือกทีมซ้ำ"); return; }
+    try{ await setDoc(poolDoc("players",S.me.uid),{champ1:c1,champ2:c2},{merge:true}); toast("บันทึกทายแชมป์แล้ว ✓"); }
+    catch(e){ toast("บันทึกไม่ได้: "+(e.code||e.message)); }
+  };
 }
 
 /* ===== board ===== */
