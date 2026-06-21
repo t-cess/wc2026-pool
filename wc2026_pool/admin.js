@@ -122,9 +122,10 @@ export function renderAdmin(){
   if($("#amGroup")){ const lockRound=()=>{ const g=$("#amGroup").value; const ko=g && !g.startsWith("กลุ่ม"); const r=$("#amRound"); r.disabled=ko; if(ko)r.value=""; r.style.opacity=ko?".5":"1"; };
     $("#amGroup").onchange=lockRound; lockRound(); }
   if($("#npCreate")) $("#npCreate").onclick=async()=>{ const name=$("#npName").value.trim(); if(!name){toast("ใส่ชื่อวง");return;}
-    const code=genCode();
-    try{ await setDoc(doc(db,"pools",code,"config","meta"),{name,owner:S.me.email,createdAt:Date.now()});
+    const code=genCode(); const created=Date.now();
+    try{ await setDoc(doc(db,"pools",code,"config","meta"),{name,owner:S.me.email,createdAt:created});
       await setDoc(doc(db,"pools",code,"config","admins"),{emails:[]});
+      await setDoc(doc(db,"pools",code,"config","visibility"),{startFrom:created});   // คู่ก่อนสร้างวง = ซ่อน (วงเล่นแมนนวลมาก่อน carry รับช่วง)
       const link=location.origin+location.pathname+"?pool="+code;
       try{ await navigator.clipboard.writeText(link); }catch(e){}   // ก๊อปลิงก์ไว้แชร์ ก่อนเด้ง
       if($("#npResult")) $("#npResult").innerHTML=`สร้างวง "<b>${esc(name)}</b>" (${code}) ✓ ก๊อปลิงก์แล้ว — กำลังเข้าไปตั้งค่า…`;
