@@ -93,10 +93,12 @@ export function renderFixtures(){
         const items=Object.values(byp).map(s=>`<span style="color:${s.side==='h'?'#9fe0b6':'#cdd6e0'};font-weight:600;">${esc(s.name)} <span style="color:#5b626d;font-weight:500;">${s.times.join(", ")}</span></span>`).join(` <span style="color:#3f454e;">·</span> `);
         inner+=`<div class="k" style="margin-top:7px;font-size:12px;line-height:1.55;display:flex;gap:6px;"><span>⚽</span><span style="flex:1;">${items}</span></div>`;
       }
-      const raw=S.allPreds.filter(x=>x.matchId===m.id).map(p=>({...p,pts:done?scoreMatch(p,m):null}));
-      if(done) raw.sort((a,b)=>b.pts-a.pts);
+      const showPts = done || m.live;   // สด = คิดแต้ม real-time ด้วย
+      const raw=S.allPreds.filter(x=>x.matchId===m.id).map(p=>({...p,pts:showPts?scoreMatch(p,m):null}));
+      if(done) raw.sort((a,b)=>b.pts-a.pts);   // live ไม่เรียง (กันแถวกระโดด)
       const mine=raw.find(r=>r.uid===S.me.uid);
-      const note=done?("คุณได้ "+(mine?mine.pts:0)+" แต้มจากคู่นี้"):("ปิดรับแล้ว · "+raw.length+" คนส่งโพย");
+      const note=done?("คุณได้ "+(mine?mine.pts:0)+" แต้มจากคู่นี้")
+        :(m.live?("🔴 ตอนนี้คุณได้ "+(mine?mine.pts:0)+" แต้ม (สด)"):("ปิดรับแล้ว · "+raw.length+" คนส่งโพย"));
       const exp=!!S.expanded[m.id];
       inner+=`<div style="margin-top:13px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #232830;padding-top:12px;">
           <span class="k" style="font-size:12.5px;color:var(--mut);">${note}</span>
@@ -108,7 +110,7 @@ export function renderFixtures(){
             <div class="k" style="width:50px;flex:none;font-weight:600;font-size:13.5px;">${esc(p.player)}</div>
             <div class="k" style="width:36px;flex:none;font-weight:700;font-size:14px;color:#cfd4db;">${p.homeScore}-${p.awayScore}</div>
             <div style="flex:1;min-width:0;font-size:12px;color:var(--mut);word-break:break-word;line-height:1.3;">${esc(sc)}</div>
-            <div class="k" style="width:30px;flex:none;text-align:right;font-weight:800;font-size:15px;color:${done?(p.pts>0?"#1FB85E":"#5b626d"):"transparent"};">${done?(p.pts>0?"+"+p.pts:p.pts):""}</div></div>`; });
+            <div class="k" style="width:30px;flex:none;text-align:right;font-weight:800;font-size:15px;color:${showPts?(p.pts>0?"#1FB85E":"#5b626d"):"transparent"};">${showPts?(p.pts>0?"+"+p.pts:p.pts):""}</div></div>`; });
         inner+=`</div>`; }
     }
     html+=`<div style="background:#14171D;border:1px solid #232830;border-radius:18px;padding:15px;margin-bottom:13px;">${inner}</div>`;
