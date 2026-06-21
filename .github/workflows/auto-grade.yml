@@ -8,16 +8,16 @@ on:
         type: boolean
         default: false
   schedule:
-    - cron: "*/30 * * * *"       # backstop เผื่อ chain ตาย (ตัวขับหลัก = self-chain ด้วย PINGER_PAT)
+    - cron: "*/5 * * * *"        # สำรอง · ตัวขับหลัก = cron-job.org ยิงทุก 1 นาที
 
 concurrency:
   group: auto-grade
-  cancel-in-progress: true       # มีตัวเดียวเสมอ (กัน chain ซ้อน/พอก)
+  cancel-in-progress: true       # รอบใหม่จาก pinger ยกเลิกรอบเก่าที่ค้าง (กันพอก)
 
 jobs:
   grade:
     runs-on: ubuntu-latest
-    timeout-minutes: 28
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,20 +26,13 @@ jobs:
       - name: install deps
         working-directory: auto
         run: npm install --no-audit --no-fund
-      - name: poll loop (~25 นาที · บอลสด=ทุก 30 วิ · ว่าง=ทุก 2 นาที)
+      - name: run auto-grade (poll 2 ครั้ง ห่าง 30 วิ → ~30s/ครั้ง)
         working-directory: auto
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           QWEN_TOKEN: ${{ secrets.QWEN_TOKEN }}
           FORCE_FLAG: ${{ inputs.force && '--force' || '' }}
         run: |
-          end=$((SECONDS+1500))
-          while [ $SECONDS -lt $end ]; do
-            out=$(node auto-grade.mjs $FORCE_FLAG 2>&1); echo "$out"
-            if echo "$out" | grep -q '__LIVE__:1'; then sleep 30; else sleep 120; fi
-          done
-      - name: ต่อรอบเอง (self-chain)
-        if: always()
-        env:
-          GH_TOKEN: ${{ secrets.PINGER_PAT }}
-        run: gh workflow run auto-grade.yml -R ${{ github.repository }}
+          node auto-grade.mjs $FORCE_FLAG || true
+          sleep 30
+          node auto-grade.mjs $FORCE_FLAG || true
