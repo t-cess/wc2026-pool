@@ -175,6 +175,28 @@ async function autoAddNext() {
   console.log(`auto-add: ${DRY?"[dry] จะเพิ่ม":"เพิ่ม"} ${added} คู่ · ชุด ${nextKey}`);
 }
 
+// ตรวจคนยิงทุกโพยในคู่ → ตั้ง scorerOk (เขียนเฉพาะที่เปลี่ยน)
+// useQwen=false (สด: ดิกอย่างเดียว เร็ว ไม่เรียก Qwen) · true (จบ: ดิก + Qwen กวาดชื่อใหม่)
+async function gradeScorers(p, matchId, actualScorers, useQwen) {
+  const preds = (await col(p,"predictions").get()).docs.filter(d=>d.data().matchId===matchId);
+  let qwenMap = {};
+  if (useQwen) {
+    const unknown = new Set();
+    preds.forEach(d=>{ const pr=d.data(); if(pr.homeScore===0&&pr.awayScore===0)return;
+      [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !resolve(s)) unknown.add(s); }); });
+    qwenMap = await askQwen(actualScorers, [...unknown]);
+  }
+  let changed = 0;
+  for (const d of preds) {
+    const pr=d.data(); const ok=scorerHit(pr, actualScorers, qwenMap);
+    if (ok===null || ok===!!pr.scorerOk) continue;   // ไม่เปลี่ยน → ไม่เขียน
+    changed++;
+    if (DRY) console.log(`[${p.id}]   [DRY] ${pr.player}: "${[pr.scorer1,pr.scorer2].filter(Boolean).join(" / ")||"-"}" → scorerOk=${ok}`);
+    else await d.ref.set({ scorerOk:ok }, {merge:true});
+  }
+  return changed;
+}
+
 async function run() {
   if (DRY) console.log("🧪 DRY-RUN: อ่าน + เรียก Qwen ได้ แต่จะไม่เขียน Firestore\n");
   const live = FORCE || await hasLiveWindow();
@@ -201,24 +223,16 @@ async function run() {
         anyLive = true;
         console.log(`[${p.id}] ${DRY?"[DRY] ":""}🔴 สด ${m.home} ${ev.hs}-${ev.as} ${m.away} · ${ev.clock}`);
         if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, live:true, clock:ev.clock, goals:ev.goals }, {merge:true});
+        const n = await gradeScorers(p, mdoc.id, ev.scorers, false);   // ⚽ ตรวจคนยิงสด (ดิกอย่างเดียว → +1 ขึ้นทันที)
+        if (n) console.log(`[${p.id}]   ⚽ +1 คนยิงสด ${n} โพย`);
         continue;
       }
       // 1) จบแล้ว: เขียนผล + ปิด live
       console.log(`[${p.id}] ${DRY?"[DRY] จะเขียนผล":"✓ ผล"} ${m.home} ${ev.hs}-${ev.as} ${m.away} | ยิง: ${ev.scorers.join(", ")||"-"}`);
       if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, goals:ev.goals, status:"finished", autoGraded:true, finishedAt:Date.now(), live:false, clock:"จบ" }, {merge:true});
-      // 2) ตรวจคนยิง
-      const preds = (await col(p,"predictions").get()).docs.filter(d=>d.data().matchId===mdoc.id);
-      const unknown = new Set();
-      preds.forEach(d=>{ const pr=d.data(); if(pr.homeScore===0&&pr.awayScore===0)return;
-        [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !resolve(s)) unknown.add(s); }); });
-      const qwenMap = await askQwen(ev.scorers, [...unknown]);
-      for (const d of preds) {
-        const pr=d.data(); const ok=scorerHit(pr, ev.scorers, qwenMap);
-        if (ok===null) continue;
-        if (DRY) console.log(`[${p.id}]   [DRY] ${pr.player}: "${[pr.scorer1,pr.scorer2].filter(Boolean).join(" / ")||"-"}" → scorerOk=${ok}`);
-        else await d.ref.set({ scorerOk:ok }, {merge:true});
-      }
-      console.log(`[${p.id}]   ตรวจคนยิง ${preds.length} โพย (ถาม Qwen ${unknown.size} ชื่อใหม่)`);
+      // 2) ตรวจคนยิงเต็ม (ดิก + Qwen กวาดชื่อใหม่)
+      const n = await gradeScorers(p, mdoc.id, ev.scorers, true);
+      console.log(`[${p.id}]   ตรวจคนยิง (จบ) เปลี่ยน ${n} โพย`);
     }
   }
   }   // ปิด else (live)
