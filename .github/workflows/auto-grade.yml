@@ -26,13 +26,10 @@ jobs:
       - name: install deps
         working-directory: auto
         run: npm install --no-audit --no-fund
-      - name: run auto-grade (poll 2 ครั้ง ห่าง 30 วิ → ~30s/ครั้ง)
+      - name: run auto-grade (ครั้งเดียว/รอบ — ลด Firestore read)
         working-directory: auto
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           QWEN_TOKEN: ${{ secrets.QWEN_TOKEN }}
           FORCE_FLAG: ${{ inputs.force && '--force' || '' }}
-        run: |
-          node auto-grade.mjs $FORCE_FLAG || true
-          sleep 30
-          node auto-grade.mjs $FORCE_FLAG || true
+        run: node auto-grade.mjs $FORCE_FLAG || true

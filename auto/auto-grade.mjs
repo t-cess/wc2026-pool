@@ -111,14 +111,17 @@ const FORCE = process.argv.includes("--force");   // ข้าม live-window ga
 const REGRADE = process.argv.includes("--regrade");   // ตรวจซ้ำคู่ที่ autoGraded แล้ว (backfill s1hit/s2hit)
 let anyLive = false;                               // มีคู่กำลังเตะรอบนี้ไหม (ให้ workflow loop วนต่อ)
 
-// มีคู่ที่ "อยู่ในเวลาเตะ" ไหม = ตั้งแต่เตะก่อน 5 นาที จนถึงจบ+3 ชม. และยังไม่ตรวจ
+// อ่านเฉพาะคู่ที่ kickoff อยู่ใน [now-afterMs, now+5นาที] (range query — ไม่อ่านทั้ง collection)
+const W_BEFORE = 5*60*1000, W_GATE = 3*60*60*1000, W_GRADE = 8*60*60*1000;
+async function matchesInWindow(afterMs) {
+  const now = Date.now();
+  return matchesCol().where("kickoff",">=", now-afterMs).where("kickoff","<=", now+W_BEFORE).get();
+}
+// มีคู่ที่ "อยู่ในเวลาเตะ" (เตะก่อน 5 นาที → จบ+3 ชม.) และยังไม่ตรวจจบไหม
 async function hasLiveWindow() {
-  const now = Date.now(), BEFORE = 5*60*1000, AFTER = 3*60*60*1000;
-  for (const md of (await matchesCol().get()).docs) {
+  for (const md of (await matchesInWindow(W_GATE)).docs) {
     const m = md.data();
-    if (m.status==="finished" && m.autoGraded) continue;   // ตรวจจบแล้ว ไม่นับ
-    const ko = m.kickoff||0;
-    if (ko && now >= ko-BEFORE && now <= ko+AFTER) return true;
+    if (!(m.status==="finished" && m.autoGraded)) return true;   // อยู่ในช่วง + ยังไม่ตรวจจบ
   }
   return false;
 }
@@ -153,7 +156,8 @@ function labelFor(fx, allFx) {
 
 async function autoAddNext() {
   const POOL = TOP;                                       // คู่ใช้ร่วม (top-level)
-  const ms = (await col(POOL,"matches").get()).docs.map(d=>({id:d.id,...d.data()})).filter(m=>m.kickoff);
+  const since = Date.now() - 48*60*60*1000;              // อ่านเฉพาะ 48 ชม.ล่าสุด (พอหาชุดล่าสุดที่จบ → เพิ่มชุดถัดไป)
+  const ms = (await col(POOL,"matches").where("kickoff",">=",since).get()).docs.map(d=>({id:d.id,...d.data()})).filter(m=>m.kickoff);
   if (!ms.length) { if(DRY)console.log("auto-add[dry]: ยังไม่มีคู่ตั้งต้น — ข้าม"); return; }
   const byKey={}; ms.forEach(m=>{ const k=ymd6(m.kickoff); (byKey[k]=byKey[k]||[]).push(m); });
   const latestKey = Object.keys(byKey).sort().pop();
@@ -187,7 +191,7 @@ async function autoAddNext() {
 // ตรวจคนยิงทุกโพยในคู่ → ตั้ง scorerOk (เขียนเฉพาะที่เปลี่ยน)
 // useQwen=false (สด: ดิกอย่างเดียว เร็ว ไม่เรียก Qwen) · true (จบ: ดิก + Qwen กวาดชื่อใหม่)
 async function gradeScorers(p, matchId, actualScorers, useQwen, lineup) {
-  const preds = (await col(p,"predictions").get()).docs.filter(d=>d.data().matchId===matchId);
+  const preds = (await col(p,"predictions").where("matchId","==",matchId).get()).docs;   // อ่านเฉพาะโพยคู่นี้ (ไม่ใช่ทั้งวง)
   let qwenMap = {};
   if (useQwen) {
     const unknown = new Set();
@@ -230,7 +234,7 @@ async function run() {
 
   const pools = await listPools();
   console.log("วงที่ตรวจ:", pools.map(p=>p.id).join(", "));
-  const ms = await matchesCol().get();                            // คู่ใช้ร่วม top-level
+  const ms = REGRADE ? await matchesCol().get() : await matchesInWindow(W_GRADE);   // ปกติอ่านเฉพาะคู่ช่วง 8 ชม. (regrade=ทั้งหมด)
   for (const mdoc of ms.docs) {
     const m = mdoc.data();
     if (m.status==="finished" && m.autoGraded && !REGRADE) continue;   // ตรวจจบแล้ว ข้าม (--regrade = ทำซ้ำ)
