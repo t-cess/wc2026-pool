@@ -38,7 +38,8 @@ export function computeBoard(){
   const prevTot={}; rows.forEach(r=>prevTot[r.name]=r.total-r.todayPts);
   const curRank=rankMap(cur), prevRank=rankMap(prevTot);
   rows.forEach(r=>r.move=(prevRank[r.name]||0)-(curRank[r.name]||0));   // >0 = ขึ้น
-  rows.sort((a,b)=>b.total-a.total);
-  rows.forEach((r,i)=>r.rank=i+1);
+  rows.sort((a,b)=> b.total-a.total || a.name.localeCompare(b.name,"th"));   // คะแนนเท่า → เรียงตามตัวอักษร
+  let rk=0, prevT=null;
+  rows.forEach((r,i)=>{ if(r.total!==prevT){ rk=i+1; prevT=r.total; } r.rank=rk; });   // คะแนนเท่า = อันดับร่วม (เลขเดียวกัน)
   return rows;
 }
