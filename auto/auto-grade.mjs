@@ -92,6 +92,7 @@ function scorerHit(pred, actualScorers, qwenMap) {
 
 const DRY = process.argv.includes("--dry-run");
 const FORCE = process.argv.includes("--force");   // ข้าม live-window gate (ไว้เทส)
+let anyLive = false;                               // มีคู่กำลังเตะรอบนี้ไหม (ให้ workflow loop วนต่อ)
 
 // มีคู่ที่ "อยู่ในเวลาเตะ" ไหม = ตั้งแต่เตะก่อน 5 นาที จนถึงจบ+3 ชม. และยังไม่ตรวจ
 async function hasLiveWindow() {
@@ -191,6 +192,7 @@ async function run() {
       if (!ev || ev.state==="pre") continue;                      // ESPN ยังไม่มี/ยังไม่เตะ
       // 🔴 ระหว่างเกม: อัพเดตสกอร์ + นาฬิกา ทุกรอบ (แอปคิดแต้มสด, ยังไม่ตรวจคนยิง)
       if (!ev.final) {
+        anyLive = true;
         console.log(`[${p.id}] ${DRY?"[DRY] ":""}🔴 สด ${m.home} ${ev.hs}-${ev.as} ${m.away} · ${ev.clock}`);
         if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, live:true, clock:ev.clock }, {merge:true});
         continue;
@@ -216,5 +218,6 @@ async function run() {
   }   // ปิด else (live)
   try { await autoAddNext(); } catch(e){ console.log("⚠️ auto-add ล้มเหลว:", e.message); }
   console.log("เสร็จ ✅", new Date().toLocaleString("th-TH"));
+  console.log("__LIVE__:" + (anyLive ? 1 : 0));   // สัญญาณให้ workflow loop: 1=ยังมีบอลสด วนต่อ
 }
 run().then(()=>process.exit(0)).catch(e=>{ console.error("❌",e); process.exit(1); });

@@ -1,18 +1,18 @@
 name: auto-grade
 
 on:
-  workflow_dispatch: {}          # กดรันมือ (ทดสอบ) — จะส่ง --force ข้าม gate
+  workflow_dispatch: {}          # กดรันมือ — ส่ง --force ข้าม gate
   schedule:
-    - cron: "*/5 * * * *"        # repo public → ทุก 5 นาที (Actions unlimited) · สคริปต์ gate เองว่ามีบอลเตะไหม
+    - cron: "*/10 * * * *"       # watchdog: สตาร์ท/ต่ออายุ loop ทุก 10 นาที (loop ในตัวคุมจังหวะ 5 นาทีจริง)
 
-concurrency:                     # กันรันซ้อน
+concurrency:                     # มีแค่ตัวเดียวเสมอ — รอบใหม่จาก cron ยกเลิกตัวเก่า (รีเฟรช ไม่ซ้อน)
   group: auto-grade
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   grade:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,10 +21,16 @@ jobs:
       - name: install deps
         working-directory: auto
         run: npm install --no-audit --no-fund
-      - name: run auto-grade
+      - name: run auto-grade loop
         working-directory: auto
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           QWEN_TOKEN: ${{ secrets.QWEN_TOKEN }}
-        # กดรันมือ = --force (ข้าม gate ทดสอบได้ทุกเวลา) · ตามตาราง = ใช้ gate
-        run: node auto-grade.mjs ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}
+          FORCE_FLAG: ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}
+        # วนทุก 5 นาที (bash sleep = เป๊ะจริง) ตราบใดยังมีบอลสด · ไม่มีสด → จบ loop ปล่อยให้ cron สตาร์ทใหม่
+        run: |
+          for i in $(seq 1 12); do
+            out=$(node auto-grade.mjs $FORCE_FLAG 2>&1); echo "$out"
+            echo "$out" | grep -q '__LIVE__:1' || { echo "— ไม่มีบอลสด จบ loop —"; break; }
+            echo "— รอบ $i เสร็จ รอ 5 นาที —"; sleep 300
+          done
