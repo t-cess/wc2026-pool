@@ -11,6 +11,7 @@ export function renderHeader(){
   const rows=computeBoard(); const mine=rows.find(r=>r.name===S.me.name);
   $("#meRank").textContent = mine?("อันดับ "+mine.rank):"—";
   $("#meTotal").innerHTML = (mine?mine.total:0)+`<span style="font-size:11px;color:var(--mut);font-weight:500;margin-left:2px;">แต้ม</span>`;
+  const pn=$("#poolName"); if(pn) pn.textContent = (S.poolMeta&&S.poolMeta.name)||"";   // ชื่อวงใต้หัวข้อ (วงหลัก=ว่าง)
   // คาดหัวสี: แดง=มีคู่สด · amber=ยังไม่ได้ทาย · เขียว=ทายครบแล้ว · ปกติ=จบ/ไม่มี
   const liveN=S.matches.filter(m=>m.live).length;
   const openMs=S.matches.filter(m=>stateOf(m)==="open");
@@ -48,11 +49,14 @@ export function renderFixtures(){
       <h2 class="k" style="margin:0;font-weight:800;font-size:26px;">โปรแกรมทาย</h2>
       ${notPred?`<span class="k" style="font-weight:700;font-size:12px;color:#E0A800;background:#2a2410;border:1px solid #5a4a1e;padding:3px 10px;border-radius:99px;white-space:nowrap;">ยังไม่ได้ทาย ${notPred} คู่</span>`:``}</div>
     <div style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding:0 4px 2px;">`;
-  filters.forEach(([k,label])=>{ const a=S.filter===k; const liveF=k==="locked"&&liveCount>0;   // หมวดกำลังแข่ง = เขียว+จุดสด
-    const bg=a?(liveF?"#1FB85E":"#EEF1F4"):(liveF?"#10301f":"#14171D");
-    const fg=a?(liveF?"#04210F":"#0B0D11"):(liveF?"#5fcf94":"#8A929E");
-    const bd=a?(liveF?"#1FB85E":"#EEF1F4"):(liveF?"#1f5a39":"#262b33");
-    const dot=liveF?`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${a?"#04210F":"#1FB85E"};margin-right:5px;animation:pulse 1.4s infinite;"></span>`:"";
+  filters.forEach(([k,label])=>{ const a=S.filter===k;
+    const liveF=k==="locked"&&liveCount>0;   // กำลังแข่ง + มีสด = เขียว+จุดเต้น
+    const openF=k==="open"&&notPred>0;        // เปิดทาย + ยังมีคู่ไม่ทาย = amber+จุดเต้น
+    let bg,fg,bd,dotC="";
+    if(liveF){ bg=a?"#1FB85E":"#10301f"; fg=a?"#04210F":"#5fcf94"; bd=a?"#1FB85E":"#1f5a39"; dotC=a?"#04210F":"#1FB85E"; }
+    else if(openF){ bg=a?"#E0A800":"#2a2410"; fg=a?"#1a1400":"#E0A800"; bd=a?"#E0A800":"#5a4a1e"; dotC=a?"#1a1400":"#E0A800"; }
+    else { bg=a?"#EEF1F4":"#14171D"; fg=a?"#0B0D11":"#8A929E"; bd=a?"#EEF1F4":"#262b33"; }
+    const dot=dotC?`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dotC};margin-right:5px;animation:pulse 1.4s infinite;"></span>`:"";
     html+=`<div data-f="${k}" class="k flt" style="flex:none;font-weight:600;font-size:13px;padding:8px 16px;border-radius:99px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;background:${bg};color:${fg};border:1px solid ${bd};">${dot}${label}</div>`; });
   html+=`</div>`;
 

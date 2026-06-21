@@ -10,7 +10,7 @@ export function startMock(){
   const asAdmin = asParam==="admin";
   S.me = asAdmin ? { uid:"u_kui", name:"กุ้ย", email:"kui@example.com", photo:"" }
                  : { uid:"u_ton", name:"ต้น", email:"ton.itthiphon@gmail.com", photo:"" };
-  S.admins = asAdmin ? ["kui@example.com"] : ["graf@example.com"];   // แอดมินวง = isAdmin true แต่ isSuper false · super มีตัวอย่างไว้ดูลิสต์
+  S.admins = asAdmin ? ["kui@example.com","graf@example.com"] : ["graf@example.com"];   // config/admins มีทุกแอดมิน (as=admin: กุ้ย+กราฟ) · super: graf ตัวอย่าง
   if(asParam) S.tab = "admin";                     // เด้งเข้าแท็บแอดมินเลย
   S.carry = { "ต้น":30, "กราฟ":35, "กุ้ย":33, "BB":28, "กอล์ฟ":25 };
   S.matches = S.allMatches = [
@@ -38,6 +38,8 @@ export function startMock(){
   S.playersByName = { "ต้น":{photo:"",uid:"u_ton"}, "กราฟ":{photo:"",uid:"u_graf"}, "กุ้ย":{photo:"",uid:"u_kui"}, "BB":{photo:"",uid:"u_bb"}, "กอล์ฟ":{photo:"",uid:"u_golf"} };
   S.champPicks = { "ต้น":["บราซิล","อาร์เจนตินา"], "กราฟ":["ฝรั่งเศส","สเปน"] };
   S.tournament = { batchLabel:"MOCK · ชุดทดสอบ" };
+  S.poolMeta = { name:"กลุ่มแทงบอลเถื่อนของอาจารย์กุ้ย" };   // ชื่อวงใต้หัวข้อ
+  S.bind = { "graf@example.com":"กราฟ" };                      // กราฟ = แอดมิน+ผู้เล่น → โชว์ badge แอดมิน + ลบเฉพาะ super
   S.nowTs = now;
   enterAppUI();
   renderAll();   // ไม่มี watchData ใน mock → ต้องเรนเดอร์เอง

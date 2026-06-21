@@ -22,7 +22,7 @@ export function watchData(){
   });
   onSnapshot(poolCol("config"), snap=>{
     snap.forEach(d=>{ if(d.id==="carry")S.carry=d.data(); if(d.id==="champPicks")S.configChampPicks=d.data(); if(d.id==="tournament")S.tournament=d.data(); if(d.id==="prev")S.prev=d.data();
-      if(d.id==="admins")S.admins=d.data().emails||[]; if(d.id==="meta")S.poolMeta=d.data();
+      if(d.id==="admins")S.admins=d.data().emails||[]; if(d.id==="meta")S.poolMeta=d.data(); if(d.id==="bind")S.bind=d.data();
       if(d.id==="visibility")S.visibility={startFrom:d.data().startFrom||0,hidden:d.data().hidden||[]}; });
     deriveChampPicks(); applyVisibility(); renderAll();
   });

@@ -8,7 +8,7 @@ export const S = {
   matches: [], allMatches: [], allPreds: [], myPreds: {},
   visibility: { startFrom:0, hidden:[] },     // ต่อวง: เริ่มจากวันที่ + ซ่อนคู่ (matches=allMatches กรองแล้ว)
   carry: {}, champPicks: {}, configChampPicks: {}, tournament: {}, playersByName: {}, prev: {},
-  admins: [], poolMeta: null,                  // admins ของวงนี้ · meta (ชื่อวง/มีจริงไหม)
+  admins: [], poolMeta: null, bind: {},        // admins ของวงนี้ · meta (ชื่อวง) · bind {email:ชื่อ} (แอดมินที่เป็นผู้เล่น)
   tab: "fixtures", filter: "open", filterTouched: false, pickName: "",
   expanded: {}, editing: {}, scorerStage: {},
   nowTs: Date.now(),

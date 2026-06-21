@@ -41,8 +41,12 @@ export function renderAdmin(){
   const stBtn=`width:40px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#283042;color:#EEF1F4;font-size:24px;font-weight:700;cursor:pointer;user-select:none;flex:none;`;
   const stInp=`width:48px;height:44px;text-align:center;font-family:'Kanit';font-weight:800;font-size:22px;color:#EEF1F4;background:#0E1116;border:1px solid #2A303A;border-radius:10px;flex:none;`;
   const carryRows=rosterNames().map(n=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;"><div class="k" style="flex:1;font-weight:600;">${esc(n)}</div><input data-carry="${esc(n)}" class="field" inputmode="numeric" value="${S.carry[n]||0}" ${S.carryEdit?"":"disabled"} style="width:90px;height:36px;text-align:center;${S.carryEdit?"":"opacity:.5;"}"></div>`).join("");
-  const memberRows=rosterNames().map(n=>{ const p=S.playersByName[n]; const claimed=!!p;
-    return `<div style="display:flex;align-items:center;gap:10px;background:#14171D;border:1px solid #232830;border-radius:12px;padding:10px 12px;margin-bottom:7px;">${claimed?avatarHTML(p.photo,34):silhouetteHTML(34)}<div style="flex:1;min-width:0;"><div class="k" style="font-weight:700;">${esc(n)}</div><div style="font-size:11px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc(p.email||""):"ยังไม่ล็อกอิน"}</div></div>${claimed?`<span class="k" style="font-size:10px;color:#5fcf94;background:#10301f;padding:3px 8px;border-radius:99px;">เข้าแล้ว</span>`:`<span class="k" style="font-size:10px;color:#5b626d;">รอเข้า</span>`}<div data-delmem="${esc(n)}" class="k" style="cursor:pointer;color:#EF3E42;font-size:12px;font-weight:700;padding:5px 9px;border:1px solid #5a2227;border-radius:8px;">ลบ</div></div>`; }).join("")||`<div class="k" style="color:var(--dim);">ยังไม่มีสมาชิก</div>`;
+  const adminEmailOf=n=>{ const be=Object.entries(S.bind||{}).find(([e,nm])=>nm===n&&(S.admins||[]).includes(e)); if(be)return be[0];
+    const pe=S.playersByName[n]&&S.playersByName[n].email; return (pe&&(S.admins||[]).includes(pe))?pe:null; };   // อีเมลแอดมินของสมาชิกชื่อนี้ (null=ไม่ใช่แอดมิน)
+  const memberRows=rosterNames().map(n=>{ const p=S.playersByName[n]; const claimed=!!p; const admE=adminEmailOf(n);
+    const admBadge=admE?`<span class="k" style="font-size:10px;color:#b9a6f0;background:#1c1733;border:1px solid #34294f;padding:3px 8px;border-radius:99px;">แอดมิน</span>`:"";
+    const delBtn=(!admE||isSuper())?`<div data-delmem="${esc(n)}" class="k" style="cursor:pointer;color:#EF3E42;font-size:12px;font-weight:700;padding:5px 9px;border:1px solid #5a2227;border-radius:8px;">ลบ</div>`:`<span class="k" style="font-size:14px;color:#5b626d;padding:5px 4px;" title="ถอดแอดมินก่อน (เฉพาะ super)">🔒</span>`;
+    return `<div style="display:flex;align-items:center;gap:8px;background:#14171D;border:1px solid #232830;border-radius:12px;padding:10px 12px;margin-bottom:7px;">${claimed?avatarHTML(p.photo,34):silhouetteHTML(34)}<div style="flex:1;min-width:0;"><div class="k" style="font-weight:700;">${esc(n)}</div><div style="font-size:11px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc(p.email||""):"ยังไม่ล็อกอิน"}</div></div>${admBadge}${claimed?`<span class="k" style="font-size:10px;color:#5fcf94;background:#10301f;padding:3px 8px;border-radius:99px;">เข้าแล้ว</span>`:`<span class="k" style="font-size:10px;color:#5b626d;">รอเข้า</span>`}${delBtn}</div>`; }).join("")||`<div class="k" style="color:var(--dim);">ยังไม่มีสมาชิก</div>`;
   box.innerHTML=`
     <div style="display:flex;align-items:center;gap:8px;margin:0 4px 16px;"><h2 class="k" style="margin:0;font-weight:800;font-size:26px;">แอดมิน</h2><span class="k" style="font-weight:600;font-size:10px;letter-spacing:1px;color:#EF3E42;border:1px solid #5a2227;border-radius:6px;padding:3px 7px;">STAFF</span></div>
     ${isSuper()?`<div style="background:#161226;border:1px solid #2e2546;border-radius:16px;padding:15px;margin-bottom:13px;">
@@ -104,9 +108,15 @@ export function renderAdmin(){
     const nv=(cur===n)?0:n; S.scorerStage[pid]=nv;   // กดซ้ำปุ่มที่จม=ยกเลิก · กดอีกปุ่ม=สลับ (ปุ่มเดียว)
     box.querySelectorAll(`[data-pick^="${pid}:"]`).forEach(b=>{ const bn=+b.dataset.pick.split(":")[1]; const on=nv===bn;
       b.style.background=on?"#10301f":"#23272f"; b.style.color=on?"#5fcf94":"#8A929E"; b.style.border="1px solid "+(on?"#1f5a39":"#333"); }); });
-  box.querySelectorAll("[data-delmem]").forEach(el=>el.onclick=async()=>{ const n=el.dataset.delmem; if(!confirm(`ลบสมาชิก "${n}"? (ลบคะแนนยกมา + ปลดการจับคู่)`))return;
+  box.querySelectorAll("[data-delmem]").forEach(el=>el.onclick=async()=>{ const n=el.dataset.delmem; const admE=adminEmailOf(n);
+    if(admE&&!isSuper()){ toast("คนนี้เป็นแอดมิน — เฉพาะ super ลบได้"); return; }   // แอดมินลบกันเองไม่ได้
+    if(!confirm(`ลบสมาชิก "${n}"?${admE?" (เป็นแอดมินด้วย — จะถอดแอดมิน + ปลดผูกอีเมล)":""} (ลบคะแนนยกมา + ปลดการจับคู่)`))return;
     const c2={...S.carry}; delete c2[n]; await setDoc(poolDoc("config","carry"),c2);  // ไม่ merge = ลบ key
     const p=S.playersByName[n]; if(p&&p.uid){ try{ await deleteDoc(poolDoc("players",p.uid)); }catch(e){} }
+    if(admE){   // เป็นแอดมิน → ถอด admins + ลบ bind (ไม่งั้น login แล้ว auto-claim กลับมา)
+      const emails=(S.admins||[]).filter(e=>e!==admE); await setDoc(poolDoc("config","admins"),{emails}); S.admins=emails;
+      const b2={...(S.bind||{})}; delete b2[admE]; await setDoc(poolDoc("config","bind"),b2); S.bind=b2;
+    }
     delete S.carry[n]; delete S.playersByName[n];
     toast("ลบสมาชิกแล้ว"); renderAdmin(); });
   if($("#amMemAdd")) $("#amMemAdd").onclick=async()=>{ const n=$("#amMemName").value.trim(); if(!n){toast("ใส่ชื่อ");return;} const v=parseInt($("#amMemCarry").value)||0; await setDoc(poolDoc("config","carry"),{...S.carry,[n]:v},{merge:true}); S.carry[n]=v; toast("เพิ่มสมาชิกแล้ว ✓"); renderAdmin(); };
