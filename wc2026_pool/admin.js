@@ -126,8 +126,10 @@ export function renderAdmin(){
     try{ await setDoc(doc(db,"pools",code,"config","meta"),{name,owner:S.me.email,createdAt:Date.now()});
       await setDoc(doc(db,"pools",code,"config","admins"),{emails:[]});
       const link=location.origin+location.pathname+"?pool="+code;
-      $("#npResult").innerHTML=`สร้างวง "<b>${esc(name)}</b>" ✓ โค้ด <b>${code}</b><br><span style="color:#9cc3f3;">${esc(link)}</span><br><span style="color:var(--mut);">เปิดลิงก์นี้แล้วมาเพิ่มแอดมินของวงได้</span>`;
-      try{ await navigator.clipboard.writeText(link); toast("สร้างวง + ก๊อปลิงก์แล้ว ✓"); }catch(e){ toast("สร้างวงแล้ว ✓"); }
+      try{ await navigator.clipboard.writeText(link); }catch(e){}   // ก๊อปลิงก์ไว้แชร์ ก่อนเด้ง
+      if($("#npResult")) $("#npResult").innerHTML=`สร้างวง "<b>${esc(name)}</b>" (${code}) ✓ ก๊อปลิงก์แล้ว — กำลังเข้าไปตั้งค่า…`;
+      toast(`สร้างวง ${code} ✓ เข้าไปตั้งค่า…`);
+      setTimeout(()=>{ location.href=link; }, 600);   // A: เด้งเข้าวงใหม่อัตโนมัติ → ตั้งแอดมิน/สมาชิกต่อได้เลย
     }catch(e){ toast("สร้างวงไม่ได้ (Rules?)"); }
   };
   if($("#npIsPlayer")) $("#npIsPlayer").onclick=()=>{ const el=$("#npIsPlayer"), on=el.dataset.on==="1"; el.dataset.on=on?"0":"1";
