@@ -194,7 +194,10 @@ export function renderBoard(){
           <span class="k" style="font-weight:700;font-size:12px;letter-spacing:3px;color:#5fcf94;text-transform:uppercase;">★ จ่าฝูง</span>
           ${isMe?`<span class="k" style="font-weight:700;font-size:10px;letter-spacing:1px;color:#fff;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);padding:2px 8px;border-radius:99px;">คุณ</span>`:""}</div>
         <div style="display:flex;align-items:center;gap:15px;margin-top:14px;position:relative;">
-          <div style="flex:none;animation:floatY 3.4s ease-in-out infinite;box-shadow:0 8px 20px -4px rgba(31,184,94,.7);border-radius:50%;">${avatarHTML(L.photo,54)}</div>
+          <div style="position:relative;flex:none;animation:floatY 3.4s ease-in-out infinite;">
+            <div style="box-shadow:0 8px 20px -4px rgba(31,184,94,.7);border-radius:50%;">${avatarHTML(L.photo,54)}</div>
+            <div style="position:absolute;top:-13px;right:-8px;transform:rotate(26deg);filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.45));pointer-events:none;"><svg width="27" height="21" viewBox="0 0 26 20" fill="none"><path d="M2 6 L6.5 12 L13 3 L19.5 12 L24 6 L24 16 L2 16 Z" fill="#FFD23F" stroke="#b8860b" stroke-width="1" stroke-linejoin="round"/><rect x="2.5" y="14.6" width="21" height="3.6" rx="1.2" fill="#FFC107" stroke="#b8860b" stroke-width=".8"/><circle cx="2" cy="6" r="1.7" fill="#fff3b0" stroke="#b8860b" stroke-width=".6"/><circle cx="13" cy="3" r="1.9" fill="#ff5b6e" stroke="#b8860b" stroke-width=".6"/><circle cx="24" cy="6" r="1.7" fill="#fff3b0" stroke="#b8860b" stroke-width=".6"/></svg></div>
+          </div>
           <div style="flex:1;min-width:0;">
             <div class="k" style="font-weight:800;font-size:32px;color:#fff;line-height:1;">${esc(L.name)}</div>
             <div class="k" style="display:inline-block;margin-top:9px;font-weight:700;font-size:12px;color:#04210F;background:#1FB85E;padding:4px 12px;border-radius:99px;white-space:nowrap;box-shadow:0 0 16px -2px rgba(31,184,94,.85);">+${L.todayPts} วันนี้</div></div>
