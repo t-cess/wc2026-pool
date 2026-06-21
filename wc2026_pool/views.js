@@ -49,8 +49,8 @@ export function renderFixtures(){
 
   list.forEach(({m,st})=>{
     const rowBase="display:flex;align-items:center;gap:12px;padding:7px 0;";
-    const pill = st==="done" ? `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#16243a;color:#9cc3f3;">จบ ${m.homeScore}-${m.awayScore}</div>`
-      : (st==="locked" && m.live) ? `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#3a1c1f;color:#ff6b6b;"><span style="animation:pulse 1.4s infinite;">🔴</span> สด ${m.homeScore}-${m.awayScore}${m.clock?` · ${esc(m.clock)}`:""}</div>`
+    const pill = st==="done" ? `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#16243a;color:#9cc3f3;">จบ</div>`
+      : (st==="locked" && m.live) ? `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#3a1c1f;color:#ff6b6b;"><span style="animation:pulse 1.4s infinite;">🔴</span> สด${m.clock?` · ${esc(m.clock)}`:""}</div>`
       : st==="locked" ? `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#3a1c1f;color:#f0a3a8;">ปิดรับ</div>`
       : `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#10301f;color:#5fcf94;">เปิดทาย</div>`;
     let inner=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;">
