@@ -53,7 +53,7 @@ export function renderAdmin(){
       <div class="k" style="font-size:12px;color:var(--mut);margin-bottom:7px;border-top:1px solid #2e2546;padding-top:12px;">แอดมินของวงนี้ — ดูแลสมาชิก/ตรวจคนยิงได้ (แต่แตะตารางคู่ไม่ได้)</div>
       ${(S.admins||[]).map(e=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><div class="k" style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(e)}</div><div data-deladmin="${esc(e)}" class="k" style="cursor:pointer;color:#EF3E42;font-size:11px;font-weight:700;padding:4px 9px;border:1px solid #5a2227;border-radius:8px;">ถอด</div></div>`).join("")||`<div class="k" style="color:var(--dim);font-size:12px;margin-bottom:6px;">— ยังไม่มี (ต้น = super ดูแลได้อยู่แล้ว) —</div>`}
       <input id="npAdminEmail" class="field" inputmode="email" placeholder="อีเมลแอดมินใหม่" style="margin-top:4px;margin-bottom:7px;">
-      <label class="k" style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#cfc2f5;margin-bottom:8px;cursor:pointer;"><input type="checkbox" id="npIsPlayer" style="width:16px;height:16px;accent-color:#7c6fc0;flex:none;"> เป็นผู้เล่นด้วย (ลงทายในวง)</label>
+      <div id="npIsPlayer" data-on="0" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:12.5px;color:#cfc2f5;margin-bottom:8px;user-select:none;"><span id="npIsPlayerBox" style="width:22px;height:22px;border-radius:6px;border:1.5px solid #6b5fa0;background:#0E1116;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;flex:none;"></span> เป็นผู้เล่นด้วย (ลงทายในวง)</div>
       <input id="npPlayerName" class="field" placeholder="ชื่อผู้เล่นในวง (ถ้าติ๊กด้านบน)" style="margin-bottom:8px;">
       <div id="npAddAdmin" class="k btnG" style="height:44px;font-size:14px;">+ เพิ่มแอดมิน</div></div>
     <div style="background:#14171D;border:1px solid #232830;border-radius:16px;padding:15px;margin-bottom:13px;">
@@ -130,8 +130,10 @@ export function renderAdmin(){
       try{ await navigator.clipboard.writeText(link); toast("สร้างวง + ก๊อปลิงก์แล้ว ✓"); }catch(e){ toast("สร้างวงแล้ว ✓"); }
     }catch(e){ toast("สร้างวงไม่ได้ (Rules?)"); }
   };
+  if($("#npIsPlayer")) $("#npIsPlayer").onclick=()=>{ const el=$("#npIsPlayer"), on=el.dataset.on==="1"; el.dataset.on=on?"0":"1";
+    const b=$("#npIsPlayerBox"); if(b){ b.style.background=on?"#0E1116":"#7c6fc0"; b.style.borderColor=on?"#6b5fa0":"#9d8ee8"; b.textContent=on?"":"✓"; } };
   if($("#npAddAdmin")) $("#npAddAdmin").onclick=async()=>{ const em=$("#npAdminEmail").value.trim().toLowerCase(); if(!em||!em.includes("@")){toast("ใส่อีเมลให้ถูก");return;}
-    const isPlayer=$("#npIsPlayer")&&$("#npIsPlayer").checked; const pname=$("#npPlayerName")?$("#npPlayerName").value.trim():"";
+    const isPlayer=$("#npIsPlayer")&&$("#npIsPlayer").dataset.on==="1"; const pname=$("#npPlayerName")?$("#npPlayerName").value.trim():"";
     if(isPlayer&&!pname){toast("ติ๊กเป็นผู้เล่น → ใส่ชื่อด้วย");return;}
     const emails=[...new Set([...(S.admins||[]),em])];
     try{ await setDoc(poolDoc("config","admins"),{emails},{merge:true}); S.admins=emails;
