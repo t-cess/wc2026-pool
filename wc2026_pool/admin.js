@@ -58,14 +58,18 @@ export function renderAdmin(){
       <div class="k" style="font-size:12px;color:var(--mut);margin:14px 0 4px;">ติ๊กคนยิงถูก (+1)${glocked?" — กดแก้ไขผลก่อนถึงติ๊กได้":" — ติ๊กแล้วกดอัพเดต/จบเกม ถึงบันทึก"}</div>
       <div style="background:#0E1116;border:1px solid #232830;border-radius:11px;overflow:hidden;">${gradeRows}</div>`:`<div class="k" style="color:var(--dim);">— ไม่มีคู่ที่ปิดรับ —</div>`}</div>
     <div style="background:#1a1410;border:1px solid #3a2f1e;border-radius:16px;padding:15px;margin-bottom:13px;">
-      <div class="k" style="font-weight:700;font-size:15px;color:var(--gold);margin-bottom:12px;">🏆 แชมป์ + ล็อก</div>
+      <div class="k" style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;color:var(--gold);margin-bottom:12px;">🏆 แชมป์ + ล็อก${S.tournament.picksLocked?'<span style="font-size:11px;color:#5b626d;font-weight:600;">🔒 ล็อก</span>':'<span style="font-size:11px;color:#5fcf94;font-weight:600;">โหมดแก้ไข</span>'}</div>
       <select id="amChampion" class="field" style="margin-bottom:8px;">${teamOpts(S.tournament.champion||"")}</select>
-      <div style="display:flex;gap:8px;"><div id="amSetChamp" class="k btnG" style="flex:1;height:42px;font-size:14px;background:var(--gold);color:#1a1410;">ตั้งแชมป์ (+10)</div><div id="amLockPicks" class="k" style="height:42px;display:flex;align-items:center;justify-content:center;padding:0 14px;border-radius:11px;border:1px solid #3a2f1e;color:${S.tournament.picksLocked?"#5fcf94":"#caa75a"};font-weight:700;font-size:13px;cursor:pointer;">${S.tournament.picksLocked?"🔒 ล็อกแล้ว":"ล็อกทายแชมป์"}</div></div>
+      <div id="amSetChamp" class="k btnG" style="height:42px;font-size:14px;background:var(--gold);color:#1a1410;">ตั้งแชมป์ (+10)</div>
       <div style="border-top:1px solid #3a2f1e;margin-top:13px;padding-top:13px;">
-        <div class="k" style="font-size:12px;color:var(--gold);margin-bottom:8px;">ทายแชมป์ให้สมาชิก${S.tournament.picksLocked?' <span style="color:#caa75a;font-weight:600;">· ปลดล็อกก่อนถึงแก้ได้</span>':''}</div>
-        <select id="cpName" class="field" style="margin-bottom:8px;"><option value="">— เลือกสมาชิก —</option>${rosterNames().map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")}</select>
+        <div class="k" style="font-size:12px;color:var(--gold);margin-bottom:8px;">ทายแชมป์ของสมาชิก</div>
+        ${S.tournament.picksLocked
+          ? `<div id="amLockPicks" class="k" style="height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #3a2f1e;color:#caa75a;font-weight:700;font-size:13px;cursor:pointer;">🔓 แตะเพื่อแก้ไข</div>`
+          : `<select id="cpName" class="field" style="margin-bottom:8px;"><option value="">— เลือกสมาชิก —</option>${rosterNames().map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")}</select>
         <div style="display:flex;gap:8px;margin-bottom:8px;"><select id="cpT0" class="field">${champOptsC("")}</select><select id="cpT1" class="field">${champOptsC("")}</select></div>
-        <div id="cpSave" class="k btnG" style="height:42px;font-size:14px;${S.tournament.picksLocked?'opacity:.5;':''}">บันทึกทายแชมป์ให้คนนี้</div></div></div>
+        <div id="cpSave" class="k btnG" style="height:42px;font-size:14px;margin-bottom:8px;">บันทึกทายแชมป์ให้คนนี้</div>
+        <div id="amLockPicks" class="k" style="height:40px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #3a2f1e;color:#5fcf94;font-weight:700;font-size:13px;cursor:pointer;">🔒 ล็อก (เสร็จแล้ว)</div>`}
+      </div></div>
     <div style="background:#14171D;border:1px solid #232830;border-radius:16px;padding:15px;margin-bottom:13px;">
       <div class="k" style="font-weight:700;font-size:15px;margin-bottom:10px;">🏷️ ป้ายชุด (คืน→เช้า)</div>
       <input id="amBatch" class="field" placeholder="เช่น ชุดล่าสุด · คืน 24 → เช้า 25 มิ.ย." value="${esc(S.tournament.batchLabel||"")}" style="margin-bottom:8px;">

@@ -61,9 +61,10 @@ function blockScreen(title,msg){
   show("identity");
   $("#identityView h2").textContent=title;
   $("#identityView p").textContent=msg;
-  $("#rosterChips").innerHTML="";
+  $("#rosterChips").innerHTML=`<div id="blkLogout" class="k" style="width:100%;height:48px;display:flex;align-items:center;justify-content:center;border-radius:13px;border:1px solid #3a2228;color:#f0a3a8;font-weight:700;font-size:15px;cursor:pointer;">ออกจากระบบ / สลับบัญชี</div>`;
   $("#newNameWrap").classList.add("hidden");
   $("#confirmIdentity").style.display="none";
+  const b=$("#blkLogout"); if(b) b.onclick=()=>signOut(auth);
 }
 
 async function showIdentity(){
