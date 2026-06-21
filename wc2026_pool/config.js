@@ -8,9 +8,15 @@ export const firebaseConfig = {
   appId: "1:57497802236:web:2fa37e0869fb9653774e79",
   measurementId: "G-1XHSCEYBSC",
 };
-export const ADMIN_EMAILS = ["ton.itthiphon@gmail.com"];
+export const SUPER_ADMINS = ["ton.itthiphon@gmail.com"];   // แอดมินทุกวงเสมอ ถอดไม่ได้
 export const ROSTER = ["กราฟ","กุ้ย","นน","BB","กอล์ฟ","ต้น"];   // fallback เริ่มต้น (ถ้า carry ว่าง)
 export const LOCK_BEFORE_MS = 10*60*1000;
+
+// ===== หลายวง: POOL_ID = โค้ด 5 ตัว จาก ?pool= ("" = วงหลัก top-level) =====
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";   // ตัด 0 O 1 I L กันงง
+export const POOL_ID = (typeof location!=="undefined" ? (new URLSearchParams(location.search).get("pool")||"") : "")
+  .toUpperCase().replace(new RegExp(`[^${CODE_ALPHABET}]`,"g"),"").slice(0,5);
+export const genCode = () => Array.from({length:5},()=>CODE_ALPHABET[Math.floor(Math.random()*CODE_ALPHABET.length)]).join("");
 
 export const TEAMS = {
   "บราซิล":{code:"BRA",color:"#E0A800",dark:true},"อาร์เจนตินา":{code:"ARG",color:"#74a9d8",dark:true},

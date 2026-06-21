@@ -1,11 +1,11 @@
 /* ===== utils: DOM + format helpers ===== */
 import { S } from "./state.js";
-import { ADMIN_EMAILS, team } from "./config.js";
+import { SUPER_ADMINS, team } from "./config.js";
 
 export const $ = s => document.querySelector(s);
 export const esc = s => (s||"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 export const norm = s => (s||"").trim().toLowerCase();
-export const isAdmin = () => S.me && ADMIN_EMAILS.includes(S.me.email);
+export const isAdmin = () => !!(S.me && (SUPER_ADMINS.includes(S.me.email) || (S.admins||[]).includes(S.me.email)));
 
 export function flag(n, sm){ const t=team(n); const w=sm?34:42,h=sm?24:30,fs=sm?11:13;
   return `<div class="k" style="display:flex;align-items:center;justify-content:center;width:${w}px;height:${h}px;border-radius:6px;font-weight:700;font-size:${fs}px;letter-spacing:.5px;background:${t.color};color:${t.dark?"#1a1a1a":"#fff"};flex:none;">${esc(t.code)}</div>`; }

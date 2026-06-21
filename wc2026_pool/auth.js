@@ -1,10 +1,11 @@
-/* ===== auth: login / เลือกตัวตน / เข้าแอป ===== */
+/* ===== auth: login / เลือกตัวตน / เข้าแอป (รองรับหลายวง + admin gate) ===== */
 import { S, rosterNames } from "./state.js";
-import { firebaseConfig } from "./config.js";
-import { auth, provider, db, doc, getDoc, getDocs, setDoc, collection,
+import { firebaseConfig, POOL_ID } from "./config.js";
+import { auth, provider, poolDoc, poolCol, getDoc, getDocs, setDoc,
   signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "./firebase.js";
-import { $, toast } from "./utils.js";
+import { $, toast, isAdmin } from "./utils.js";
 import { renderNav } from "./views.js";
+import { renderAdmin } from "./admin.js";
 import { watchData } from "./data.js";
 
 export function bindAuthButtons(){
@@ -12,7 +13,6 @@ export function bindAuthButtons(){
     if(firebaseConfig.apiKey==="ใส่ของคุณ"){ $("#liMsg").textContent="⚠️ ยังไม่ได้ใส่ Firebase config"; return; }
     try{ await signInWithPopup(auth, provider); }
     catch(e){
-      // in-app browser / popup ถูกบล็อก → ใช้ redirect แทน
       if(["auth/popup-blocked","auth/cancelled-popup-request","auth/operation-not-supported-in-this-environment","auth/web-storage-unsupported"].includes(e.code)){
         try{ await signInWithRedirect(auth, provider); return; }catch(e2){ e=e2; }
       }
@@ -22,9 +22,9 @@ export function bindAuthButtons(){
   };
   $("#logoutBtn").onclick = ()=> signOut(auth);
   $("#confirmIdentity").onclick = async ()=>{
-    const name = S.pickName==="__new__" ? $("#newName").value.trim() : S.pickName;
-    if(!name){ toast("เลือกหรือพิมพ์ชื่อก่อน"); return; }
-    try{ await setDoc(doc(db,"players",S.me.uid),{uid:S.me.uid,email:S.me.email,name,photo:S.me.photo,champ1:"",champ2:""},{merge:true});
+    const name = S.pickName;
+    if(!name){ toast("เลือกชื่อก่อน"); return; }
+    try{ await setDoc(poolDoc("players",S.me.uid),{uid:S.me.uid,email:S.me.email,name,photo:S.me.photo,champ1:"",champ2:""},{merge:true});
       S.me.name=name; enterApp(); }
     catch(e){ toast("บันทึกไม่ได้: "+(e.code||e.message)); }
   };
@@ -34,10 +34,20 @@ export function startAuth(){
   onAuthStateChanged(auth, async user=>{
     if(!user){ show("login"); S.me=null; return; }
     try{
-      const snap = await getDoc(doc(db,"players",user.uid));
-      S.me = {uid:user.uid, email:user.email, photo:user.photoURL||"", name: snap.exists()?snap.data().name:""};
-      if(!S.me.name){ await showIdentity(); show("identity"); }
-      else { try{ await setDoc(doc(db,"players",S.me.uid),{photo:S.me.photo,email:S.me.email},{merge:true}); }catch(e){} enterApp(); }
+      S.me = {uid:user.uid, email:user.email, photo:user.photoURL||"", name:""};
+      // วงที่มีโค้ด: ต้องมี config/meta ก่อน (กันสุ่มโค้ดสร้างวงขยะ)
+      if(POOL_ID){
+        const meta = await getDoc(poolDoc("config","meta"));
+        if(!meta.exists()){ blockScreen("ไม่พบวงทายผลบอลนี้","โค้ดไม่ถูกต้อง หรือวงทายผลบอลนี้ยังไม่ถูกสร้าง"); return; }
+        S.poolMeta = meta.data();
+      }
+      // โหลด admins ให้ isAdmin() ใช้ได้ตั้งแต่ตอน login
+      try{ const a=await getDoc(poolDoc("config","admins")); S.admins = a.exists()?(a.data().emails||[]):[]; }catch(e){ S.admins=[]; }
+      const snap = await getDoc(poolDoc("players",user.uid));
+      S.me.name = snap.exists()?snap.data().name:"";
+      if(S.me.name){ try{ await setDoc(poolDoc("players",S.me.uid),{photo:S.me.photo,email:S.me.email},{merge:true}); }catch(e){} enterApp(); }
+      else if(isAdmin()){ enterApp(); }                 // แอดมินล้วน — เข้าดูแลได้ ไม่ต้องมีชื่อ
+      else { await showIdentity(); }                     // ผู้เล่น: เลือกชื่อที่แอดมินเพิ่มไว้ (ไม่มี → block)
     }catch(e){ show("login"); $("#liMsg").textContent="อ่านข้อมูลไม่ได้: "+(e.code||e.message)+" — ยังไม่ได้ Publish Rules?"; }
   });
 }
@@ -46,39 +56,53 @@ function show(v){ $("#loginView").classList.toggle("hidden",v!=="login");
   $("#identityView").classList.toggle("hidden",v!=="identity");
   $("#appView").classList.toggle("hidden",v!=="app"); }
 
+// หน้าบล็อก (ไม่พบวง / รอแอดมิน) — reuse identityView
+function blockScreen(title,msg){
+  show("identity");
+  $("#identityView h2").textContent=title;
+  $("#identityView p").textContent=msg;
+  $("#rosterChips").innerHTML="";
+  $("#newNameWrap").classList.add("hidden");
+  $("#confirmIdentity").style.display="none";
+}
+
 async function showIdentity(){
-  const snap = await getDocs(collection(db,"players"));
+  const snap = await getDocs(poolCol("players"));
   const taken = new Set(); snap.forEach(d=>{const p=d.data(); if(p.name&&p.uid!==S.me.uid) taken.add(p.name);});
   const avail = rosterNames().filter(n=>!taken.has(n));
-  S.pickName = avail[0] || "__new__";
+  if(!avail.length){ blockScreen("รอแอดมินเพิ่มชื่อ","ยังไม่มีชื่อของคุณในวงทายผลบอลนี้ — บอกแอดมินให้เพิ่มชื่อก่อนนะ"); return; }
+  show("identity");
+  $("#identityView h2").textContent="คุณคือใคร?";
+  $("#identityView p").textContent="เลือกชื่อตัวเองจากรายชื่อวงทายผลบอล — ผูกกับบัญชี Google นี้ครั้งเดียว";
+  $("#newNameWrap").classList.add("hidden");
+  $("#confirmIdentity").style.display="";
+  S.pickName = avail[0];
   const box = $("#rosterChips"); box.innerHTML="";
-  const opts = [...avail, "__new__"];
-  opts.forEach(n=>{
+  avail.forEach(n=>{
     const sel = n===S.pickName;
-    const label = n==="__new__" ? "+ สมาชิกใหม่" : n;
     const c = document.createElement("div"); c.className="k";
     c.style.cssText = `font-weight:700;font-size:16px;padding:11px 20px;border-radius:13px;cursor:pointer;background:${sel?"#1FB85E":"#14171D"};color:${sel?"#04210F":"#EEF1F4"};border:1px solid ${sel?"#1FB85E":"#262b33"};`;
-    c.textContent = label;
+    c.textContent = n;
     c.onclick = ()=>{ S.pickName=n; showIdentityRefresh(); };
     box.appendChild(c);
   });
-  $("#newNameWrap").classList.toggle("hidden", S.pickName!=="__new__");
 }
 function showIdentityRefresh(){
-  [...$("#rosterChips").children].forEach((c)=>{
-    const isNew = c.textContent==="+ สมาชิกใหม่";
-    const n = isNew ? "__new__" : c.textContent;
-    const sel = n===S.pickName;
+  [...$("#rosterChips").children].forEach(c=>{
+    const sel = c.textContent===S.pickName;
     c.style.background = sel?"#1FB85E":"#14171D"; c.style.color = sel?"#04210F":"#EEF1F4";
     c.style.border = "1px solid "+(sel?"#1FB85E":"#262b33");
   });
-  $("#newNameWrap").classList.toggle("hidden", S.pickName!=="__new__");
 }
 
 function enterApp(){
   show("app");
   setAvatar();
-  renderNav(); watchData();
+  if(!S.me.name) S.tab="admin";   // แอดมินล้วน → เปิดแท็บแอดมิน
+  renderNav();
+  ["fixtures","champion","board","admin"].forEach(t=>{ const el=$("#tab-"+t); if(el) el.classList.toggle("hidden",t!==S.tab); });
+  if(S.tab==="admin" && isAdmin()) renderAdmin();
+  watchData();
 }
 function initialAvatar(name){
   const d=document.createElement("div"); d.id="mePhoto";

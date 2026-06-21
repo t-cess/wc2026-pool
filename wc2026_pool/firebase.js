@@ -4,12 +4,17 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signO
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { firebaseConfig } from "./config.js";
+import { firebaseConfig, POOL_ID } from "./config.js";
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
+
+// data ของแต่ละวง: POOL_ID ว่าง = วงหลัก (top-level) · มีโค้ด = pools/{code}/...
+// หมายเหตุ: matches ใช้ร่วมทุกวง → อ่าน top-level เสมอ (ไม่ผ่าน 2 ตัวนี้)
+export const poolCol = name => POOL_ID ? collection(db,"pools",POOL_ID,name) : collection(db,name);
+export const poolDoc = (...p) => POOL_ID ? doc(db,"pools",POOL_ID,...p) : doc(db,...p);
 
 export { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy,
   signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged };

@@ -1,6 +1,6 @@
 /* ===== views: header / nav / fixtures / champion / board ===== */
 import { S, rosterNames } from "./state.js";
-import { db, doc, setDoc } from "./firebase.js";
+import { poolDoc, setDoc } from "./firebase.js";
 import { fe } from "./config.js";
 import { $, esc, flag, avatarHTML, bindAvatars, toast, countdown, fmtKo, isAdmin } from "./utils.js";
 import { stateOf, lockTs, scoreMatch, computeBoard } from "./scoring.js";
@@ -130,13 +130,14 @@ export function renderFixtures(){
   });
 }
 async function savePred(m){
+  if(!S.me.name){ toast("เข้าแบบแอดมิน ไม่ได้ร่วมทาย"); return; }
   if(S.nowTs>=lockTs(m)){ toast("ปิดรับแล้ว"); renderFixtures(); return; }
   const hs=parseInt($("#hs_"+m.id).value), as=parseInt($("#as_"+m.id).value);
   if(isNaN(hs)||isNaN(as)){ toast("ใส่สกอร์ให้ครบ"); return; }
   const zero=hs===0&&as===0;
   const pred={uid:S.me.uid,player:S.me.name,matchId:m.id,homeScore:hs,awayScore:as,
     scorer1:zero?"":$("#s1_"+m.id).value.trim(), scorer2:zero?"":$("#s2_"+m.id).value.trim()};
-  try{ await setDoc(doc(db,"predictions",`${m.id}__${S.me.uid}`),pred); S.editing[m.id]=false; toast("บันทึกโพยแล้ว ✓"); renderFixtures(); }
+  try{ await setDoc(poolDoc("predictions",`${m.id}__${S.me.uid}`),pred); S.editing[m.id]=false; toast("บันทึกโพยแล้ว ✓"); renderFixtures(); }
   catch(e){ toast("บันทึกไม่ได้ (อาจปิดรับ)"); }
 }
 

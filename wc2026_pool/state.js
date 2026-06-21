@@ -5,8 +5,10 @@ import { ROSTER } from "./config.js";
 
 export const S = {
   me: null,                                   // {uid,email,name,photo}
-  matches: [], allPreds: [], myPreds: {},
+  matches: [], allMatches: [], allPreds: [], myPreds: {},
+  visibility: { startFrom:0, hidden:[] },     // ต่อวง: เริ่มจากวันที่ + ซ่อนคู่ (matches=allMatches กรองแล้ว)
   carry: {}, champPicks: {}, tournament: {}, playersByName: {}, prev: {},
+  admins: [], poolMeta: null,                  // admins ของวงนี้ · meta (ชื่อวง/มีจริงไหม)
   tab: "fixtures", filter: "open", pickName: "",
   expanded: {}, editing: {}, scorerStage: {},
   nowTs: Date.now(),
