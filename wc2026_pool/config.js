@@ -18,6 +18,9 @@ export const POOL_ID = (typeof location!=="undefined" ? (new URLSearchParams(loc
   .toUpperCase().replace(new RegExp(`[^${CODE_ALPHABET}]`,"g"),"").slice(0,5);
 export const genCode = () => Array.from({length:5},()=>CODE_ALPHABET[Math.floor(Math.random()*CODE_ALPHABET.length)]).join("");
 
+// โหมด mockup: ?mock=1 → ใช้ข้อมูลปลอม ไม่ต่อ Firestore ไม่ต้อง login (ไว้เทส UX ทุกสถานะ)
+export const MOCK = typeof location!=="undefined" && new URLSearchParams(location.search).has("mock");
+
 export const TEAMS = {
   "บราซิล":{code:"BRA",color:"#E0A800",dark:true},"อาร์เจนตินา":{code:"ARG",color:"#74a9d8",dark:true},
   "ฝรั่งเศส":{code:"FRA",color:"#274fa3"},"สเปน":{code:"ESP",color:"#c8102e"},"อังกฤษ":{code:"ENG",color:"#c7283b"},

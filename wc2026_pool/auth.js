@@ -97,15 +97,15 @@ function showIdentityRefresh(){
   });
 }
 
-function enterApp(){
+export function enterAppUI(){   // เข้าแอป (แสดงผล) — ไม่ต่อ Firestore (mock ใช้ร่วม)
   show("app");
   setAvatar();
   if(!S.me.name) S.tab="admin";   // แอดมินล้วน → เปิดแท็บแอดมิน
   renderNav();
   ["fixtures","champion","board","admin"].forEach(t=>{ const el=$("#tab-"+t); if(el) el.classList.toggle("hidden",t!==S.tab); });
   if(S.tab==="admin" && isAdmin()) renderAdmin();
-  watchData();
 }
+function enterApp(){ enterAppUI(); watchData(); }
 function initialAvatar(name){
   const d=document.createElement("div"); d.id="mePhoto";
   d.style.cssText="width:38px;height:38px;border-radius:50%;background:#1b1f27;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 1.5px #2a2f38;overflow:hidden;";

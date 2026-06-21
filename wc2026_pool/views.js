@@ -11,6 +11,12 @@ export function renderHeader(){
   const rows=computeBoard(); const mine=rows.find(r=>r.name===S.me.name);
   $("#meRank").textContent = mine?("อันดับ "+mine.rank):"—";
   $("#meTotal").innerHTML = (mine?mine.total:0)+`<span style="font-size:11px;color:var(--mut);font-weight:500;margin-left:2px;">แต้ม</span>`;
+  // คาดหัวสี: แดง=มีคู่สด · amber=ยังไม่ได้ทาย · เขียว=ทายครบแล้ว · ปกติ=จบ/ไม่มี
+  const liveN=S.matches.filter(m=>m.live).length;
+  const openMs=S.matches.filter(m=>stateOf(m)==="open");
+  const notPred=openMs.filter(m=>!S.myPreds[m.id]).length;
+  const col = liveN?"#EF3E42" : notPred?"#E0A800" : openMs.length?"#18A957" : "transparent";
+  const hd=$("#appHeader"); if(hd) hd.style.borderTopColor = col;
 }
 
 /* ===== nav ===== */
@@ -32,15 +38,22 @@ export function renderNav(){
 /* ===== fixtures ===== */
 export function renderFixtures(){
   const box=$("#tab-fixtures");
-  const openCount=S.matches.filter(m=>stateOf(m)==="open").length;
+  const openMs=S.matches.filter(m=>stateOf(m)==="open");
+  const openCount=openMs.length;
   const liveCount=S.matches.filter(m=>m.live).length;
-  const filters=[["all","ทั้งหมด"],["open","เปิดทาย"],["locked","ปิดรับ"],["done","จบแล้ว"]];
+  const notPred=openMs.filter(m=>!S.myPreds[m.id]).length;   // ยังไม่ได้ทายกี่คู่
+  if(!S.filterTouched) S.filter = liveCount?"locked" : openCount?"open" : "done";   // default อัตโนมัติตามสถานะ
+  const filters=[["all","ทั้งหมด"],["open","เปิดทาย"],["locked","กำลังแข่ง"],["done","จบแล้ว"]];
   let html=`<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 14px;">
       <h2 class="k" style="margin:0;font-weight:800;font-size:26px;">โปรแกรมทาย</h2>
-      ${liveCount?`<span class="k" style="font-weight:700;font-size:12px;color:#ff6b6b;background:#3a1c1f;border:1px solid #5a2227;padding:3px 10px;border-radius:99px;white-space:nowrap;"><span style="animation:pulse 1.4s infinite;">🔴</span> ${liveCount} คู่กำลังเตะ</span>`:`<span class="k" style="font-size:12px;color:var(--mut);">${openCount} คู่เปิดทาย</span>`}</div>
+      ${notPred?`<span class="k" style="font-weight:700;font-size:12px;color:#E0A800;background:#2a2410;border:1px solid #5a4a1e;padding:3px 10px;border-radius:99px;white-space:nowrap;">ยังไม่ได้ทาย ${notPred} คู่</span>`:``}</div>
     <div style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding:0 4px 2px;">`;
-  filters.forEach(([k,label])=>{ const a=S.filter===k;
-    html+=`<div data-f="${k}" class="k flt" style="flex:none;font-weight:600;font-size:13px;padding:8px 16px;border-radius:99px;cursor:pointer;white-space:nowrap;background:${a?"#EEF1F4":"#14171D"};color:${a?"#0B0D11":"#8A929E"};border:1px solid ${a?"#EEF1F4":"#262b33"};">${label}</div>`; });
+  filters.forEach(([k,label])=>{ const a=S.filter===k; const liveF=k==="locked"&&liveCount>0;   // หมวดกำลังแข่ง = เขียว+จุดสด
+    const bg=a?(liveF?"#1FB85E":"#EEF1F4"):(liveF?"#10301f":"#14171D");
+    const fg=a?(liveF?"#04210F":"#0B0D11"):(liveF?"#5fcf94":"#8A929E");
+    const bd=a?(liveF?"#1FB85E":"#EEF1F4"):(liveF?"#1f5a39":"#262b33");
+    const dot=liveF?`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${a?"#04210F":"#1FB85E"};margin-right:5px;animation:pulse 1.4s infinite;"></span>`:"";
+    html+=`<div data-f="${k}" class="k flt" style="flex:none;font-weight:600;font-size:13px;padding:8px 16px;border-radius:99px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;background:${bg};color:${fg};border:1px solid ${bd};">${dot}${label}</div>`; });
   html+=`</div>`;
 
   let list=S.matches.map(m=>({m,st:stateOf(m)}));
@@ -125,7 +138,7 @@ export function renderFixtures(){
   box.innerHTML=html;
 
   // handlers
-  box.querySelectorAll(".flt").forEach(el=> el.onclick=()=>{ S.filter=el.dataset.f; renderFixtures(); });
+  box.querySelectorAll(".flt").forEach(el=> el.onclick=()=>{ S.filter=el.dataset.f; S.filterTouched=true; renderFixtures(); });
   box.querySelectorAll("[data-toggle]").forEach(el=> el.onclick=()=>{ const id=el.dataset.toggle; S.expanded[id]=!S.expanded[id]; renderFixtures(); });
   list.forEach(({m,st})=>{ if(st!=="open") return;
     const saved=S.myPreds[m.id]; const editMode=!saved||S.editing[m.id];
@@ -216,7 +229,7 @@ export function renderBoard(){
   const moveHTML=mv=> mv>0?`<span class="k" style="font-size:11px;color:#1FB85E;">▲</span>`:mv<0?`<span class="k" style="font-size:11px;color:#EF3E42;">▼</span>`:`<span class="k" style="font-size:11px;color:#5b626d;">–</span>`;
   if(rows.length){
     const L=rows[0]; const isMe=L.name===S.me.name;
-    html+=`<div style="position:relative;background:linear-gradient(135deg,#113322 0%,#0f1f17 50%,#14171D 100%);border:1px solid #2a7a4e;border-radius:22px;padding:20px;margin-bottom:18px;overflow:hidden;box-shadow:0 0 0 1px rgba(31,184,94,.12),0 20px 44px -20px rgba(31,184,94,.5);">
+    html+=`<div data-player="${esc(L.name)}" style="cursor:pointer;position:relative;background:linear-gradient(135deg,#113322 0%,#0f1f17 50%,#14171D 100%);border:1px solid #2a7a4e;border-radius:22px;padding:20px;margin-bottom:18px;overflow:hidden;box-shadow:0 0 0 1px rgba(31,184,94,.12),0 20px 44px -20px rgba(31,184,94,.5);">
         <div style="position:absolute;top:-25px;bottom:-85px;right:-12px;width:200px;background:url('assets/trophy.png') right center/contain no-repeat;opacity:.07;pointer-events:none;"></div>
         <div style="position:absolute;top:0;left:0;width:55%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.16),transparent);animation:shine 4.6s ease-in-out infinite;pointer-events:none;"></div>
         <div style="position:relative;display:flex;align-items:center;gap:9px;">
@@ -237,7 +250,7 @@ export function renderBoard(){
             <div class="k" style="position:relative;font-size:11px;color:#5fcf94;letter-spacing:1px;">แต้มรวม</div></div></div></div>`;
     html+=`<div style="display:flex;align-items:center;padding:0 14px 8px;" class="k"><div style="width:30px;font-size:11px;color:#5b626d;">#</div><div style="flex:1;font-size:11px;color:#5b626d;">ผู้เล่น</div><div style="margin-right:10px;font-size:11px;color:#5b626d;">วันนี้</div><div style="width:42px;text-align:right;font-size:11px;color:#5b626d;">รวม</div></div>`;
     rows.slice(1).forEach(r=>{ const m_=r.name===S.me.name;
-      html+=`<div style="display:flex;align-items:center;gap:8px;padding:13px 14px;border-radius:14px;margin-bottom:8px;background:${m_?"#16241a":"#14171D"};border:1px solid ${m_?"#1f5a39":"#232830"};">
+      html+=`<div data-player="${esc(r.name)}" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:13px 14px;border-radius:14px;margin-bottom:8px;background:${m_?"#16241a":"#14171D"};border:1px solid ${m_?"#1f5a39":"#232830"};">
           <div class="k" style="width:24px;font-weight:800;font-size:18px;color:#5b626d;">${String(r.rank).padStart(2,"0")}</div>
           ${avatarHTML(r.photo,34)}
           <div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px;"><span class="k" style="font-weight:700;font-size:16px;">${esc(r.name)}</span>${moveHTML(r.move)}${m_?`<span class="k" style="font-weight:700;font-size:10px;color:#5fcf94;background:#10301f;padding:2px 8px;border-radius:99px;">คุณ</span>`:""}</div>
@@ -246,4 +259,40 @@ export function renderBoard(){
   }
   html+=`<div style="text-align:center;margin-top:8px;font-size:11px;color:#3f454e;">${champion?("แชมป์: "+esc(champion)+" · "):""}ชนะ +1 · เสมอ +2 · สกอร์เป๊ะ +3 · คนยิง +1 · แชมป์ +10</div>`;
   box.innerHTML=html; bindAvatars(box);
+  box.querySelectorAll("[data-player]").forEach(el=>el.onclick=()=>openPlayerSheet(el.dataset.player));   // แตะชื่อ → หน้าแต้มรายคู่
+}
+
+// หน้าคะแนนรายคน — แตะชื่อในตาราง → แต้มรายคู่ (ล่าสุดบน, compact)
+export function openPlayerSheet(name){
+  const row = computeBoard().find(r=>r.name===name) || {carryPts:0,matchPts:0,champPts:0,total:0,photo:""};
+  const list = S.matches
+    .filter(m => m.status==="finished" || m.live)
+    .map(m => { const pr=S.allPreds.find(p=>p.player===name && p.matchId===m.id); return {m, pr, pts: pr?scoreMatch(pr,m):0}; })
+    .filter(x => x.pr)
+    .sort((a,b) => (b.m.kickoff||0)-(a.m.kickoff||0));
+  const rowsHtml = list.length ? list.map(({m,pr,pts})=>{
+    const exact = pr.homeScore===m.homeScore && pr.awayScore===m.awayScore;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1c2129;">
+        <div style="flex:1;min-width:0;">
+          <div class="k" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(m.home)}-${esc(m.away)}${m.live?' <span style="color:#ff6b6b;font-size:10px;">🔴</span>':''}</div>
+          <div style="font-size:10px;color:var(--mut);">${esc(m.group||"")} · ผล ${m.homeScore}-${m.awayScore} · ทาย ${pr.homeScore}-${pr.awayScore}${exact?' 🔥':''}</div>
+        </div>
+        <div class="k" style="flex:none;width:34px;text-align:right;font-weight:800;font-size:15px;color:${pts>0?'#1FB85E':'#5b626d'};">${pts>0?'+'+pts:pts}</div>
+      </div>`;
+  }).join("") : `<div class="k" style="color:var(--dim);padding:14px 0;text-align:center;">ยังไม่มีคู่ที่คิดแต้ม</div>`;
+  const sheet=document.createElement("div"); sheet.id="pSheet";
+  sheet.style.cssText="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;";
+  sheet.innerHTML=`<div style="width:100%;max-width:480px;max-height:84vh;overflow-y:auto;background:#0E1116;border:1px solid #232830;border-radius:20px 20px 0 0;padding:18px 18px 26px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        ${avatarHTML(row.photo,44)}
+        <div style="flex:1;min-width:0;"><div class="k" style="font-weight:800;font-size:20px;">${esc(name)}</div>
+          <div style="font-size:11px;color:var(--mut);">ยกมา ${row.carryPts} · รายคู่ ${row.matchPts} · แชมป์ ${row.champPts}</div></div>
+        <div style="text-align:right;"><div class="k" style="font-weight:800;font-size:24px;color:#27d26e;">${row.total}</div><div style="font-size:10px;color:var(--mut);">รวม</div></div></div>
+      <div class="k" style="font-size:11px;color:var(--mut);margin-bottom:2px;">แต้มรายคู่ · ล่าสุดบน</div>
+      ${rowsHtml}
+      <div id="pSheetClose" class="k btnG" style="margin-top:16px;height:44px;font-size:14px;">ปิด</div></div>`;
+  document.body.appendChild(sheet);
+  const close=()=>sheet.remove();
+  sheet.onclick=e=>{ if(e.target===sheet) close(); };
+  sheet.querySelector("#pSheetClose").onclick=close;
 }

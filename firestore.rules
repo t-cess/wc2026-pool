@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email in ['ton.itthiphon@gmail.com'];
+    }
+
+    // ผู้เล่น: อ่านได้หมด · เขียนได้ = เจ้าของ (doc id = uid) หรือแอดมิน (สร้าง+แก้ เช่น ทายแชมป์ champ1/champ2)
+    match /players/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null && (request.auth.uid == uid || isAdmin());
+    }
+
+    // คู่แข่งขัน + ตั้งค่า: อ่านได้หมด — เขียนเฉพาะแอดมิน
+    match /matches/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /config/{id}  { allow read: if true; allow write: if isAdmin(); }
+
+    // โพย: อ่านได้หมด — แก้ได้ถ้าเป็นแอดมิน (ติ๊กคนยิง) หรือ เจ้าของก่อนเวลาเตะ 10 นาที
+    match /predictions/{pid} {
+      allow read: if true;
+      allow create, update:
+        if request.auth != null && (
+          isAdmin() ||
+          ( request.auth.uid == request.resource.data.uid
+            && request.time.toMillis()
+               < get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.kickoff - 600000 )
+        );
+      allow delete: if false;
+    }
+
+    // ===== วงอื่น (โค้ด) — Phase 2 (ยังไม่เปิดใช้ แต่ใส่ไว้ให้พร้อม) =====
+    match /pools/{pool}/players/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null && (request.auth.uid == uid || isAdmin());
+    }
+    match /pools/{pool}/config/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /pools/{pool}/predictions/{pid} {
+      allow read: if true;
+      allow create, update: if request.auth != null && (
+        isAdmin() ||
+        ( request.auth.uid == request.resource.data.uid
+          && request.time.toMillis() < get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.kickoff - 600000 )
+      );
+      allow delete: if false;
+    }
+  }
+}

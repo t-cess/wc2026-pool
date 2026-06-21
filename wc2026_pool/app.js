@@ -1,12 +1,14 @@
 /* ===== entry: เริ่มระบบ + countdown tick ===== */
 import { S } from "./state.js";
+import { MOCK } from "./config.js";
 import { bindAuthButtons, startAuth } from "./auth.js";
+import { startMock } from "./mock.js";
 import { stateOf, lockTs } from "./scoring.js";
 import { $, countdown } from "./utils.js";
 import { renderFixtures } from "./views.js";
 
-bindAuthButtons();
-startAuth();
+if (MOCK) { startMock(); }                 // ?mock=1 → ข้อมูลปลอม ไม่ต่อ Firestore
+else { bindAuthButtons(); startAuth(); }
 
 /* ===== countdown tick (ไม่ re-render รบกวนการพิมพ์) ===== */
 setInterval(()=>{

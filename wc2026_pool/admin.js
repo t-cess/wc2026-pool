@@ -29,7 +29,7 @@ export function renderAdmin(){
   let gradeRows="";
   if(selM){ const preds=S.allPreds.filter(p=>p.matchId===selM.id);
     gradeRows=preds.length?preds.map(p=>{ const zero=p.homeScore===0&&p.awayScore===0; const pid=`${p.matchId}__${p.uid}`;
-      const stage=(pid in S.scorerStage)?S.scorerStage[pid]:(p.s1hit?1:(p.s2hit?2:(p.scorerOk?1:0)));   // 0/1/2
+      const stage=(pid in S.scorerStage)?S.scorerStage[pid]:(p.scorerOk?(p.s1hit?1:2):0);   // 0/1/2 — ตามที่ได้แต้มจริง (scorerOk) ไม่ใช่ s2hit ดิบ
       const nm=(t,on)=>`<span style="color:${on?'#5fcf94':'var(--mut)'};${on?'font-weight:700;':''}">${esc(t)}</span>`;
       const scTxt = `${p.scorer1?nm(p.scorer1,stage===1):""}${p.scorer1&&p.scorer2?' <span style="color:#3f454e;">/</span> ':""}${p.scorer2?nm(p.scorer2,stage===2):""}`||"(ไม่ใส่คนยิง)";
       const btn=(n)=>`<div data-pick="${pid}:${n}" class="k" style="cursor:pointer;flex:none;font-weight:800;font-size:13px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:${stage===n?"#10301f":"#23272f"};color:${stage===n?"#5fcf94":"#8A929E"};border:1px solid ${stage===n?"#1f5a39":"#333"};">${n}</div>`;

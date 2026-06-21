@@ -1,4 +1,5 @@
 {
+  "firestore": { "rules": "firestore.rules" },
   "hosting": {
     "site": "wc2026-kui-chin",
     "public": "wc2026_pool",
