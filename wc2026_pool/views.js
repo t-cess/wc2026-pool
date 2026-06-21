@@ -33,10 +33,11 @@ export function renderNav(){
 export function renderFixtures(){
   const box=$("#tab-fixtures");
   const openCount=S.matches.filter(m=>stateOf(m)==="open").length;
+  const liveCount=S.matches.filter(m=>m.live).length;
   const filters=[["all","ทั้งหมด"],["open","เปิดทาย"],["locked","ปิดรับ"],["done","จบแล้ว"]];
   let html=`<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 14px;">
       <h2 class="k" style="margin:0;font-weight:800;font-size:26px;">โปรแกรมทาย</h2>
-      <span class="k" style="font-size:12px;color:var(--mut);">${openCount} คู่เปิดทาย</span></div>
+      ${liveCount?`<span class="k" style="font-weight:700;font-size:12px;color:#ff6b6b;background:#3a1c1f;border:1px solid #5a2227;padding:3px 10px;border-radius:99px;white-space:nowrap;"><span style="animation:pulse 1.4s infinite;">🔴</span> ${liveCount} คู่กำลังเตะ</span>`:`<span class="k" style="font-size:12px;color:var(--mut);">${openCount} คู่เปิดทาย</span>`}</div>
     <div style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding:0 4px 2px;">`;
   filters.forEach(([k,label])=>{ const a=S.filter===k;
     html+=`<div data-f="${k}" class="k flt" style="flex:none;font-weight:600;font-size:13px;padding:8px 16px;border-radius:99px;cursor:pointer;white-space:nowrap;background:${a?"#EEF1F4":"#14171D"};color:${a?"#0B0D11":"#8A929E"};border:1px solid ${a?"#EEF1F4":"#262b33"};">${label}</div>`; });
@@ -44,7 +45,7 @@ export function renderFixtures(){
 
   let list=S.matches.map(m=>({m,st:stateOf(m)}));
   if(S.filter!=="all") list=list.filter(x=>x.st===S.filter);
-  if(S.filter==="done") list.sort((a,b)=>(b.m.kickoff||0)-(a.m.kickoff||0));   // จบแล้ว: คู่ล่าสุดไว้บน
+  if(S.filter==="done"||S.filter==="all") list.sort((a,b)=>(b.m.kickoff||0)-(a.m.kickoff||0));   // จบแล้ว/ทั้งหมด: คู่ล่าสุดไว้บน
   if(!list.length) html+=`<p class="k" style="color:var(--dim);text-align:center;margin-top:30px;">ไม่มีคู่ในหมวดนี้</p>`;
 
   list.forEach(({m,st})=>{
