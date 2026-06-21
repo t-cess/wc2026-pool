@@ -41,8 +41,14 @@ async function fetchEspn(dateStr) {
     const comp = c.competitors||[];
     const home = comp.find(x=>x.homeAway==="home")||comp[0]||{};
     const away = comp.find(x=>x.homeAway==="away")||comp[1]||{};
-    const scorers = (c.details||[]).filter(x=>x.scoringPlay)
-      .map(x=>(x.athletesInvolved||[{}])[0]?.displayName).filter(Boolean);
+    const homeId = home.team?.id, awayId = away.team?.id;
+    const goals = (c.details||[]).filter(x=>x.scoringPlay).map(x=>({   // คนยิง + นาที + ฝั่ง
+      name: (x.athletesInvolved||[{}])[0]?.displayName || "?",
+      time: x.clock?.displayValue || "",
+      side: x.team?.id===homeId ? "h" : (x.team?.id===awayId ? "a" : ""),
+      og: /own/i.test(x.type?.text||""), pen: /penal/i.test(x.type?.text||""),
+    }));
+    const scorers = goals.map(g=>g.name).filter(Boolean);
     return {
       home: th(home.team?.displayName), away: th(away.team?.displayName),
       hs: parseInt(home.score), as: parseInt(away.score),
@@ -50,7 +56,7 @@ async function fetchEspn(dateStr) {
       state: e.status?.type?.state,                                  // pre | in | post
       live: e.status?.type?.state === "in",                          // กำลังเตะ
       clock: e.status?.type?.shortDetail || e.status?.displayClock || "",  // "67'" / "HT" / "FT"
-      scorers,
+      scorers, goals,
     };
   });
 }
@@ -194,12 +200,12 @@ async function run() {
       if (!ev.final) {
         anyLive = true;
         console.log(`[${p.id}] ${DRY?"[DRY] ":""}🔴 สด ${m.home} ${ev.hs}-${ev.as} ${m.away} · ${ev.clock}`);
-        if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, live:true, clock:ev.clock }, {merge:true});
+        if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, live:true, clock:ev.clock, goals:ev.goals }, {merge:true});
         continue;
       }
       // 1) จบแล้ว: เขียนผล + ปิด live
       console.log(`[${p.id}] ${DRY?"[DRY] จะเขียนผล":"✓ ผล"} ${m.home} ${ev.hs}-${ev.as} ${m.away} | ยิง: ${ev.scorers.join(", ")||"-"}`);
-      if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, status:"finished", autoGraded:true, finishedAt:Date.now(), live:false, clock:"จบ" }, {merge:true});
+      if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, goals:ev.goals, status:"finished", autoGraded:true, finishedAt:Date.now(), live:false, clock:"จบ" }, {merge:true});
       // 2) ตรวจคนยิง
       const preds = (await col(p,"predictions").get()).docs.filter(d=>d.data().matchId===mdoc.id);
       const unknown = new Set();

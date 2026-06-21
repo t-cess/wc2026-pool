@@ -88,6 +88,11 @@ export function renderFixtures(){
           <div style="${scStyle(showScore&&m.homeScore>m.awayScore)}">${showScore?m.homeScore:"–"}</div></div>
         <div style="${rowBase}">${flag(m.away)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.away)} ${fe(m.away)}</div>
           <div style="${scStyle(showScore&&m.awayScore>m.homeScore)}">${showScore?m.awayScore:"–"}</div></div>`;
+      if(showScore && (m.goals||[]).length){   // ⚽ คนยิง + นาที (เหย้าเขียว/เยือนเทา)
+        const byp={}; m.goals.forEach(g=>{ const k=g.name+"|"+g.side; (byp[k]=byp[k]||{name:g.name,side:g.side,times:[]}); byp[k].times.push((g.time||"")+(g.og?" OG":g.pen?" (จุดโทษ)":"")); });
+        const items=Object.values(byp).map(s=>`<span style="color:${s.side==='h'?'#9fe0b6':'#cdd6e0'};font-weight:600;">${esc(s.name)} <span style="color:#5b626d;font-weight:500;">${s.times.join(", ")}</span></span>`).join(` <span style="color:#3f454e;">·</span> `);
+        inner+=`<div class="k" style="margin-top:7px;font-size:12px;line-height:1.55;display:flex;gap:6px;"><span>⚽</span><span style="flex:1;">${items}</span></div>`;
+      }
       const raw=S.allPreds.filter(x=>x.matchId===m.id).map(p=>({...p,pts:done?scoreMatch(p,m):null}));
       if(done) raw.sort((a,b)=>b.pts-a.pts);
       const mine=raw.find(r=>r.uid===S.me.uid);
