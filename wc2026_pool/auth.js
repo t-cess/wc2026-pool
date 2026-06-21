@@ -35,24 +35,25 @@ export function startAuth(){
     if(!user){ show("login"); S.me=null; return; }
     try{
       S.me = {uid:user.uid, email:user.email, photo:user.photoURL||"", name:""};
-      // วงที่มีโค้ด: ต้องมี config/meta ก่อน (กันสุ่มโค้ดสร้างวงขยะ)
-      if(POOL_ID){
-        const meta = await getDoc(poolDoc("config","meta"));
-        if(!meta.exists()){ blockScreen("ไม่พบวงทายผลบอลนี้","โค้ดไม่ถูกต้อง หรือวงทายผลบอลนี้ยังไม่ถูกสร้าง"); return; }
-        S.poolMeta = meta.data();
-      }
-      // โหลด admins ให้ isAdmin() ใช้ได้ตั้งแต่ตอน login
-      try{ const a=await getDoc(poolDoc("config","admins")); S.admins = a.exists()?(a.data().emails||[]):[]; }catch(e){ S.admins=[]; }
-      const snap = await getDoc(poolDoc("players",user.uid));
-      S.me.name = snap.exists()?snap.data().name:"";
-      if(S.me.name){ try{ await setDoc(poolDoc("players",S.me.uid),{photo:S.me.photo,email:S.me.email},{merge:true}); }catch(e){} enterApp(); }
+      // อ่าน meta + admins + player พร้อมกัน (เร็วกว่าเรียงต่อกัน 3 รอบ)
+      const [metaSnap, adminSnap, playerSnap] = await Promise.all([
+        POOL_ID ? getDoc(poolDoc("config","meta")) : Promise.resolve(null),
+        getDoc(poolDoc("config","admins")).catch(()=>null),
+        getDoc(poolDoc("players",user.uid)),
+      ]);
+      if(POOL_ID && !(metaSnap && metaSnap.exists())){ blockScreen("ไม่พบวงทายผลบอลนี้","โค้ดไม่ถูกต้อง หรือวงทายผลบอลนี้ยังไม่ถูกสร้าง"); return; }
+      if(metaSnap && metaSnap.exists()) S.poolMeta = metaSnap.data();
+      S.admins = (adminSnap && adminSnap.exists()) ? (adminSnap.data().emails||[]) : [];
+      S.me.name = playerSnap.exists() ? playerSnap.data().name : "";
+      if(S.me.name){ enterApp(); setDoc(poolDoc("players",S.me.uid),{photo:S.me.photo,email:S.me.email},{merge:true}).catch(()=>{}); }  // เข้าก่อน แล้วซิงก์รูปทีหลัง
       else if(isAdmin()){ enterApp(); }                 // แอดมินล้วน — เข้าดูแลได้ ไม่ต้องมีชื่อ
       else { await showIdentity(); }                     // ผู้เล่น: เลือกชื่อที่แอดมินเพิ่มไว้ (ไม่มี → block)
     }catch(e){ show("login"); $("#liMsg").textContent="อ่านข้อมูลไม่ได้: "+(e.code||e.message)+" — ยังไม่ได้ Publish Rules?"; }
   });
 }
 
-function show(v){ $("#loginView").classList.toggle("hidden",v!=="login");
+function show(v){ const sp=$("#splashView"); if(sp) sp.classList.add("hidden");   // ผ่านขั้นกู้ session แล้ว
+  $("#loginView").classList.toggle("hidden",v!=="login");
   $("#identityView").classList.toggle("hidden",v!=="identity");
   $("#appView").classList.toggle("hidden",v!=="app"); }
 
