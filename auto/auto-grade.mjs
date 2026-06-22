@@ -171,6 +171,7 @@ const DRY = process.argv.includes("--dry-run");
 const FORCE = process.argv.includes("--force");   // ข้าม live-window gate (ไว้เทส)
 const REGRADE = process.argv.includes("--regrade");   // ตรวจซ้ำคู่ที่ autoGraded แล้ว (backfill s1hit/s2hit)
 const BACKFILL = process.argv.includes("--backfill-group");   // one-shot: เติม "กลุ่ม X" ให้ field group ของคู่เดิม (--dry-run = พรีวิว)
+const LINETEST = process.argv.includes("--line-test");        // one-shot: ยิงข้อความทดสอบไป LINE_GROUP (เทส token+push)
 let anyLive = false;                               // มีคู่กำลังเตะรอบนี้ไหม (ให้ workflow loop วนต่อ)
 
 // อ่านเฉพาะคู่ที่ kickoff อยู่ใน [now-afterMs, now+5นาที] (range query — ไม่อ่านทั้ง collection)
@@ -329,6 +330,7 @@ async function lockNotify() {
 }
 async function run() {
   if (BACKFILL) { await backfillGroup(); return; }   // โหมด one-shot — ข้าม grader ปกติ
+  if (LINETEST) { console.log("LINE test →", await linePush("🔔 ทดสอบบอทวงทายบอลโลก 2026 — ถ้าเห็นข้อความนี้ = พร้อมโพสต์โพยตอนปิดรับแล้ว ✅") ? "ส่งสำเร็จ ✅" : "ส่งไม่ได้ (เช็ก token/group)"); return; }
   if (DRY) console.log("🧪 DRY-RUN: อ่าน + เรียก Qwen ได้ แต่จะไม่เขียน Firestore\n");
   // safeguard: ใกล้เพดาน read วันนี้ไหม → low-power (เขียนสกอร์อย่างเดียว กันแอปล่มทั้งวง) · FORCE/REGRADE (สั่งมือ) ไม่โดน
   const usage = await usageRead();
