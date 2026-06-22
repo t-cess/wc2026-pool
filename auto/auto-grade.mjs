@@ -383,7 +383,7 @@ async function nightDigest() {
   const board = await computeBoardNode(POOL);
   const results = matches.map(m=>`• ${m.home} ${m.homeScore}-${m.awayScore} ${m.away}`).join("\n");
   const table = board.map(r=>`${r.rank}. ${r.name} ${r.total}`).join("\n");
-  const text = `📊 สรุปผลคืนนี้ — จบ ${matches.length} คู่\n${results}\n\n🏆 ตารางคะแนนล่าสุด:\n${table}`;
+  const text = `📊 สรุปผลวันนี้ — จบ ${matches.length} คู่\n${results}\n\n🏆 ตารางคะแนนล่าสุด:\n${table}`;
   if (DRY) { console.log("[DRY] DIGEST:\n"+text+"\n"); return; }
   if (await linePush(text)) await cfgRef.set({digested:[...done, night]},{merge:true});
 }
