@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { matchScorer, composeGrade } from "./namematch.mjs";   // อ่านชื่อ + ประกอบกฎตัวสำรอง (แหล่งความจริงเดียว)
+import { matchScorer, composeGrade, readable } from "./namematch.mjs";   // อ่านชื่อ + ประกอบกฎตัวสำรอง (แหล่งความจริงเดียว)
 
 const here = new URL(".", import.meta.url);
 const sa = process.env.FIREBASE_SERVICE_ACCOUNT
@@ -246,7 +246,7 @@ async function gradeScorers(p, matchId, actualScorers, lineup) {
   if (hasGoals) {
     const unknown = new Set();
     preds.forEach(d=>{ const pr=d.data(); if(pr.homeScore===0&&pr.awayScore===0)return;
-      [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !matchScorer(s, actualScorers, aliases)) unknown.add(s); }); });   // ชื่อที่ดิกอ่านไม่ออก → DeepSeek
+      [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !matchScorer(s, actualScorers, aliases) && !readable(s, aliases)) unknown.add(s); }); });   // ส่ง DeepSeek เฉพาะชื่อ "อ่านไม่ออก" จริง · ชื่อที่ดิก/อังกฤษระบุตัวได้แต่ไม่ตรงคนยิง = ไม่ใช่คนยิง (กัน DeepSeek force-map → FP)
     qwenMap = await askQwen(actualScorers, [...unknown]);
     await learnAliases(qwenMap);   // 📚 เติมดิกจากที่ DeepSeek ยืนยัน (ครั้งหน้า matchScorer จับเอง ไม่ต้องถามซ้ำ)
   }
