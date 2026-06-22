@@ -79,18 +79,21 @@ const QWEN_MODEL = process.env.QWEN_MODEL || "qwen3.6-35b-a3b";
 async function askQwen(actualScorers, items) {
   if (!items.length) return {};
   if (!QWEN_TOKEN) { console.log("  ⚠️ ไม่มี QWEN_TOKEN — ข้าม Qwen (ชื่อใหม่จะ = ไม่ให้คะแนน)"); return {}; }
+  const alist = actualScorers.map((s,i)=>`[${i+1}] ${s}`).join(", ");
   const list = items.map((t,i)=>`${i+1}) "${t}"`).join("\n");
-  const prompt = `คนยิงจริงในแมตช์นี้: ${actualScorers.join(", ")}\nต่อไปนี้คือชื่อที่ผู้เล่นพิมพ์ (ไทย/ฉายา/มุก) ตอบว่าแต่ละอันหมายถึง "คนยิงจริง" คนใดคนหนึ่งข้างบนไหม ตอบบรรทัดละ "เลข: YES" หรือ "เลข: NO" เท่านั้น\n${list}`;
+  // ถาม mapping (ชื่อ→คนยิงจริงเบอร์ไหน) ไม่ใช่แค่ YES/NO → เอาไปเติมดิก (self-learning)
+  const prompt = `คนยิงจริงในแมตช์ (มีเลขกำกับ): ${alist}\nต่อไปนี้คือชื่อที่ผู้เล่นพิมพ์ (ไทย/ฉายา/มุก) — ตอบว่าแต่ละชื่อหมายถึงคนยิงจริง "เบอร์ไหน" ตอบบรรทัดละ "ลำดับ: เบอร์" (เบอร์ 0 = ไม่ตรงใคร) เท่านั้น\n${list}`;
   try {
     const r = await fetch(QWEN_BASE+"/v1/chat/completions", {
       method:"POST",
       headers:{ "content-type":"application/json", "authorization":"Bearer "+QWEN_TOKEN },
-      body: JSON.stringify({ model:QWEN_MODEL, max_tokens:512, messages:[{role:"user",content:prompt}] }),
+      body: JSON.stringify({ model:QWEN_MODEL, max_tokens:256, messages:[{role:"user",content:prompt}] }),
     });
     const d = await r.json();
     const out = d?.choices?.[0]?.message?.content || "";
-    const res = {};
-    out.split("\n").forEach(line=>{ const m=line.match(/^\s*(\d+)\D*(YES|NO)\s*$/i); if(m) res[items[+m[1]-1]] = /yes/i.test(m[2]); });  // Qwen สะท้อนชื่อกลับ → จับเลขต้นบรรทัด + YES/NO ท้ายบรรทัด
+    const res = {};   // ชื่อที่พิมพ์ -> canonical คนยิงจริง (หรือ null)
+    // Qwen สลับ format ("1) ลำดับ: 2" หรือ "ลำดับ: 2") → parse ตามลำดับบรรทัดที่มีเลข + เอา "เลขท้ายบรรทัด" = เบอร์คนยิง
+    out.split("\n").filter(l=>/\d/.test(l)).forEach((line,idx)=>{ if(idx>=items.length)return; const ns=line.match(/\d+/g); const si=+ns[ns.length-1]; res[items[idx]] = si>0 ? (actualScorers[si-1]||null) : null; });
     return res;
   } catch(e){ console.log("  ⚠️ Qwen ล้มเหลว:", e.message); return {}; }
 }
@@ -98,8 +101,32 @@ async function askQwen(actualScorers, items) {
 function scorerHitOne(s, actualScorers, qwenMap) {   // ชื่อเดียวตรงคนยิงจริงไหม
   if (!s) return false;
   if (matchScorer(s, actualScorers, aliases)) return true;     // ดิก+substring+นามสกุล ตรงคนยิงจริง
-  if (qwenMap[s] === true) return true;                        // Qwen บอกตรง (ชื่อใหม่ที่ดิกไม่มี)
+  if (qwenMap[s]) return true;                                 // Qwen แมพชื่อนี้ → คนยิงจริง (ชื่อใหม่)
   return false;
+}
+
+// 📚 self-learning: Qwen แมพชื่อไทย→คนยิงจริง ที่ดิก/นามสกุลยังจับไม่ได้ → เติม config/learnedAliases (แยกจาก aliases.json)
+const isAsciiName = s => /^[\x00-\x7f]+$/.test(s);
+async function learnAliases(qwenMap) {
+  const add = {};   // canonical -> [alias ไทยใหม่]
+  for (const [typed, canon] of Object.entries(qwenMap)) {
+    const t = (typed||"").trim();
+    if (!canon || isAsciiName(t) || t.length < 3 || t.length > 30) continue;   // เรียนเฉพาะไทย ความยาวพอเหมาะ (อังกฤษจับนามสกุลได้เอง)
+    if (matchScorer(t, [canon], aliases)) continue;                            // ดิก/นามสกุลจับได้แล้ว ไม่ต้องเรียน
+    (add[canon] = add[canon] || []).push(t);
+  }
+  if (!Object.keys(add).length) return;
+  for (const [c, arr] of Object.entries(add)) {                                // merge เข้า runtime (ใช้ในรอบนี้ต่อเลย)
+    aliases[c] = [...new Set([...(aliases[c]||[]), ...arr])];
+    console.log(`  📚 เรียนรู้: ${c} += ${arr.join(", ")}`);
+  }
+  if (DRY) return;
+  try {
+    const ref = db.doc("config/learnedAliases");
+    const cur = (await ref.get()).data() || {};
+    for (const [c, arr] of Object.entries(add)) cur[c] = [...new Set([...(cur[c]||[]), ...arr])];
+    await ref.set(cur);
+  } catch(e){ console.log("  ⚠️ เซฟ learnedAliases ล้มเหลว:", e.message); }
 }
 function scorerHit(pred, actualScorers, qwenMap) {
   if (pred.homeScore===0 && pred.awayScore===0) return null; // 0-0 แอปคิดเอง
@@ -198,6 +225,7 @@ async function gradeScorers(p, matchId, actualScorers, useQwen, lineup) {
     preds.forEach(d=>{ const pr=d.data(); if(pr.homeScore===0&&pr.awayScore===0)return;
       [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !matchScorer(s, actualScorers, aliases)) unknown.add(s); }); });   // ชื่อที่ดิกอ่านไม่ออก → Qwen
     qwenMap = await askQwen(actualScorers, [...unknown]);
+    await learnAliases(qwenMap);   // 📚 เติมดิกจากที่ Qwen ยืนยัน (ครั้งหน้า matchScorer จับได้เอง ไม่ต้องถาม Qwen)
   }
   let changed = 0;
   for (const d of preds) {
@@ -222,6 +250,10 @@ async function run() {
   if (!live) {                                 // ไม่มีบอลเตะ → ข้าม grade (แต่ auto-add ยังเช็กต่อ)
     console.log("⏸️ ไม่มีคู่อยู่ในเวลาเตะ — ข้าม grade", new Date().toLocaleString("th-TH"));
   } else {
+  // โหลดดิกที่ "เรียนรู้เอง" (Qwen เติม) merge เข้า aliases สำหรับรอบนี้ (1 read)
+  try { const learned = (await db.doc("config/learnedAliases").get()).data() || {};
+    for (const [c,arr] of Object.entries(learned)) if(Array.isArray(arr)) aliases[c] = [...new Set([...(aliases[c]||[]), ...arr])]; }
+  catch(e){ console.log("  ⚠️ โหลด learnedAliases ไม่ได้:", e.message); }
   // ดึง ESPN วันนี้+เมื่อวาน+พรุ่งนี้ (กันคาบเกี่ยวเที่ยงคืน)
   const now = new Date();
   const ds = [-1,0,1].map(o=>{ const d=new Date(now); d.setDate(d.getDate()+o);
