@@ -22,9 +22,10 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/pools/$(pool)/config/admins)
           && request.auth.token.email in get(/databases/$(database)/documents/pools/$(pool)/config/admins).data.emails );
     }
-    // โพยแก้ได้ถ้า = เจ้าของ (doc มี uid ตรง) และยังก่อนเตะเกิน 10 นาที (matches ใช้ร่วม top-level)
+    // โพยแก้ได้ถ้า = เจ้าของ (doc มี uid ตรง) · เขียนได้เฉพาะฟิลด์โพย (ห้ามแตะฟิลด์ให้คะแนน scorerOk/scorerManual/s1hit/...) · ยังก่อนเตะเกิน 10 นาที
     function ownerBeforeKickoff() {
       return request.auth.uid == request.resource.data.uid
+        && request.resource.data.keys().hasOnly(['uid','matchId','player','homeScore','awayScore','scorer1','scorer2'])
         && request.time.toMillis()
            < get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.kickoff - 600000;
     }

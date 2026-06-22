@@ -67,6 +67,9 @@ async function main() {
     ["เจ้าของทายก่อนเตะ (_rt_future)",            () => tryWrite(own, "predictions/_rt_o1", { uid:"u_rt_owner", matchId:"_rt_future", homeScore:1, awayScore:0 }), "allow"],
     ["เจ้าของทายหลังเตะแล้ว (_rt_past)",          () => tryWrite(own, "predictions/_rt_o2", { uid:"u_rt_owner", matchId:"_rt_past",   homeScore:1, awayScore:0 }), "deny"],
     ["คนแปลกหน้าแอบเขียนโพยคนอื่น",               () => tryWrite(str, "predictions/_rt_o3", { uid:"u_rt_owner", matchId:"_rt_future", homeScore:1, awayScore:0 }), "deny"],
+    ["เจ้าของแอบใส่ scorerOk เอง (ปั๊มแต้ม)",      () => tryWrite(own, "predictions/_rt_o4", { uid:"u_rt_owner", matchId:"_rt_future", homeScore:1, awayScore:0, scorerOk:true }), "deny"],
+    ["เจ้าของแอบใส่ scorerManual (กัน grader ทับ)", () => tryWrite(own, "predictions/_rt_o5", { uid:"u_rt_owner", matchId:"_rt_future", homeScore:1, awayScore:0, scorerManual:true }), "deny"],
+    ["เจ้าของทายปกติครบฟิลด์ (regression)",       () => tryWrite(own, "predictions/_rt_o6", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner", homeScore:1, awayScore:0, scorer1:"x", scorer2:"" }), "allow"],
   ];
 
   let pass=0, fail=0;
@@ -83,7 +86,7 @@ async function main() {
 
   // ---- cleanup ----
   const dels = ["matches/_rt_future","matches/_rt_past","matches/_rt_x","config/_rt_carry",
-    "predictions/_rt_o1","predictions/_rt_o2","predictions/_rt_o3",
+    "predictions/_rt_o1","predictions/_rt_o2","predictions/_rt_o3","predictions/_rt_o4","predictions/_rt_o5","predictions/_rt_o6",
     "pools/_rt/predictions/p1","pools/_rt/predictions/p2","pools/_rt/config/admins"];
   for (const p of dels) { try { await db.doc(p).delete(); } catch(e){} }
   console.log("🧹 เก็บกวาด test data แล้ว (" + dels.length + " docs)");
