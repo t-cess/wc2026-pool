@@ -35,6 +35,8 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           QWEN_TOKEN: ${{ secrets.QWEN_TOKEN }}
+          QWEN_BASE_URL: https://api.deepseek.com
+          QWEN_MODEL: deepseek-chat
           FORCE_FLAG: ${{ inputs.force && '--force' || '' }}
           REGRADE_FLAG: ${{ inputs.regrade && '--regrade' || '' }}
         run: node auto-grade.mjs $FORCE_FLAG $REGRADE_FLAG || true
