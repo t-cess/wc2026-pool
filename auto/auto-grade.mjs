@@ -124,10 +124,13 @@ function scorerHitOne(s, actualScorers, qwenMap) {   // ชื่อเดีย
 const isAsciiName = s => /^[\x00-\x7f]+$/.test(s);
 async function learnAliases(qwenMap) {
   const add = {};   // canonical -> [alias ไทยใหม่]
+  const allCanon = Object.keys(aliases);
   for (const [typed, canon] of Object.entries(qwenMap)) {
     const t = (typed||"").trim();
     if (!canon || isAsciiName(t) || t.length < 3 || t.length > 30) continue;   // เรียนเฉพาะไทย ความยาวพอเหมาะ (อังกฤษจับนามสกุลได้เอง)
     if (matchScorer(t, [canon], aliases)) continue;                            // ดิก/นามสกุลจับได้แล้ว ไม่ต้องเรียน
+    const other = matchScorer(t, allCanon, aliases);                           // 🛡️ ชื่อไทยนี้ชนคนอื่นในดิกอยู่แล้วไหม → DeepSeek อ่านผิด อย่าเรียน (กัน FP เช่น มามูช→Trézéguet ทั้งที่ดิกมี →Marmoush)
+    if (other && other !== canon) { console.log(`  🛡️ ข้าม learn "${t}"→${canon} (ดิกมี "${t}"→${other} อยู่แล้ว ขัดกัน)`); continue; }
     (add[canon] = add[canon] || []).push(t);
   }
   if (!Object.keys(add).length) return;

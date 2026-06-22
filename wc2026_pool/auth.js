@@ -1,6 +1,6 @@
 /* ===== auth: login / เลือกตัวตน / เข้าแอป (รองรับหลายวง + admin gate) ===== */
 import { S, rosterNames } from "./state.js";
-import { firebaseConfig, POOL_ID, ROSTER } from "./config.js";
+import { firebaseConfig, POOL_ID, ROSTER, MOCK } from "./config.js";
 import { auth, provider, poolDoc, poolCol, getDoc, getDocs, setDoc,
   signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "./firebase.js";
 import { $, toast, isAdmin } from "./utils.js";
@@ -110,6 +110,8 @@ function showIdentityRefresh(){
 export function enterAppUI(){   // เข้าแอป (แสดงผล) — ไม่ต่อ Firestore (mock ใช้ร่วม)
   show("app");
   setAvatar();
+  // กู้แท็บล่าสุดจาก localStorage (admin เฉพาะถ้าเป็นแอดมิน · mock ข้าม) → refresh/เข้าใหม่ อยู่หน้าเดิม
+  if(!MOCK){ try{ const t=localStorage.getItem("wc_tab"); if(t && ["fixtures","champion","board","admin"].includes(t) && (t!=="admin"||isAdmin())) S.tab=t; }catch(e){} }
   if(!S.me.name) S.tab="admin";   // แอดมินล้วน → เปิดแท็บแอดมิน
   renderNav();
   ["fixtures","champion","board","admin"].forEach(t=>{ const el=$("#tab-"+t); if(el) el.classList.toggle("hidden",t!==S.tab); });

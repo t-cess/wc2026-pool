@@ -41,6 +41,7 @@
   @keyframes shine{0%{transform:translateX(-130%) skewX(-18deg)}55%,100%{transform:translateX(360%) skewX(-18deg)}}
   @keyframes glowPulse{0%,100%{opacity:.45;transform:scale(1)}50%{opacity:.95;transform:scale(1.12)}}
   @keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @keyframes auraGlow{0%,100%{text-shadow:0 0 6px rgba(255,210,74,.75),0 0 14px rgba(255,210,74,.4)}50%{text-shadow:0 0 13px rgba(255,210,74,1),0 0 26px rgba(255,210,74,.65)}}
   /* ===== flatpickr ปรับธีมให้เข้าแอป ===== */
   .flatpickr-calendar{ background:#14171D!important; border:1px solid #2A303A!important; border-radius:18px!important; box-shadow:0 24px 60px -18px rgba(0,0,0,.75)!important; font-family:'IBM Plex Sans Thai',sans-serif!important; padding-bottom:4px; }
   .flatpickr-months{ padding-top:6px; }
@@ -113,6 +114,7 @@
   <div id="appView" class="hidden" style="flex:1;display:flex;flex-direction:column;min-height:0;">
     <!-- header -->
     <div id="appHeader" style="flex:none;padding:14px 22px 14px;border-top:3px solid transparent;border-bottom:1px solid #1a1e25;transition:border-top-color .3s;">
+      <div id="headerBanner"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
           <div class="stripes" style="margin-bottom:6px;"><div style="width:16px;height:4px;background:#EF3E42;"></div><div style="width:16px;height:4px;background:#18A957;"></div><div style="width:16px;height:4px;background:#2D7DF6;"></div></div>

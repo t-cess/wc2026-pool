@@ -24,6 +24,9 @@ export function startMock(){
     // จบแล้ว
     { id:"m4", home:"อาร์เจนตินา", away:"เม็กซิโก", group:"C นัด2", kickoff:now-3*H, homeScore:2, awayScore:0, status:"finished", clock:"จบ",
       goals:[{name:"Lionel Messi",time:"64'",side:"h"},{name:"Enzo Fernández",time:"87'",side:"h"}] },
+    // จบแล้ว เสมอเป๊ะ → ทดสอบ +6 (ออร่า)
+    { id:"m5", home:"โปรตุเกส", away:"เยอรมนี", group:"E นัด2", kickoff:now-4*H, homeScore:1, awayScore:1, status:"finished", clock:"จบ",
+      goals:[{name:"Cristiano Ronaldo",time:"40'",side:"h"},{name:"Kai Havertz",time:"70'",side:"a"}] },
   ];
   S.allPreds = [
     { uid:"u_ton",  player:"ต้น",   matchId:"m1", homeScore:2, awayScore:0, scorer1:"เนย์มาร์", scorer2:"" },
@@ -33,8 +36,11 @@ export function startMock(){
     { uid:"u_graf", player:"กราฟ", matchId:"m3", homeScore:1, awayScore:1, scorer1:"กรีซมันน์", scorer2:"", s1hit:false, s1played:true, scorerOk:false },
     { uid:"u_ton",  player:"ต้น",   matchId:"m4", homeScore:2, awayScore:0, scorer1:"เมสซี่", scorer2:"", s1hit:true, s2hit:false, s1played:true, scorerOk:true },     // จบ: สกอร์เป๊ะ+คนยิงถูก
     { uid:"u_graf", player:"กราฟ", matchId:"m4", homeScore:0, awayScore:0, scorer1:"", scorer2:"" },
+    { uid:"u_ton",  player:"ต้น",   matchId:"m5", homeScore:1, awayScore:1, scorer1:"โรนัลโด้", scorer2:"", s1hit:true, s2hit:false, s1played:true, scorerOk:true },  // จบ: เสมอเป๊ะ+คนยิง = +6
+    { uid:"u_graf", player:"กราฟ", matchId:"m5", homeScore:2, awayScore:1, scorer1:"", scorer2:"" },
   ];
   S.myPreds = {}; S.allPreds.forEach(p=>{ if(p.uid===S.me.uid) S.myPreds[p.matchId]=p; });
+  S.expanded = { m4:true, m5:true };   // เปิดโพยคู่จบไว้เลย เห็นออร่า +5/+6 ทันที (เทส)
   S.playersByName = { "ต้น":{photo:"",uid:"u_ton"}, "กราฟ":{photo:"",uid:"u_graf"}, "กุ้ย":{photo:"",uid:"u_kui"}, "BB":{photo:"",uid:"u_bb"}, "กอล์ฟ":{photo:"",uid:"u_golf"} };
   S.champPicks = { "ต้น":["บราซิล","อาร์เจนตินา"], "กราฟ":["ฝรั่งเศส","สเปน"] };
   S.tournament = { batchLabel:"MOCK · ชุดทดสอบ" };
