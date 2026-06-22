@@ -237,25 +237,27 @@ async function autoAddNext() {
 }
 
 // ตรวจคนยิงทุกโพยในคู่ → ตั้ง scorerOk (เขียนเฉพาะที่เปลี่ยน)
-// useQwen=false (สด: ดิกอย่างเดียว เร็ว ไม่เรียก Qwen) · true (จบ: ดิก + Qwen กวาดชื่อใหม่)
-async function gradeScorers(p, matchId, actualScorers, useQwen, lineup) {
+// ถาม DeepSeek เมื่อ "มีคนยิงแล้ว" (สด+จบ) — เทียบ "คนยิงจริง" (set เล็ก = แม่น ปลอดภัย) → ตามแต้มเรียลไทม์ ไม่ต้องรอจบ
+// ยังไม่มีโกล = ไม่ถาม + ไม่ amber (กัน amber โผล่ก่อนมีคนยิง)
+async function gradeScorers(p, matchId, actualScorers, lineup) {
   const preds = RD(await col(p,"predictions").where("matchId","==",matchId).get()).docs;   // อ่านเฉพาะโพยคู่นี้ (ไม่ใช่ทั้งวง)
+  const hasGoals = actualScorers.length > 0;
   let qwenMap = {};
-  if (useQwen) {
+  if (hasGoals) {
     const unknown = new Set();
     preds.forEach(d=>{ const pr=d.data(); if(pr.homeScore===0&&pr.awayScore===0)return;
-      [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !matchScorer(s, actualScorers, aliases)) unknown.add(s); }); });   // ชื่อที่ดิกอ่านไม่ออก → Qwen
+      [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !matchScorer(s, actualScorers, aliases)) unknown.add(s); }); });   // ชื่อที่ดิกอ่านไม่ออก → DeepSeek
     qwenMap = await askQwen(actualScorers, [...unknown]);
-    await learnAliases(qwenMap);   // 📚 เติมดิกจากที่ Qwen ยืนยัน (ครั้งหน้า matchScorer จับได้เอง ไม่ต้องถาม Qwen)
+    await learnAliases(qwenMap);   // 📚 เติมดิกจากที่ DeepSeek ยืนยัน (ครั้งหน้า matchScorer จับเอง ไม่ต้องถามซ้ำ)
   }
   let changed = 0;
   for (const d of preds) {
     const pr=d.data();
     if (pr.homeScore===0 && pr.awayScore===0) continue;   // 0-0 แอปคิดเอง
     if (pr.scorerManual) continue;                        // แอดมินติ๊กมือ → auto ไม่ทับ
-    const s1 = scorerHitOne(pr.scorer1, actualScorers, qwenMap);   // คนแรกยิงไหม (รวม Qwen)
+    const s1 = scorerHitOne(pr.scorer1, actualScorers, qwenMap);   // คนแรกยิงไหม (ดิก + DeepSeek)
     const s2 = scorerHitOne(pr.scorer2, actualScorers, qwenMap);   // คนสองยิงไหม
-    const { s1played, ok, s1unsure, s2unsure } = composeGrade({ s1, s2, scorer1:pr.scorer1, scorer2:pr.scorer2, played:lineup, resolved:useQwen, aliasMap:aliases });   // resolved=useQwen → amber เฉพาะตอนจบ
+    const { s1played, ok, s1unsure, s2unsure } = composeGrade({ s1, s2, scorer1:pr.scorer1, scorer2:pr.scorer2, played:lineup, resolved:hasGoals, aliasMap:aliases });   // amber เมื่อมีโกลแล้ว (ยังไม่มีโกล=ไม่ amber)
     if (ok===!!pr.scorerOk && s1===!!pr.s1hit && s2===!!pr.s2hit && s1played===!!pr.s1played
         && s1unsure===!!pr.s1unsure && s2unsure===!!pr.s2unsure) continue;   // ไม่เปลี่ยน
     changed++;
@@ -324,7 +326,7 @@ async function run() {
       if (!lowPower) {   // low-power: เขียนสกอร์แล้วข้ามตรวจคนยิง (regrade เก็บตก)
         const luLive = await fetchLineup(ev.id);
         for (const p of pools) {
-          const n = await gradeScorers(p, mdoc.id, ev.scorers, false, luLive);   // ⚽ ตรวจคนยิงสด (ดิก + กฎคนแรกลงเล่น)
+          const n = await gradeScorers(p, mdoc.id, ev.scorers, luLive);   // ⚽ ตรวจคนยิงสด (ดิก + DeepSeek เมื่อมีโกล + กฎคนแรกลงเล่น)
           if (n) console.log(`[${p.id}]   ⚽ +1 คนยิงสด ${n} โพย`);
         }
       }
@@ -340,7 +342,7 @@ async function run() {
     // 2) ตรวจคนยิงเต็มทุกวง (ดิก + Qwen กวาดชื่อใหม่ + กฎคนแรกลงเล่น)
     const luFin = await fetchLineup(ev.id);
     for (const p of pools) {
-      const n = await gradeScorers(p, mdoc.id, ev.scorers, true, luFin);
+      const n = await gradeScorers(p, mdoc.id, ev.scorers, luFin);
       console.log(`[${p.id}]   ตรวจคนยิง (จบ) เปลี่ยน ${n} โพย`);
     }
   }
