@@ -407,7 +407,7 @@ async function poolRoster(POOL) {   // ชื่อสมาชิกวง = ca
 }
 async function run() {
   if (BACKFILL) { await backfillGroup(); return; }   // โหมด one-shot — ข้าม grader ปกติ
-  if (LINETEST) { console.log("LINE test →", await linePush("🤖 สวัสดีครับ ผมคือ AI ที่มาแทนกุ้ย-ชิน\nหน้าที่ผม:\n• โพสต์โพยทั้งวงตอนปิดรับ (โปร่งใส แก้ไม่ได้)\n• เตือนก่อนปิดรับ + ใครยังไม่ทาย\n• แจ้งเปิดทายชุดใหม่\n• สรุปผล + ตารางคะแนนทุกวัน\nตรวจผล + คนยิงให้อัตโนมัติ ⚽") ? "ส่งสำเร็จ ✅" : "ส่งไม่ได้ (เช็ก token/group)"); return; }
+  if (LINETEST) { console.log("LINE test →", await linePush("🤖 สวัสดีครับ ผมคือ AI ที่มาแทนกุ้ย-ชิน\nหน้าที่ผม:\n• โพสต์โพยทั้งวงตอนปิดรับ (โปร่งใส แก้ไม่ได้)\n• เตือนก่อนปิดรับ + ใครยังไม่ทาย\n• แจ้งเปิดทายชุดใหม่\n• สรุปผล + ตารางคะแนนทุกวัน") ? "ส่งสำเร็จ ✅" : "ส่งไม่ได้ (เช็ก token/group)"); return; }
   if (DRY) console.log("🧪 DRY-RUN: อ่าน + เรียก Qwen ได้ แต่จะไม่เขียน Firestore\n");
   // safeguard: ใกล้เพดาน read วันนี้ไหม → low-power (เขียนสกอร์อย่างเดียว กันแอปล่มทั้งวง) · FORCE/REGRADE (สั่งมือ) ไม่โดน
   const usage = await usageRead();
