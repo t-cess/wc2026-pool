@@ -85,7 +85,7 @@ export function renderFixtures(){
         const sBox=`width:52px;height:46px;text-align:center;font-family:'Kanit';font-weight:700;font-size:25px;color:#EEF1F4;background:#0E1116;border:1px solid #2A303A;border-radius:11px;`;
         inner+=`<div style="${rowBase}">${flag(m.home)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.home)} ${fe(m.home)}</div><input id="hs_${m.id}" inputmode="numeric" maxlength="2" value="${p.homeScore??""}" placeholder="0" style="${sBox}"></div>
           <div style="${rowBase}">${flag(m.away)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.away)} ${fe(m.away)}</div><input id="as_${m.id}" inputmode="numeric" maxlength="2" value="${p.awayScore??""}" placeholder="0" style="${sBox}"></div>
-          <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;"><input id="s1_${m.id}" class="field" value="${esc(p.scorer1||"")}" placeholder="คนยิง ตัวจบสกอร์"><input id="s2_${m.id}" class="field" value="${esc(p.scorer2||"")}" placeholder="คนยิง สำรอง"></div>
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;"><input id="s1_${m.id}" class="field" value="${esc(p.scorer1||"")}" placeholder="คนยิง ตัวจบสกอร์ (บังคับ)"><input id="s2_${m.id}" class="field" value="${esc(p.scorer2||"")}" placeholder="คนยิง สำรอง (ไม่บังคับ)"></div>
           ${subLine}${cdRow(`<div id="save_${m.id}" class="k btnG" style="font-weight:700;font-size:14px;padding:9px 18px;">บันทึกโพย</div>`)}`;
       } else {
         const sc=w=>`font-family:'Kanit';font-weight:800;font-size:26px;width:52px;text-align:center;color:${w?"#1FB85E":"#EEF1F4"};`;
@@ -150,7 +150,7 @@ export function renderFixtures(){
       const hs=$("#hs_"+m.id), as=$("#as_"+m.id), s1=$("#s1_"+m.id), s2=$("#s2_"+m.id);
       if(hs){
         const upd=()=>{ const z=parseInt(hs.value)===0&&parseInt(as.value)===0; s1.disabled=s2.disabled=z;
-          if(z){ s1.value="";s2.value=""; s1.placeholder="0-0 = ไม่มีคนยิง"; } else s1.placeholder="คนยิง ตัวจบสกอร์"; };
+          if(z){ s1.value="";s2.value=""; s1.placeholder="0-0 = ไม่มีคนยิง"; } else s1.placeholder="คนยิง ตัวจบสกอร์ (บังคับ)"; };
         hs.oninput=e=>{ e.target.value=e.target.value.replace(/\D/g,"").slice(0,2); upd(); };
         as.oninput=e=>{ e.target.value=e.target.value.replace(/\D/g,"").slice(0,2); upd(); };
         upd(); $("#save_"+m.id).onclick=()=>savePred(m);
@@ -166,8 +166,10 @@ async function savePred(m){
   const hs=parseInt($("#hs_"+m.id).value), as=parseInt($("#as_"+m.id).value);
   if(isNaN(hs)||isNaN(as)){ toast("ใส่สกอร์ให้ครบ"); return; }
   const zero=hs===0&&as===0;
+  const s1v=zero?"":$("#s1_"+m.id).value.trim(), s2v=zero?"":$("#s2_"+m.id).value.trim();
+  if(!zero && !s1v){ toast("ใส่ชื่อคนยิงคนแรก (บังคับ)"); return; }   // คนแรกบังคับ · คนสอง optional
   const pred={uid:S.me.uid,player:S.me.name,matchId:m.id,homeScore:hs,awayScore:as,
-    scorer1:zero?"":$("#s1_"+m.id).value.trim(), scorer2:zero?"":$("#s2_"+m.id).value.trim()};
+    scorer1:s1v, scorer2:s2v};
   try{ await setDoc(poolDoc("predictions",`${m.id}__${S.me.uid}`),pred); S.editing[m.id]=false; toast("บันทึกโพยแล้ว ✓"); renderFixtures(); }
   catch(e){ toast("บันทึกไม่ได้ (อาจปิดรับ)"); }
 }
