@@ -255,7 +255,7 @@ async function gradeScorers(p, matchId, actualScorers, useQwen, lineup) {
     if (pr.scorerManual) continue;                        // แอดมินติ๊กมือ → auto ไม่ทับ
     const s1 = scorerHitOne(pr.scorer1, actualScorers, qwenMap);   // คนแรกยิงไหม (รวม Qwen)
     const s2 = scorerHitOne(pr.scorer2, actualScorers, qwenMap);   // คนสองยิงไหม
-    const { s1played, ok, s1unsure, s2unsure } = composeGrade(s1, s2, pr.scorer1, pr.scorer2, lineup, aliases);
+    const { s1played, ok, s1unsure, s2unsure } = composeGrade({ s1, s2, scorer1:pr.scorer1, scorer2:pr.scorer2, played:lineup, resolved:useQwen, aliasMap:aliases });   // resolved=useQwen → amber เฉพาะตอนจบ
     if (ok===!!pr.scorerOk && s1===!!pr.s1hit && s2===!!pr.s2hit && s1played===!!pr.s1played
         && s1unsure===!!pr.s1unsure && s2unsure===!!pr.s2unsure) continue;   // ไม่เปลี่ยน
     changed++;
