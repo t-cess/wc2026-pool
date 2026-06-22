@@ -211,10 +211,14 @@ async function gradeScorers(p, matchId, actualScorers, useQwen, lineup) {
     const inPlayed = lineupKnown && !!matchScorer(pr.scorer1, lineup, aliases);
     const s1played = !lineupKnown ? true : (inPlayed || !readable(pr.scorer1, aliases));
     const ok = s1 || (!s1played && s2);   // คนยิง = คนแรกยิง หรือ (คนแรกไม่ได้ลง และคนสองยิง)
-    if (ok===!!pr.scorerOk && s1===!!pr.s1hit && s2===!!pr.s2hit && s1played===!!pr.s1played) continue;   // ไม่เปลี่ยน
+    // "ไม่แน่ใจ" = มีชื่อ + ยังไม่ตรงคนยิง + ระบบอ่านชื่อไม่ออก (ไม่อยู่ดิก/ไม่ใช่อังกฤษ) → แอปโชว์ amber+? (รอ Qwen/ดิก/แอดมิน)
+    const s1unsure = !!pr.scorer1 && !s1 && !readable(pr.scorer1, aliases);
+    const s2unsure = !!pr.scorer2 && !s2 && !readable(pr.scorer2, aliases);
+    if (ok===!!pr.scorerOk && s1===!!pr.s1hit && s2===!!pr.s2hit && s1played===!!pr.s1played
+        && s1unsure===!!pr.s1unsure && s2unsure===!!pr.s2unsure) continue;   // ไม่เปลี่ยน
     changed++;
-    if (DRY) console.log(`[${p.id}]   [DRY] ${pr.player}: "${[pr.scorer1,pr.scorer2].filter(Boolean).join(" / ")||"-"}" → ok=${ok} (s1ยิง=${s1} คนแรกลง=${s1played} s2ยิง=${s2})`);
-    else await d.ref.set({ scorerOk:ok, s1hit:s1, s2hit:s2, s1played:s1played }, {merge:true});
+    if (DRY) console.log(`[${p.id}]   [DRY] ${pr.player}: "${[pr.scorer1,pr.scorer2].filter(Boolean).join(" / ")||"-"}" → ok=${ok} (s1ยิง=${s1} คนแรกลง=${s1played} s2ยิง=${s2}${s1unsure||s2unsure?" ⚠️อ่านไม่ออก":""})`);
+    else await d.ref.set({ scorerOk:ok, s1hit:s1, s2hit:s2, s1played:s1played, s1unsure, s2unsure }, {merge:true});
   }
   return changed;
 }
