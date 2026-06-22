@@ -6,6 +6,8 @@ import { $, esc, flag, avatarHTML, bindAvatars, toast, countdown, fmtKo, isAdmin
 import { stateOf, lockTs, scoreMatch, computeBoard } from "./scoring.js";
 import { renderAdmin } from "./admin.js";
 
+let scrollDayChip=false;   // เลื่อนชิปวันที่เลือกมากลางจอ "เฉพาะ" ตอนเปลี่ยนวัน/เปิดแรก — ไม่ใช่ทุก re-render (กันเด้งตอนกดซ่อน/แสดงโพย)
+
 /* ===== header ===== */
 export function renderHeader(){
   const rows=computeBoard(); const mine=rows.find(r=>r.name===S.me.name);
@@ -87,16 +89,16 @@ export function renderFixtures(){
     const today=ymdNYC(S.nowTs), pastN=nights.filter(k=>k<=today);
     const specialKey = nights.includes(today) ? today : (pastN.length ? pastN[pastN.length-1] : nights[0]);   // วันนี้ · ไม่มี→วันแข่งล่าสุด · ยังไม่เริ่ม→วันแรก
     const specialLabel = nights.includes(today) ? "วันนี้" : (pastN.length ? "วันแข่งล่าสุด" : "");
-    if(!nights.includes(S.dayKey)) S.dayKey=specialKey;   // default = วันนี้ / วันแข่งล่าสุด
+    if(!nights.includes(S.dayKey)){ S.dayKey=specialKey; scrollDayChip=true; }   // default = วันนี้ / วันแข่งล่าสุด (เปิดแรก/เปลี่ยน filter → เลื่อนมาให้เห็น)
     const sel=S.dayKey, idx=nights.indexOf(sel);
     // ลูกศรเลื่อนทีละคืน (◀ เก่ากว่า=ซ้าย · ▶ ใหม่กว่า=ขวา) — หรี่+กดไม่ได้เมื่อสุดทาง
     const arrow=(d,g)=>{ const t=nights[idx+d], off=t===undefined;
       return `<div ${off?"":`data-day="${t}"`} class="k" style="flex:none;display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;font-size:12px;background:#14171D;border:1px solid #262b33;color:#8A929E;${off?"opacity:.3;":"cursor:pointer;"}">${g}</div>`; };
-    html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">${arrow(-1,"◀")}
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">${arrow(-1,"◀︎")}
       <div style="flex:1;display:flex;gap:8px;overflow-x:auto;padding:0 2px 2px;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 20px,#000 calc(100% - 20px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 20px,#000 calc(100% - 20px),transparent 100%);">`;   // ชิปเลือกคืน (เลื่อนแนวนอน · ขอบ fade ไม่ตัดคม)
     nights.forEach(k=>{ const a=k===sel;
       html+=`<div data-day="${k}" class="k" style="flex:none;font-weight:600;font-size:12.5px;padding:7px 13px;border-radius:99px;cursor:pointer;white-space:nowrap;background:${a?"#EEF1F4":"#14171D"};color:${a?"#0B0D11":"#8A929E"};border:1px solid ${a?"#EEF1F4":"#262b33"};">${k===specialKey&&specialLabel?specialLabel:matchNightShort(k)}</div>`; });   // ชิปวันนี้/วันแข่งล่าสุด = label พิเศษ · ที่เหลือ = วันที่
-    html+=`</div>${arrow(1,"▶")}</div>
+    html+=`</div>${arrow(1,"▶︎")}</div>
       <div class="k" style="display:flex;align-items:center;gap:11px;margin:2px 4px 13px;">
         <span style="font-weight:800;font-size:15.5px;color:#EEF1F4;letter-spacing:.2px;">🌙 ${matchNightLabel(sel)}</span>
         <span style="flex:1;height:1px;background:linear-gradient(90deg,#2a2f38,transparent);"></span>
@@ -182,11 +184,11 @@ export function renderFixtures(){
     html+=`<div style="background:#14171D;border:1px solid #232830;border-radius:18px;padding:15px;margin-bottom:13px;">${inner}</div>`;
   });
   box.innerHTML=html;
-  if(S.dayKey){ const c=box.querySelector('[data-day="'+S.dayKey+'"]'); if(c) c.scrollIntoView({inline:"center",block:"nearest"}); }   // เลื่อนชิปที่เลือก (รวมคืนวันนี้ตอนเปิดแรก) มากลางจอ
+  if(scrollDayChip && S.dayKey){ scrollDayChip=false; const c=box.querySelector('[data-day="'+S.dayKey+'"]'); if(c) c.scrollIntoView({inline:"center",block:"nearest"}); }   // เลื่อนเฉพาะตอนเปลี่ยนวัน/เปิดแรก
 
   // handlers
   box.querySelectorAll(".flt").forEach(el=> el.onclick=()=>{ S.filter=el.dataset.f; S.filterTouched=true; S.dayKey=null; renderFixtures(); renderHeader(); });   // เปลี่ยน filter → รีเซ็ตหน้าวันเป็นคืนวันนี้
-  box.querySelectorAll("[data-day]").forEach(el=> el.onclick=()=>{ S.dayKey=el.dataset.day; renderFixtures(); });   // ชิป + ลูกศร (ที่กดได้) ใช้ data-day ร่วมกัน · scroll จัดการหลัง innerHTML
+  box.querySelectorAll("[data-day]").forEach(el=> el.onclick=()=>{ S.dayKey=el.dataset.day; scrollDayChip=true; renderFixtures(); });   // ชิป + ลูกศร (ที่กดได้) ใช้ data-day ร่วมกัน · ตั้ง flag ให้ scroll หลัง innerHTML
   box.querySelectorAll("[data-toggle]").forEach(el=> el.onclick=()=>{ const id=el.dataset.toggle; S.expanded[id]=!S.expanded[id]; renderFixtures(); });
   list.forEach(({m,st})=>{ if(st!=="open") return;
     const saved=S.myPreds[m.id]; const editMode=!saved||S.editing[m.id];
