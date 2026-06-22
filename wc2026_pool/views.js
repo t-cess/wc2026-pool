@@ -130,7 +130,8 @@ export function renderFixtures(){
           const nm=(t,g,u)=>g?`<span style="color:#1FB85E;font-weight:700;">${esc(t)} ✓</span>`:u?`<span style="color:#E0A33E;font-weight:600;" title="ระบบอ่านชื่อไม่ออก ยังไม่แน่ใจว่าจะได้แต้ม">${esc(t)} ?</span>`:`<span style="color:var(--mut);">${esc(t)}</span>`;
           let scH;
           if(zero) scH=`<span style="color:var(--mut);">ไม่มีคนยิง</span>`;
-          else { const ps=[]; if(p.scorer1)ps.push(nm(p.scorer1, showPts&&p.s1hit, showPts&&p.s1unsure)); if(p.scorer2)ps.push(nm(p.scorer2, showPts&&p.s2hit&&!p.s1played, showPts&&p.s2unsure&&!p.s1played)); scH=ps.join(` <span style="color:#3f454e;">/</span> `)||"—"; }
+          // คนสองขึ้นสถานะ (เขียว/amber) เฉพาะตอนเป็น "ตัวที่ได้แต้มจริง" = คนแรกไม่ยิง+ไม่ได้ลง (กันติ๊กซ้ำ  2 คน)
+          else { const s2active=!p.s1hit&&!p.s1played; const ps=[]; if(p.scorer1)ps.push(nm(p.scorer1, showPts&&p.s1hit, showPts&&p.s1unsure)); if(p.scorer2)ps.push(nm(p.scorer2, showPts&&p.s2hit&&s2active, showPts&&p.s2unsure&&s2active)); scH=ps.join(` <span style="color:#3f454e;">/</span> `)||"—"; }
           inner+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;margin-bottom:4px;background:${isMe?"#16241a":"transparent"};border:1px solid ${isMe?"#1f5a39":"transparent"};">
             <div class="k" style="width:46px;flex:none;font-weight:600;font-size:13.5px;">${esc(p.player)}</div>
             <div class="k" style="width:58px;flex:none;font-weight:700;font-size:14px;color:${resG?'#1FB85E':'#cfd4db'};">${p.homeScore}-${p.awayScore}${exact?' 🔥':resG?' ✓':''}</div>
