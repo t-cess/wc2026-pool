@@ -100,7 +100,7 @@ export function renderFixtures(){
       html+=`<div data-day="${k}" class="k" style="flex:none;font-weight:600;font-size:12.5px;padding:7px 13px;border-radius:99px;cursor:pointer;white-space:nowrap;background:${a?"#EEF1F4":"#14171D"};color:${a?"#0B0D11":"#8A929E"};border:1px solid ${a?"#EEF1F4":"#262b33"};">${k===specialKey&&specialLabel?specialLabel:matchNightShort(k)}</div>`; });   // ชิปวันนี้/วันแข่งล่าสุด = label พิเศษ · ที่เหลือ = วันที่
     html+=`</div>${arrow(1,"▶︎")}</div>
       <div class="k" style="display:flex;align-items:center;gap:11px;margin:2px 4px 13px;">
-        <span style="font-weight:800;font-size:15.5px;color:#EEF1F4;letter-spacing:.2px;">🌙 ${matchNightLabel(sel)}</span>
+        <span style="font-weight:800;font-size:15.5px;color:#EEF1F4;letter-spacing:.2px;">${matchNightLabel(sel)}</span>
         <span style="flex:1;height:1px;background:linear-gradient(90deg,#2a2f38,transparent);"></span>
         <span style="font-size:11.5px;font-weight:600;color:#5b626d;white-space:nowrap;">${dayCount[sel]} คู่</span></div>`;
     list=list.filter(({m})=> (m.kickoff?ymdNYC(m.kickoff):"")===sel);   // โชว์เฉพาะคืนที่เลือก
