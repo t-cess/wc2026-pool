@@ -15,6 +15,21 @@ const aliases = JSON.parse(readFileSync(new URL("aliases.json", here)));
 initializeApp({ credential: cert(sa) });
 const db = getFirestore();
 
+// ===== safeguard: นับ read ของ grader ต่อวัน · ใกล้เพดาน → low-power (กัน quota เต็ม = แอปล่มทั้งวง) =====
+const READ_CAP = +(process.env.READ_CAP || 40000);   // grader ใช้ได้ ~40K/วัน เหลือ ~10K ให้แอปเพื่อน
+let dayReads = 0;                                     // นับ read ในรอบนี้
+const RD = snap => { dayReads += (snap.size ?? 1); return snap; };   // ครอบ .get() เพื่อนับ
+const ymdPT = () => {   // วันแบบ Pacific — ตรงกับรอบ reset โควตา Firestore (เที่ยงคืน Pacific)
+  const d = new Date(new Date().toLocaleString("en-US",{timeZone:"America/Los_Angeles"}));
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+};
+async function usageRead() {   // อ่านยอดสะสมวันนี้ (1 read) ทุกรอบ
+  try { const ref = db.doc("config/usage"); const u = RD(await ref.get()).data() || {};
+    return { prior: (u.day===ymdPT() ? (u.reads||0) : 0), ref }; }
+  catch(e){ return { prior:0, ref:null }; }
+}
+const isQuota = e => /RESOURCE_EXHAUSTED|Quota exceeded/i.test(e?.message||"") || e?.code===8;
+
 // matches = ใช้ร่วม top-level ที่เดียว (คู่ชุดเดียวกันทุกวง) · ต่อวง = predictions/players/config
 const TOP = { id: "วง1", base: null };               // วงหลัก top-level
 const matchesCol = () => db.collection("matches");   // คู่ใช้ร่วมเสมอ
@@ -146,7 +161,7 @@ async function matchesInWindow(afterMs) {
 }
 // มีคู่ที่ "อยู่ในเวลาเตะ" (เตะก่อน 5 นาที → จบ+3 ชม.) และยังไม่ตรวจจบไหม
 async function hasLiveWindow() {
-  for (const md of (await matchesInWindow(W_GATE)).docs) {
+  for (const md of RD(await matchesInWindow(W_GATE)).docs) {
     const m = md.data();
     if (!(m.status==="finished" && m.autoGraded)) return true;   // อยู่ในช่วง + ยังไม่ตรวจจบ
   }
@@ -184,7 +199,7 @@ function labelFor(fx, allFx) {
 async function autoAddNext() {
   const POOL = TOP;                                       // คู่ใช้ร่วม (top-level)
   const since = Date.now() - 48*60*60*1000;              // อ่านเฉพาะ 48 ชม.ล่าสุด (พอหาชุดล่าสุดที่จบ → เพิ่มชุดถัดไป)
-  const ms = (await col(POOL,"matches").where("kickoff",">=",since).get()).docs.map(d=>({id:d.id,...d.data()})).filter(m=>m.kickoff);
+  const ms = RD(await col(POOL,"matches").where("kickoff",">=",since).get()).docs.map(d=>({id:d.id,...d.data()})).filter(m=>m.kickoff);
   if (!ms.length) { if(DRY)console.log("auto-add[dry]: ยังไม่มีคู่ตั้งต้น — ข้าม"); return; }
   const byKey={}; ms.forEach(m=>{ const k=ymd6(m.kickoff); (byKey[k]=byKey[k]||[]).push(m); });
   const latestKey = Object.keys(byKey).sort().pop();
@@ -218,7 +233,7 @@ async function autoAddNext() {
 // ตรวจคนยิงทุกโพยในคู่ → ตั้ง scorerOk (เขียนเฉพาะที่เปลี่ยน)
 // useQwen=false (สด: ดิกอย่างเดียว เร็ว ไม่เรียก Qwen) · true (จบ: ดิก + Qwen กวาดชื่อใหม่)
 async function gradeScorers(p, matchId, actualScorers, useQwen, lineup) {
-  const preds = (await col(p,"predictions").where("matchId","==",matchId).get()).docs;   // อ่านเฉพาะโพยคู่นี้ (ไม่ใช่ทั้งวง)
+  const preds = RD(await col(p,"predictions").where("matchId","==",matchId).get()).docs;   // อ่านเฉพาะโพยคู่นี้ (ไม่ใช่ทั้งวง)
   let qwenMap = {};
   if (useQwen) {
     const unknown = new Set();
@@ -246,12 +261,16 @@ async function gradeScorers(p, matchId, actualScorers, useQwen, lineup) {
 
 async function run() {
   if (DRY) console.log("🧪 DRY-RUN: อ่าน + เรียก Qwen ได้ แต่จะไม่เขียน Firestore\n");
+  // safeguard: ใกล้เพดาน read วันนี้ไหม → low-power (เขียนสกอร์อย่างเดียว กันแอปล่มทั้งวง) · FORCE/REGRADE (สั่งมือ) ไม่โดน
+  const usage = await usageRead();
+  const lowPower = !FORCE && !REGRADE && usage.prior >= READ_CAP;
+  if (lowPower) console.log(`🟡 LOW-POWER: read วันนี้ ${usage.prior} ≥ ${READ_CAP} — เขียนเฉพาะสกอร์ ข้ามตรวจคนยิง/autoAdd (regrade เก็บตกทีหลัง)`);
   const live = FORCE || await hasLiveWindow();
   if (!live) {                                 // ไม่มีบอลเตะ → ข้าม grade (แต่ auto-add ยังเช็กต่อ)
     console.log("⏸️ ไม่มีคู่อยู่ในเวลาเตะ — ข้าม grade", new Date().toLocaleString("th-TH"));
   } else {
-  // โหลดดิกที่ "เรียนรู้เอง" (Qwen เติม) merge เข้า aliases สำหรับรอบนี้ (1 read)
-  try { const learned = (await db.doc("config/learnedAliases").get()).data() || {};
+  // โหลดดิกที่ "เรียนรู้เอง" (Qwen เติม) merge เข้า aliases สำหรับรอบนี้ (1 read) — ข้ามถ้า low-power
+  if (!lowPower) try { const learned = RD(await db.doc("config/learnedAliases").get()).data() || {};
     for (const [c,arr] of Object.entries(learned)) if(Array.isArray(arr)) aliases[c] = [...new Set([...(aliases[c]||[]), ...arr])]; }
   catch(e){ console.log("  ⚠️ โหลด learnedAliases ไม่ได้:", e.message); }
   // ดึง ESPN วันนี้+เมื่อวาน+พรุ่งนี้ (กันคาบเกี่ยวเที่ยงคืน)
@@ -264,7 +283,7 @@ async function run() {
 
   const pools = await listPools();
   console.log("วงที่ตรวจ:", pools.map(p=>p.id).join(", "));
-  const ms = REGRADE ? await matchesCol().get() : await matchesInWindow(W_GRADE);   // ปกติอ่านเฉพาะคู่ช่วง 8 ชม. (regrade=ทั้งหมด)
+  const ms = REGRADE ? RD(await matchesCol().get()) : RD(await matchesInWindow(W_GRADE));   // ปกติอ่านเฉพาะคู่ช่วง 8 ชม. (regrade=ทั้งหมด)
   for (const mdoc of ms.docs) {
     const m = mdoc.data();
     if (m.status==="finished" && m.autoGraded && !REGRADE) continue;   // ตรวจจบแล้ว ข้าม (--regrade = ทำซ้ำ)
@@ -275,15 +294,21 @@ async function run() {
       anyLive = true;
       console.log(`${DRY?"[DRY] ":""}🔴 สด ${m.home} ${ev.hs}-${ev.as} ${m.away} · ${ev.clock}`);
       if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, live:true, clock:ev.clock, goals:ev.goals }, {merge:true});
-      const luLive = await fetchLineup(ev.id);
-      for (const p of pools) {
-        const n = await gradeScorers(p, mdoc.id, ev.scorers, false, luLive);   // ⚽ ตรวจคนยิงสด (ดิก + กฎคนแรกลงเล่น)
-        if (n) console.log(`[${p.id}]   ⚽ +1 คนยิงสด ${n} โพย`);
+      if (!lowPower) {   // low-power: เขียนสกอร์แล้วข้ามตรวจคนยิง (regrade เก็บตก)
+        const luLive = await fetchLineup(ev.id);
+        for (const p of pools) {
+          const n = await gradeScorers(p, mdoc.id, ev.scorers, false, luLive);   // ⚽ ตรวจคนยิงสด (ดิก + กฎคนแรกลงเล่น)
+          if (n) console.log(`[${p.id}]   ⚽ +1 คนยิงสด ${n} โพย`);
+        }
       }
       continue;
     }
     // 1) จบแล้ว: เขียนผลครั้งเดียว (top-level) + ปิด live
     console.log(`${DRY?"[DRY] จะเขียนผล":"✓ ผล"} ${m.home} ${ev.hs}-${ev.as} ${m.away} | ยิง: ${ev.scorers.join(", ")||"-"}`);
+    if (lowPower) {   // เขียนสกอร์ไว้ก่อน แต่ไม่ปิด (autoGraded) → budget กลับ/regrade ค่อยตรวจคนยิง
+      if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, goals:ev.goals, status:"finished", live:false, clock:"จบ" }, {merge:true});
+      continue;
+    }
     if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, goals:ev.goals, status:"finished", autoGraded:true, finishedAt:Date.now(), live:false, clock:"จบ" }, {merge:true});
     // 2) ตรวจคนยิงเต็มทุกวง (ดิก + Qwen กวาดชื่อใหม่ + กฎคนแรกลงเล่น)
     const luFin = await fetchLineup(ev.id);
@@ -293,10 +318,15 @@ async function run() {
     }
   }
   }   // ปิด else (live)
-  // autoAdd อ่านคู่ 48ชม. = ตัวกิน read หลักตอน idle → รันแค่ทุก ~5 นาที (stateless, pinger ยิงทุก 1 นาทีก็โดน gate)
-  if (FORCE || DRY || new Date().getMinutes() % 5 === 0)
+  // autoAdd อ่านคู่ 48ชม. = ตัวกิน read หลักตอน idle → รันแค่ทุก ~5 นาที · ข้ามถ้า low-power
+  if (!lowPower && (FORCE || DRY || new Date().getMinutes() % 5 === 0))
     try { await autoAddNext(); } catch(e){ console.log("⚠️ auto-add ล้มเหลว:", e.message); }
+  // บันทึกยอด read สะสมวันนี้ (กัน quota เต็ม) — 1 write
+  if (!DRY && usage.ref) { try { await usage.ref.set({ day: ymdPT(), reads: usage.prior + dayReads }); console.log(`📊 read วันนี้ ~${usage.prior + dayReads}/${READ_CAP}`); } catch(e){} }
   console.log("เสร็จ ✅", new Date().toLocaleString("th-TH"));
   console.log("__LIVE__:" + (anyLive ? 1 : 0));   // สัญญาณให้ workflow loop: 1=ยังมีบอลสด วนต่อ
 }
-run().then(()=>process.exit(0)).catch(e=>{ console.error("❌",e); process.exit(1); });
+run().then(()=>process.exit(0)).catch(e=>{
+  if (isQuota(e)) { console.log("🛑 Firestore quota เต็ม — หยุดรอบนี้แบบนิ่งๆ (รอ reset/วันใหม่)"); process.exit(0); }
+  console.error("❌",e); process.exit(1);
+});
