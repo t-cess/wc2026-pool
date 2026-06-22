@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { matchScorer, readable } from "./namematch.mjs";   // อ่านชื่อ: input = คนใน candidate set ไหน (ดิก+substring+นามสกุล)
+import { matchScorer, composeGrade } from "./namematch.mjs";   // อ่านชื่อ + ประกอบกฎตัวสำรอง (แหล่งความจริงเดียว)
 
 const here = new URL(".", import.meta.url);
 const sa = process.env.FIREBASE_SERVICE_ACCOUNT
@@ -199,21 +199,14 @@ async function gradeScorers(p, matchId, actualScorers, useQwen, lineup) {
       [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !matchScorer(s, actualScorers, aliases)) unknown.add(s); }); });   // ชื่อที่ดิกอ่านไม่ออก → Qwen
     qwenMap = await askQwen(actualScorers, [...unknown]);
   }
-  const lineupKnown = lineup && lineup.length>0;
   let changed = 0;
   for (const d of preds) {
     const pr=d.data();
     if (pr.homeScore===0 && pr.awayScore===0) continue;   // 0-0 แอปคิดเอง
     if (pr.scorerManual) continue;                        // แอดมินติ๊กมือ → auto ไม่ทับ
-    const s1 = scorerHitOne(pr.scorer1, actualScorers, qwenMap);   // คนแรกยิงไหม
+    const s1 = scorerHitOne(pr.scorer1, actualScorers, qwenMap);   // คนแรกยิงไหม (รวม Qwen)
     const s2 = scorerHitOne(pr.scorer2, actualScorers, qwenMap);   // คนสองยิงไหม
-    // คนแรกลงเล่นไหม · เจอใน lineup=ลง · ไม่รู้ lineup=ถือว่าลง · อ่านชื่อไม่ออก+ไม่เจอ=ถือว่าลง (กันเปิดคนสองมั่ว)
-    const inPlayed = lineupKnown && !!matchScorer(pr.scorer1, lineup, aliases);
-    const s1played = !lineupKnown ? true : (inPlayed || !readable(pr.scorer1, aliases));
-    const ok = s1 || (!s1played && s2);   // คนยิง = คนแรกยิง หรือ (คนแรกไม่ได้ลง และคนสองยิง)
-    // "ไม่แน่ใจ" = มีชื่อ + ยังไม่ตรงคนยิง + ระบบอ่านชื่อไม่ออก (ไม่อยู่ดิก/ไม่ใช่อังกฤษ) → แอปโชว์ amber+? (รอ Qwen/ดิก/แอดมิน)
-    const s1unsure = !!pr.scorer1 && !s1 && !readable(pr.scorer1, aliases);
-    const s2unsure = !!pr.scorer2 && !s2 && !readable(pr.scorer2, aliases);
+    const { s1played, ok, s1unsure, s2unsure } = composeGrade(s1, s2, pr.scorer1, pr.scorer2, lineup, aliases);
     if (ok===!!pr.scorerOk && s1===!!pr.s1hit && s2===!!pr.s2hit && s1played===!!pr.s1played
         && s1unsure===!!pr.s1unsure && s2unsure===!!pr.s2unsure) continue;   // ไม่เปลี่ยน
     changed++;

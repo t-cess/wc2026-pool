@@ -39,6 +39,20 @@ export function readable(input, aliasMap) {
   return false;
 }
 
+// ประกอบผลโพยเดียว จาก s1/s2 (คนยิงไหม — ตัวเรียกหามาแล้ว เผื่อรวม Qwen) + lineup → กฎตัวสำรอง
+// แหล่งความจริงเดียว (grader + เทสใช้ร่วม) กัน display drift · credit = ชื่อที่ได้แต้ม (0/1/2)
+export function composeGrade(s1, s2, scorer1, scorer2, lineup, aliasMap) {
+  const lineupKnown = lineup && lineup.length > 0;
+  const inPlayed = lineupKnown && !!matchScorer(scorer1, lineup, aliasMap);
+  // คนแรกลงเล่นไหม · ไม่มีคนแรก=ไม่บล็อก · ไม่รู้ lineup=ถือว่าลง · อ่านชื่อไม่ออก+ไม่เจอ=ถือว่าลง (กันเปิดคนสองมั่ว)
+  const s1played = !scorer1 ? false : !lineupKnown ? true : (inPlayed || !readable(scorer1, aliasMap));
+  const ok = s1 || (!s1played && s2);
+  const credit = ok ? (s1 ? 1 : 2) : 0;
+  const s1unsure = !!scorer1 && !s1 && !readable(scorer1, aliasMap);   // มีชื่อ+ไม่ตรง+อ่านไม่ออก → amber
+  const s2unsure = !!scorer2 && !s2 && !readable(scorer2, aliasMap);
+  return { s1played, ok, credit, s1unsure, s2unsure };
+}
+
 // คืน canonical ของคนยิงจริงที่ input หมายถึง · null = ไม่ตรงใคร (ส่ง Qwen)
 export function matchScorer(input, actualScorers, aliasMap) {
   const ni = norm(input);

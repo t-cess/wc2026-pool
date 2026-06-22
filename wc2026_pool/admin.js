@@ -32,7 +32,8 @@ export function renderAdmin(){
       const stage=(pid in S.scorerStage)?S.scorerStage[pid]:(p.scorerOk?(p.s1hit?1:2):0);   // 0/1/2 — ตามที่ได้แต้มจริง (scorerOk) ไม่ใช่ s2hit ดิบ
       // เขียว=ติ๊กแล้ว · amber+?=ระบบอ่านชื่อไม่ออก ควรรีวิว/เติมดิก · เทา=ปกติ
       const nm=(t,on,u)=>`<span style="color:${on?'#5fcf94':u?'#E0A33E':'var(--mut)'};${on?'font-weight:700;':u?'font-weight:600;':''}"${u&&!on?' title="ระบบอ่านชื่อไม่ออก ยังไม่แน่ใจ — รีวิว/เติมดิก"':''}>${esc(t)}${u&&!on?' ?':''}</span>`;
-      const scTxt = `${p.scorer1?nm(p.scorer1,stage===1,p.s1unsure):""}${p.scorer1&&p.scorer2?' <span style="color:#3f454e;">/</span> ':""}${p.scorer2?nm(p.scorer2,stage===2,p.s2unsure):""}`||"(ไม่ใส่คนยิง)";
+      const s2active=!p.s1hit&&!p.s1played;   // คนสองเกี่ยวเฉพาะตอนคนแรกไม่ยิง+ไม่ได้ลง (ให้ amber ตรงกับ views)
+      const scTxt = `${p.scorer1?nm(p.scorer1,stage===1,p.s1unsure):""}${p.scorer1&&p.scorer2?' <span style="color:#3f454e;">/</span> ':""}${p.scorer2?nm(p.scorer2,stage===2,p.s2unsure&&s2active):""}`||"(ไม่ใส่คนยิง)";
       const btn=(n)=>`<div data-pick="${pid}:${n}" class="k" style="cursor:pointer;flex:none;font-weight:800;font-size:13px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:${stage===n?"#10301f":"#23272f"};color:${stage===n?"#5fcf94":"#8A929E"};border:1px solid ${stage===n?"#1f5a39":"#333"};">${n}</div>`;
       const tick = zero ? `<span class="k" style="font-size:11px;color:#5b626d;flex:none;">0-0</span>`
         : glocked ? `<span class="k" style="flex:none;font-weight:700;font-size:12px;color:${stage?"#5fcf94":"#5b626d"};">${stage===1?"✓ คน1":stage===2?"✓ คน2":"—"}</span>`
