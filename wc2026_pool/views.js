@@ -23,7 +23,7 @@ export function renderHeader(){
   if(hb){
     const banner=(grad,fg,txt)=>`<div class="k" style="margin:-14px -22px 13px;padding:4px 22px;background:${grad};color:${fg};font-weight:800;font-size:13px;letter-spacing:.2px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;">${txt}</div>`;
     if(notPred||liveN){
-      hb.innerHTML = notPred ? banner("linear-gradient(90deg,#E0A800,#caa227)","#1a1400",`ยังไม่ได้ทาย ${notPred} คู่`)
+      hb.innerHTML = notPred ? banner("linear-gradient(90deg,#E0A800,#caa227)","#1a1400",`ยังไม่ได้ทาย ${notPred} คู่ (แตะเพื่อทาย)`)
                              : banner("linear-gradient(90deg,#1FB85E,#16a34a)","#04210F",`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#04210F;animation:pulse 1.4s infinite;"></span> กำลังแข่ง ${liveN} คู่`);
       hb.onclick=()=>{   // แตะแถบ → ไปแท็บทายผล + filter คู่ที่เกี่ยว (ยังไม่ทาย→เปิดทาย · สด→กำลังแข่ง)
         S.tab="fixtures"; ["fixtures","champion","board","admin"].forEach(t=>$("#tab-"+t).classList.toggle("hidden",t!=="fixtures")); renderNav();
