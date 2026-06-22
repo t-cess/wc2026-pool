@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { matchScorer } from "./namematch.mjs";   // อ่านชื่อ: input = คนใน candidate set ไหน (ดิก+substring+นามสกุล)
+import { matchScorer, readable } from "./namematch.mjs";   // อ่านชื่อ: input = คนใน candidate set ไหน (ดิก+substring+นามสกุล)
 
 const here = new URL(".", import.meta.url);
 const sa = process.env.FIREBASE_SERVICE_ACCOUNT
@@ -207,8 +207,9 @@ async function gradeScorers(p, matchId, actualScorers, useQwen, lineup) {
     if (pr.scorerManual) continue;                        // แอดมินติ๊กมือ → auto ไม่ทับ
     const s1 = scorerHitOne(pr.scorer1, actualScorers, qwenMap);   // คนแรกยิงไหม
     const s2 = scorerHitOne(pr.scorer2, actualScorers, qwenMap);   // คนสองยิงไหม
-    // คนแรกลงเล่นไหม (ตัวจริง/ลงมา) · ไม่รู้ lineup → ถือว่าลง (สำรองไม่ activate)
-    const s1played = lineupKnown ? !!matchScorer(pr.scorer1, lineup, aliases) : true;
+    // คนแรกลงเล่นไหม · เจอใน lineup=ลง · ไม่รู้ lineup=ถือว่าลง · อ่านชื่อไม่ออก+ไม่เจอ=ถือว่าลง (กันเปิดคนสองมั่ว)
+    const inPlayed = lineupKnown && !!matchScorer(pr.scorer1, lineup, aliases);
+    const s1played = !lineupKnown ? true : (inPlayed || !readable(pr.scorer1, aliases));
     const ok = s1 || (!s1played && s2);   // คนยิง = คนแรกยิง หรือ (คนแรกไม่ได้ลง และคนสองยิง)
     if (ok===!!pr.scorerOk && s1===!!pr.s1hit && s2===!!pr.s2hit && s1played===!!pr.s1played) continue;   // ไม่เปลี่ยน
     changed++;

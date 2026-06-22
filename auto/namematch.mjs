@@ -26,6 +26,19 @@ function aliasHit(ni, a) {
   return ni.includes(a);
 }
 
+// "อ่านชื่อออก" ไหม — อังกฤษ (อ่านเองได้จากนามสกุล) หรือ ไทยที่มีในดิก
+// ใช้ตัดสิน s1played: ถ้าอ่านไม่ออก + ไม่เจอใน lineup → อย่าสรุปว่า "ไม่ได้ลง" (กันเปิดคนสองมั่วทั้งที่คนแรกลง)
+export function readable(input, aliasMap) {
+  const ni = norm(input);
+  if (!ni) return false;
+  if (isAscii(ni)) return true;                          // อังกฤษ = อ่านออกเอง
+  for (const [canon, arr] of Object.entries(aliasMap)) { // ไทย = ต้องโผล่เป็น alias ไทยในดิก
+    if (canon[0] === "_") continue;
+    for (const a of arr) { const na = norm(a); if (!isAscii(na) && na.length >= 3 && ni.includes(na)) return true; }
+  }
+  return false;
+}
+
 // คืน canonical ของคนยิงจริงที่ input หมายถึง · null = ไม่ตรงใคร (ส่ง Qwen)
 export function matchScorer(input, actualScorers, aliasMap) {
   const ni = norm(input);
