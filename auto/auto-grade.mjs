@@ -241,16 +241,22 @@ async function autoAddNext() {
   if (cfg.autoAddedThrough && cfg.autoAddedThrough >= nextKey) { if(DRY)console.log(`auto-add: ชุด ${nextKey} เพิ่มไปแล้ว`); return; }
   const nextFx = allFx.filter(x=>ymd6(x.ms)===nextKey).sort((a,b)=>a.ms-b.ms);
   const existPairs = new Set(ms.map(m=>pairKey(m.home,m.away,ymd6(m.kickoff))));
-  let added=0;
+  let added=0; const addedList=[];
   for (const fx of nextFx) {
     const home=th(fx.homeEN), away=th(fx.awayEN), label=labelFor(fx,allFx);
     if (existPairs.has(pairKey(home,away,nextKey))) continue;     // กันซ้ำด้วยคู่ทีม+วัน
     console.log(`auto-add: ${DRY?"[DRY] ":""}+ ${home} vs ${away} | ${label} | ${thKick(fx.ms)}`);
     if (!DRY) await col(POOL,"matches").doc(addId(home,away,label)).set(
       {home,away,group:label,kickoff:fx.ms,homeScore:0,awayScore:0,scorers:[],status:"upcoming"},{merge:true});
-    added++;
+    added++; addedList.push({home,away,ms:fx.ms});
   }
   if (!DRY && added) await db.doc("config/autoadd").set({autoAddedThrough:nextKey},{merge:true});
+  // #เตือนเปิดทายชุดใหม่ → LINE (ให้คนไปทาย)
+  if (added && LINE_TOKEN && LINE_GROUP) {
+    const list = addedList.map(x=>`• ${x.home} 🆚 ${x.away} · ${thKick(x.ms)} น.`).join("\n");
+    const text = `🆕 เปิดทายชุดใหม่!\n${list}\n\nรีบทายก่อนปิดรับนะ 👉`;
+    if (DRY) console.log(`[DRY] OPEN-NOTIFY →\n${text}\n`); else await linePush(text);
+  }
   console.log(`auto-add: ${DRY?"[dry] จะเพิ่ม":"เพิ่ม"} ${added} คู่ · ชุด ${nextKey}`);
 }
 
@@ -328,6 +334,87 @@ async function lockNotify() {
     if (await linePush(text)) await d.ref.set({ lockPosted:true }, {merge:true});
   }
 }
+// #3 สรุปจบคืน + ตารางคะแนน — replicate scoreMatch/computeBoard จาก wc2026_pool/scoring.js (แหล่งกติกาเดียวกัน)
+const normTxt = s => (s||"").toString().trim().toLowerCase();
+function scoreMatchNode(p, m) {   // = scoreMatch (กติกาวง) · ใช้ p.scorerOk ที่ grader ติ๊ก
+  if (!p || !m || (m.status!=="finished" && !m.live)) return 0;
+  let pts=0;
+  const actual = m.homeScore>m.awayScore?"h":m.homeScore<m.awayScore?"a":"d";
+  const g = p.homeScore>p.awayScore?"h":p.homeScore<p.awayScore?"a":"d";
+  if (g===actual) pts += actual==="d"?2:1;
+  if (p.homeScore===m.homeScore && p.awayScore===m.awayScore) pts+=3;
+  if (p.homeScore===0 && p.awayScore===0) { if (m.homeScore===0 && m.awayScore===0) pts+=1; }
+  else if (p.scorerOk) pts+=1;
+  return pts;
+}
+async function computeBoardNode(POOL) {   // = computeBoard · ลำดับ + ชื่อ + คะแนนรวม (carry + แต้มคู่ + champ)
+  const matches = RD(await matchesCol().get()).docs.map(d=>({id:d.id,...d.data()}));
+  const mById = Object.fromEntries(matches.map(m=>[m.id,m]));
+  const preds = RD(await col(POOL,"predictions").get()).docs.map(d=>d.data());
+  const carry = (await col(POOL,"config").doc("carry").get()).data() || {};
+  const players = RD(await col(POOL,"players").get()).docs.map(d=>d.data());
+  const tourn = (await col(POOL,"config").doc("tournament").get()).data() || {};
+  const cfgChamp = (await col(POOL,"config").doc("champPicks").get()).data() || {};
+  const champion = normTxt(tourn.champion||"");
+  const champPicks = {...cfgChamp};   // deriveChampPicks: config + player champ1/2 ทับ
+  players.forEach(p=>{ if(p.name){ const a=[p.champ1,p.champ2].filter(Boolean); if(a.length) champPicks[p.name]=a; } });
+  const mp={};
+  preds.forEach(p=>{ const m=mById[p.matchId]; mp[p.player]=(mp[p.player]||0)+scoreMatchNode(p,m); });
+  const names = new Set([...Object.keys(carry), ...players.map(p=>p.name).filter(Boolean), ...Object.keys(champPicks)]);
+  const rows=[...names].map(name=>{
+    const champPts = champion ? (champPicks[name]||[]).map(normTxt).filter(t=>t===champion).length*10 : 0;
+    return { name, total:(carry[name]||0)+(mp[name]||0)+champPts };
+  });
+  rows.sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,"th"));   // คะแนนเท่า → ตัวอักษร (ตรงกับแอป)
+  rows.forEach((r,i)=>r.rank=i+1);
+  return rows;
+}
+async function nightDigest() {
+  if (!LINE_TOKEN || !LINE_GROUP) return;
+  const POOL = TOP;
+  const recent = RD(await matchesCol().where("kickoff",">=", Date.now()-48*60*60*1000).get()).docs.map(d=>({id:d.id,...d.data()})).filter(m=>m.kickoff);
+  const byNight={}; recent.forEach(m=>{ const k=ymd6(m.kickoff); (byNight[k]=byNight[k]||[]).push(m); });
+  const cfgRef = col(POOL,"config").doc("lineNotify");
+  const done = new Set(((await cfgRef.get()).data()||{}).digested||[]);
+  const cand = Object.keys(byNight).filter(k=>!done.has(k) && byNight[k].every(m=>m.status==="finished")).sort();
+  if (!cand.length) return;
+  const night = cand[cand.length-1];   // คืนล่าสุดที่จบครบ + ยังไม่สรุป
+  const matches = byNight[night].sort((a,b)=>a.kickoff-b.kickoff);
+  const board = await computeBoardNode(POOL);
+  const results = matches.map(m=>`• ${m.home} ${m.homeScore}-${m.awayScore} ${m.away}`).join("\n");
+  const table = board.map(r=>`${r.rank}. ${r.name} ${r.total}`).join("\n");
+  const text = `📊 สรุปผลคืนนี้ — จบ ${matches.length} คู่\n${results}\n\n🏆 ตารางคะแนนล่าสุด:\n${table}`;
+  if (DRY) { console.log("[DRY] DIGEST:\n"+text+"\n"); return; }
+  if (await linePush(text)) await cfgRef.set({digested:[...done, night]},{merge:true});
+}
+
+// #5 เตือนก่อนปิดรับ 1 ชม + ใครยังไม่ทาย (ดันคนลืม) — ครั้งเดียว/คู่ (flag preLockPosted)
+const PRELOCK_LEAD_MS = 60*60*1000;   // เตือนก่อน "ปิดรับ" 1 ชม (= kickoff - 70 นาที)
+async function poolRoster(POOL) {   // ชื่อสมาชิกวง = carry keys ∪ players
+  const carry = (await col(POOL,"config").doc("carry").get()).data() || {};
+  const players = RD(await col(POOL,"players").get()).docs.map(d=>d.data().name).filter(Boolean);
+  return [...new Set([...Object.keys(carry), ...players])];
+}
+async function preLockNotify() {
+  if (!LINE_TOKEN || !LINE_GROUP) return;
+  const POOL = TOP, now = Date.now();
+  const snap = RD(await matchesCol().where("kickoff",">=", now).where("kickoff","<=", now + LOCK_BEFORE_MS + PRELOCK_LEAD_MS + 60000).get());
+  let roster = null;
+  for (const d of snap.docs) {
+    const m = d.data();
+    if (!m.kickoff || m.preLockPosted || m.status==="finished") continue;
+    const lockTs = m.kickoff - LOCK_BEFORE_MS;
+    if (now < lockTs - PRELOCK_LEAD_MS || now >= lockTs) continue;   // เตือนช่วง [lock-1ชม, lock) เท่านั้น
+    if (!roster) roster = await poolRoster(POOL);
+    const submitted = new Set(RD(await col(POOL,"predictions").where("matchId","==",d.id).get()).docs.map(x=>x.data().player));
+    const missing = roster.filter(n=>!submitted.has(n));
+    const mins = Math.max(1, Math.round((lockTs-now)/60000));
+    if (!missing.length) { if(!DRY) await d.ref.set({preLockPosted:true},{merge:true}); continue; }   // ทุกคนทายแล้ว ไม่กวน
+    const text = `⏰ อีก ~${mins} นาทีปิดรับ!\n${m.home} 🆚 ${m.away}${m.group?" ("+m.group+")":""}\n\n📝 ยังไม่ทาย: ${missing.join(", ")}`;
+    if (DRY) { console.log(`[DRY] PRELOCK → ${m.home}-${m.away} · ยังไม่ทาย: ${missing.join(", ")||"-"}`); continue; }
+    if (await linePush(text)) await d.ref.set({preLockPosted:true},{merge:true});
+  }
+}
 async function run() {
   if (BACKFILL) { await backfillGroup(); return; }   // โหมด one-shot — ข้าม grader ปกติ
   if (LINETEST) { console.log("LINE test →", await linePush("🔔 ทดสอบบอทวงทายบอลโลก 2026 — ถ้าเห็นข้อความนี้ = พร้อมโพสต์โพยตอนปิดรับแล้ว ✅") ? "ส่งสำเร็จ ✅" : "ส่งไม่ได้ (เช็ก token/group)"); return; }
@@ -390,10 +477,13 @@ async function run() {
   }
   }   // ปิด else (live)
   // autoAdd อ่านคู่ 48ชม. = ตัวกิน read หลักตอน idle → รันแค่ทุก ~5 นาที · ข้ามถ้า low-power
-  if (!lowPower && (FORCE || DRY || new Date().getMinutes() % 5 === 0))
+  if (!lowPower && (FORCE || DRY || new Date().getMinutes() % 5 === 0)) {
     try { await autoAddNext(); } catch(e){ console.log("⚠️ auto-add ล้มเหลว:", e.message); }
-  // โพสต์โพยเข้า LINE ตอนปิดรับ — ทุกรอบ (ต้องไว, lock = T-10) · ข้ามถ้า low-power
-  if (!lowPower) try { await lockNotify(); } catch(e){ console.log("⚠️ lock-notify ล้มเหลว:", e.message); }
+    try { await nightDigest(); } catch(e){ console.log("⚠️ night-digest ล้มเหลว:", e.message); }   // #3 สรุปจบคืน + ตาราง
+  }
+  // LINE — ทุกรอบ (ต้องไว) · ข้ามถ้า low-power
+  if (!lowPower) try { await preLockNotify(); } catch(e){ console.log("⚠️ pre-lock notify ล้มเหลว:", e.message); }   // #5 เตือนก่อนปิดรับ 1 ชม
+  if (!lowPower) try { await lockNotify(); } catch(e){ console.log("⚠️ lock-notify ล้มเหลว:", e.message); }            // #1 โพยทั้งวงตอนปิดรับ
   // บันทึกยอด read สะสมวันนี้ (กัน quota เต็ม) — 1 write
   if (!DRY && usage.ref) { try { await usage.ref.set({ day: ymdPT(), reads: usage.prior + dayReads }); console.log(`📊 read วันนี้ ~${usage.prior + dayReads}/${READ_CAP}`); } catch(e){} }
   console.log("เสร็จ ✅", new Date().toLocaleString("th-TH"));
