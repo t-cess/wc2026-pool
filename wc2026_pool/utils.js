@@ -34,3 +34,17 @@ export const ymdNYC = ts => {
   d.setHours(d.getHours()-6);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 };
+// หัวข้อ "คืนแข่ง" ไทย จากคีย์ ymdNYC (YYYY-MM-DD) — matchday US D = คืนคนไทยนั่งดู (ราว 23:00 วัน D → 08:00 วัน D+1)
+const TH_WD=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+const TH_MON=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+export const matchNightLabel = key => {
+  if(!key) return "ยังไม่ระบุวัน";
+  const [y,mo,da]=key.split("-").map(Number);
+  return `คืนวัน${TH_WD[new Date(y,mo-1,da).getDay()]} ${da} ${TH_MON[mo-1]}`;
+};
+const TH_WD_S=["อา","จ","อ","พ","พฤ","ศ","ส"];   // ป้ายสั้นบนชิปเลือกวัน
+export const matchNightShort = key => {
+  if(!key) return "—";
+  const [y,mo,da]=key.split("-").map(Number);
+  return `${TH_WD_S[new Date(y,mo-1,da).getDay()]}·${da}·${TH_MON[mo-1]}`;   // วัน·วันที่·เดือน
+};

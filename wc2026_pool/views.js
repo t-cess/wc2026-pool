@@ -2,7 +2,7 @@
 import { S, rosterNames } from "./state.js";
 import { poolDoc, setDoc } from "./firebase.js";
 import { fe, CHAMP_TEAMS, MOCK } from "./config.js";
-import { $, esc, flag, avatarHTML, bindAvatars, toast, countdown, fmtKo, isAdmin } from "./utils.js";
+import { $, esc, flag, avatarHTML, bindAvatars, toast, countdown, fmtKo, isAdmin, ymdNYC, matchNightLabel, matchNightShort } from "./utils.js";
 import { stateOf, lockTs, scoreMatch, computeBoard } from "./scoring.js";
 import { renderAdmin } from "./admin.js";
 
@@ -23,11 +23,13 @@ export function renderHeader(){
   if(hb){
     const banner=(grad,fg,txt)=>`<div class="k" style="margin:-14px -22px 13px;padding:4px 22px;background:${grad};color:${fg};font-weight:800;font-size:13px;letter-spacing:.2px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;">${txt}</div>`;
     if(notPred||liveN){
-      hb.innerHTML = notPred ? banner("linear-gradient(90deg,#E0A800,#caa227)","#1a1400",`ยังไม่ได้ทาย ${notPred} คู่ (แตะเพื่อทาย)`)
+      const onOpenList = S.tab==="fixtures" && S.filter==="open";   // อยู่หน้าโปรแกรมทาย+filterเปิดทายแล้ว → แตะแล้วไม่ไปไหน จึงไม่ต้องบอก
+      const tapHint = onOpenList ? "" : " (แตะเพื่อทาย)";
+      hb.innerHTML = notPred ? banner("linear-gradient(90deg,#E0A800,#caa227)","#1a1400",`ยังไม่ได้ทาย ${notPred} คู่${tapHint}`)
                              : banner("linear-gradient(90deg,#1FB85E,#16a34a)","#04210F",`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#04210F;animation:pulse 1.4s infinite;"></span> กำลังแข่ง ${liveN} คู่`);
       hb.onclick=()=>{   // แตะแถบ → ไปแท็บทายผล + filter คู่ที่เกี่ยว (ยังไม่ทาย→เปิดทาย · สด→กำลังแข่ง)
         S.tab="fixtures"; ["fixtures","champion","board","admin"].forEach(t=>$("#tab-"+t).classList.toggle("hidden",t!=="fixtures")); renderNav();
-        S.filter = notPred?"open":"locked"; S.filterTouched=true; renderFixtures();
+        S.filter = notPred?"open":"locked"; S.filterTouched=true; renderFixtures(); renderHeader();
       };
     } else { hb.innerHTML=""; hb.onclick=null; }
   }
@@ -44,7 +46,7 @@ export function renderNav(){
     d.style.cssText="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 0;cursor:pointer;";
     d.innerHTML=`<div style="width:22px;height:3px;border-radius:99px;background:${active?"#1FB85E":"transparent"};"></div>
       <div class="k" style="font-weight:${active?700:500};font-size:12px;color:${active?"#EEF1F4":"#5b626d"};">${label}</div>`;
-    d.onclick=()=>{ S.tab=k; if(!MOCK)try{localStorage.setItem("wc_tab",k)}catch(e){}; ["fixtures","champion","board","admin"].forEach(t=>$("#tab-"+t).classList.toggle("hidden",t!==k)); renderNav(); if(k==="admin")renderAdmin(); };
+    d.onclick=()=>{ S.tab=k; if(!MOCK)try{localStorage.setItem("wc_tab",k)}catch(e){}; ["fixtures","champion","board","admin"].forEach(t=>$("#tab-"+t).classList.toggle("hidden",t!==k)); renderNav(); renderHeader(); if(k==="admin")renderAdmin(); };
     nav.appendChild(d);
   });
 }
@@ -74,7 +76,33 @@ export function renderFixtures(){
 
   let list=S.matches.map(m=>({m,st:stateOf(m)}));
   if(S.filter!=="all") list=list.filter(x=>x.st===S.filter);
-  if(S.filter==="done"||S.filter==="all") list.sort((a,b)=>(b.m.kickoff||0)-(a.m.kickoff||0));   // จบแล้ว/ทั้งหมด: คู่ล่าสุดไว้บน
+  const grouped=S.filter==="done"||S.filter==="all";
+  if(grouped) list.sort((a,b)=>(b.m.kickoff||0)-(a.m.kickoff||0));   // จบแล้ว/ทั้งหมด: คู่ล่าสุดไว้บน
+
+  // จบแล้ว/ทั้งหมด: แบ่งเป็นหน้าตาม "คืนแข่ง" (group ตาม ymdNYC = คืนคนไทยนั่งดู) → โชว์ทีละคืน เลื่อนอ่านน้อยลง
+  if(grouped && list.length){
+    const dayCount={}, nightsSet=new Set();
+    list.forEach(({m})=>{ const k=m.kickoff?ymdNYC(m.kickoff):""; dayCount[k]=(dayCount[k]||0)+1; nightsSet.add(k); });
+    const nights=[...nightsSet].sort();   // เรียงเก่า→ใหม่ (วันล่าสุดอยู่ขวา)
+    const today=ymdNYC(S.nowTs), pastN=nights.filter(k=>k<=today);
+    const specialKey = nights.includes(today) ? today : (pastN.length ? pastN[pastN.length-1] : nights[0]);   // วันนี้ · ไม่มี→วันแข่งล่าสุด · ยังไม่เริ่ม→วันแรก
+    const specialLabel = nights.includes(today) ? "วันนี้" : (pastN.length ? "วันแข่งล่าสุด" : "");
+    if(!nights.includes(S.dayKey)) S.dayKey=specialKey;   // default = วันนี้ / วันแข่งล่าสุด
+    const sel=S.dayKey, idx=nights.indexOf(sel);
+    // ลูกศรเลื่อนทีละคืน (◀ เก่ากว่า=ซ้าย · ▶ ใหม่กว่า=ขวา) — หรี่+กดไม่ได้เมื่อสุดทาง
+    const arrow=(d,g)=>{ const t=nights[idx+d], off=t===undefined;
+      return `<div ${off?"":`data-day="${t}"`} class="k" style="flex:none;display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;font-size:12px;background:#14171D;border:1px solid #262b33;color:#8A929E;${off?"opacity:.3;":"cursor:pointer;"}">${g}</div>`; };
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">${arrow(-1,"◀")}
+      <div style="flex:1;display:flex;gap:8px;overflow-x:auto;padding:0 2px 2px;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 20px,#000 calc(100% - 20px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 20px,#000 calc(100% - 20px),transparent 100%);">`;   // ชิปเลือกคืน (เลื่อนแนวนอน · ขอบ fade ไม่ตัดคม)
+    nights.forEach(k=>{ const a=k===sel;
+      html+=`<div data-day="${k}" class="k" style="flex:none;font-weight:600;font-size:12.5px;padding:7px 13px;border-radius:99px;cursor:pointer;white-space:nowrap;background:${a?"#EEF1F4":"#14171D"};color:${a?"#0B0D11":"#8A929E"};border:1px solid ${a?"#EEF1F4":"#262b33"};">${k===specialKey&&specialLabel?specialLabel:matchNightShort(k)}</div>`; });   // ชิปวันนี้/วันแข่งล่าสุด = label พิเศษ · ที่เหลือ = วันที่
+    html+=`</div>${arrow(1,"▶")}</div>
+      <div class="k" style="display:flex;align-items:center;gap:11px;margin:2px 4px 13px;">
+        <span style="font-weight:800;font-size:15.5px;color:#EEF1F4;letter-spacing:.2px;">🌙 ${matchNightLabel(sel)}</span>
+        <span style="flex:1;height:1px;background:linear-gradient(90deg,#2a2f38,transparent);"></span>
+        <span style="font-size:11.5px;font-weight:600;color:#5b626d;white-space:nowrap;">${dayCount[sel]} คู่</span></div>`;
+    list=list.filter(({m})=> (m.kickoff?ymdNYC(m.kickoff):"")===sel);   // โชว์เฉพาะคืนที่เลือก
+  }
   if(!list.length) html+=`<p class="k" style="color:var(--dim);text-align:center;margin-top:30px;">ไม่มีคู่ในหมวดนี้</p>`;
 
   list.forEach(({m,st})=>{
@@ -154,9 +182,11 @@ export function renderFixtures(){
     html+=`<div style="background:#14171D;border:1px solid #232830;border-radius:18px;padding:15px;margin-bottom:13px;">${inner}</div>`;
   });
   box.innerHTML=html;
+  if(S.dayKey){ const c=box.querySelector('[data-day="'+S.dayKey+'"]'); if(c) c.scrollIntoView({inline:"center",block:"nearest"}); }   // เลื่อนชิปที่เลือก (รวมคืนวันนี้ตอนเปิดแรก) มากลางจอ
 
   // handlers
-  box.querySelectorAll(".flt").forEach(el=> el.onclick=()=>{ S.filter=el.dataset.f; S.filterTouched=true; renderFixtures(); });
+  box.querySelectorAll(".flt").forEach(el=> el.onclick=()=>{ S.filter=el.dataset.f; S.filterTouched=true; S.dayKey=null; renderFixtures(); renderHeader(); });   // เปลี่ยน filter → รีเซ็ตหน้าวันเป็นคืนวันนี้
+  box.querySelectorAll("[data-day]").forEach(el=> el.onclick=()=>{ S.dayKey=el.dataset.day; renderFixtures(); });   // ชิป + ลูกศร (ที่กดได้) ใช้ data-day ร่วมกัน · scroll จัดการหลัง innerHTML
   box.querySelectorAll("[data-toggle]").forEach(el=> el.onclick=()=>{ const id=el.dataset.toggle; S.expanded[id]=!S.expanded[id]; renderFixtures(); });
   list.forEach(({m,st})=>{ if(st!=="open") return;
     const saved=S.myPreds[m.id]; const editMode=!saved||S.editing[m.id];

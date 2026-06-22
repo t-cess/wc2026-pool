@@ -31,4 +31,4 @@ export function watchData(){
     deriveChampPicks(); renderAll();
   });
 }
-export function renderAll(){ renderHeader(); renderFixtures(); renderChampion(); renderBoard(); }   // แอดมินไม่รีเฟรชอัตโนมัติ (กันล้างที่กรอกค้าง)
+export function renderAll(){ renderFixtures(); renderHeader(); renderChampion(); renderBoard(); }   // fixtures ก่อน header → resolve default filter ให้ header อ่านตรง · แอดมินไม่รีเฟรชอัตโนมัติ (กันล้างที่กรอกค้าง)   // แอดมินไม่รีเฟรชอัตโนมัติ (กันล้างที่กรอกค้าง)

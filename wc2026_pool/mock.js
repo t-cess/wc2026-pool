@@ -27,6 +27,19 @@ export function startMock(){
     // จบแล้ว เสมอเป๊ะ → ทดสอบ +6 (ออร่า)
     { id:"m5", home:"โปรตุเกส", away:"เยอรมนี", group:"E นัด2", kickoff:now-4*H, homeScore:1, awayScore:1, status:"finished", clock:"จบ",
       goals:[{name:"Cristiano Ronaldo",time:"40'",side:"h"},{name:"Kai Havertz",time:"70'",side:"a"}] },
+    // จบแล้ว คืนก่อน (คนละ matchday) → ทดสอบหัวข้อ "คืนแข่ง" หลายคืน
+    { id:"m6", home:"เนเธอร์แลนด์", away:"โครเอเชีย", group:"F นัด1", kickoff:now-27*H, homeScore:3, awayScore:1, status:"finished", clock:"จบ" },
+    { id:"m7", home:"เบลเยียม", away:"โมร็อกโก", group:"A นัด1", kickoff:now-29*H, homeScore:0, awayScore:2, status:"finished", clock:"จบ" },
+    // จบแล้ว สองคืนก่อน
+    { id:"m8", home:"อุรุกวัย", away:"กานา", group:"H นัด1", kickoff:now-51*H, homeScore:1, awayScore:0, status:"finished", clock:"จบ" },
+    // จบแล้ว คืนเก่าๆ → ทดสอบหลายวัน (10 คืน) ลูกศร/หรี่/scroll
+    { id:"m9",  home:"ญี่ปุ่น", away:"ออสเตรเลีย", group:"G นัด1", kickoff:now-75*H,  homeScore:2, awayScore:2, status:"finished", clock:"จบ" },
+    { id:"m10", home:"สหรัฐฯ", away:"แคนาดา", group:"A นัด2", kickoff:now-99*H,  homeScore:1, awayScore:3, status:"finished", clock:"จบ" },
+    { id:"m11", home:"เกาหลีใต้", away:"ซาอุดีอาระเบีย", group:"F นัด2", kickoff:now-123*H, homeScore:0, awayScore:0, status:"finished", clock:"จบ" },
+    { id:"m12", home:"สวิตเซอร์แลนด์", away:"เซอร์เบีย", group:"E นัด1", kickoff:now-147*H, homeScore:3, awayScore:1, status:"finished", clock:"จบ" },
+    { id:"m13", home:"โปแลนด์", away:"เซเนกัล", group:"B นัด2", kickoff:now-171*H, homeScore:1, awayScore:2, status:"finished", clock:"จบ" },
+    { id:"m14", home:"อิตาลี", away:"นอร์เวย์", group:"C นัด1", kickoff:now-195*H, homeScore:2, awayScore:0, status:"finished", clock:"จบ" },
+    { id:"m15", home:"โคลอมเบีย", away:"เอกวาดอร์", group:"D นัด1", kickoff:now-219*H, homeScore:1, awayScore:1, status:"finished", clock:"จบ" },
   ];
   S.allPreds = [
     { uid:"u_ton",  player:"ต้น",   matchId:"m1", homeScore:2, awayScore:0, scorer1:"เนย์มาร์", scorer2:"" },
@@ -38,6 +51,9 @@ export function startMock(){
     { uid:"u_graf", player:"กราฟ", matchId:"m4", homeScore:0, awayScore:0, scorer1:"", scorer2:"" },
     { uid:"u_ton",  player:"ต้น",   matchId:"m5", homeScore:1, awayScore:1, scorer1:"โรนัลโด้", scorer2:"", s1hit:true, s2hit:false, s1played:true, scorerOk:true },  // จบ: เสมอเป๊ะ+คนยิง = +6
     { uid:"u_graf", player:"กราฟ", matchId:"m5", homeScore:2, awayScore:1, scorer1:"", scorer2:"" },
+    { uid:"u_ton",  player:"ต้น",   matchId:"m6", homeScore:2, awayScore:1, scorer1:"", scorer2:"" },
+    { uid:"u_ton",  player:"ต้น",   matchId:"m7", homeScore:0, awayScore:1, scorer1:"", scorer2:"" },
+    { uid:"u_ton",  player:"ต้น",   matchId:"m8", homeScore:1, awayScore:0, scorer1:"", scorer2:"", s1hit:false, scorerOk:false },
   ];
   S.myPreds = {}; S.allPreds.forEach(p=>{ if(p.uid===S.me.uid) S.myPreds[p.matchId]=p; });
   S.expanded = { m4:true, m5:true };   // เปิดโพยคู่จบไว้เลย เห็นออร่า +5/+6 ทันที (เทส)

@@ -154,6 +154,7 @@ function scorerHit(pred, actualScorers, qwenMap) {
 const DRY = process.argv.includes("--dry-run");
 const FORCE = process.argv.includes("--force");   // ข้าม live-window gate (ไว้เทส)
 const REGRADE = process.argv.includes("--regrade");   // ตรวจซ้ำคู่ที่ autoGraded แล้ว (backfill s1hit/s2hit)
+const BACKFILL = process.argv.includes("--backfill-group");   // one-shot: เติม "กลุ่ม X" ให้ field group ของคู่เดิม (--dry-run = พรีวิว)
 let anyLive = false;                               // มีคู่กำลังเตะรอบนี้ไหม (ให้ workflow loop วนต่อ)
 
 // อ่านเฉพาะคู่ที่ kickoff อยู่ใน [now-afterMs, now+5นาที] (range query — ไม่อ่านทั้ง collection)
@@ -189,14 +190,16 @@ async function espnAllFixtures() {   // ทั้งทัวร์ (มิ.ย.
   const out=[];
   for(const d of all) for(const e of (d.events||[])){ const c=(e.competitions||[{}])[0], cs=c.competitors||[];
     const h=cs.find(x=>x.homeAway==="home")||cs[0]||{}, a=cs.find(x=>x.homeAway==="away")||cs[1]||{};
-    out.push({homeEN:h.team?.displayName, awayEN:a.team?.displayName, ms:Date.parse(e.date), slug:e.season?.slug||""}); }
+    const grp=((c.altGameNote||"").match(/Group\s+([A-Z])/i)||[])[1]||"";   // กลุ่มอยู่ใน altGameNote เช่น "FIFA World Cup, Group J"
+    out.push({homeEN:h.team?.displayName, awayEN:a.team?.displayName, ms:Date.parse(e.date), slug:e.season?.slug||"", grp}); }
   return out.filter(x=>x.homeEN&&x.awayEN&&x.ms);
 }
 function labelFor(fx, allFx) {
   if (fx.slug!=="group-stage") return STAGE_TH[fx.slug] || "น็อกเอาต์";
   const games = allFx.filter(x=>x.slug==="group-stage" && (x.homeEN===fx.homeEN||x.awayEN===fx.homeEN)).map(x=>x.ms).sort((a,b)=>a-b);
   const md = games.indexOf(fx.ms)+1;
-  return md>0 ? `นัด ${md}` : "รอบแบ่งกลุ่ม";
+  const round = md>0 ? `นัด ${md}` : "รอบแบ่งกลุ่ม";
+  return fx.grp ? `กลุ่ม ${fx.grp} ${round}` : round;   // ใส่กลุ่มจาก ESPN เช่น "กลุ่ม J นัด 2"
 }
 
 async function autoAddNext() {
@@ -262,7 +265,28 @@ async function gradeScorers(p, matchId, actualScorers, useQwen, lineup) {
   return changed;
 }
 
+async function backfillGroup() {   // เติม/แก้ field group ของคู่เดิมให้เป็น "กลุ่ม X นัด Y" (จาก ESPN) · แก้แค่ field ไม่แตะ doc id (predictions อ้าง matchId)
+  console.log("🔧 backfill group" + (DRY ? " [DRY]" : "") + " — ดึง ESPN...");
+  const allFx = await espnAllFixtures();
+  const labelMap = {};
+  for (const fx of allFx) labelMap[pairKey(th(fx.homeEN), th(fx.awayEN), ymd6(fx.ms))] = labelFor(fx, allFx);
+  const snap = await matchesCol().get();
+  let fix = 0, same = 0; const miss = [];
+  for (const d of snap.docs) {
+    const m = d.data(); if (!m.kickoff) continue;
+    const nl = labelMap[pairKey(m.home, m.away, ymd6(m.kickoff))];
+    if (!nl) { miss.push(`${m.home} v ${m.away}`); continue; }
+    if (nl === m.group) { same++; continue; }
+    console.log(`  ${DRY ? "[DRY] " : ""}${m.home} v ${m.away}: "${m.group}" → "${nl}"`);
+    if (!DRY) await d.ref.set({ group: nl }, { merge: true });
+    fix++;
+  }
+  console.log(`รวม ${snap.size} คู่ · แก้ ${fix} · เหมือนเดิม ${same} · จับ ESPN ไม่ได้ ${miss.length}`);
+  if (miss.length) console.log("  ไม่แมตช์ ESPN:", miss.join(", "));
+  console.log(DRY ? "DRY — เอา --dry-run ออกเพื่อเขียนจริง" : "✅ เขียนเสร็จ");
+}
 async function run() {
+  if (BACKFILL) { await backfillGroup(); return; }   // โหมด one-shot — ข้าม grader ปกติ
   if (DRY) console.log("🧪 DRY-RUN: อ่าน + เรียก Qwen ได้ แต่จะไม่เขียน Firestore\n");
   // safeguard: ใกล้เพดาน read วันนี้ไหม → low-power (เขียนสกอร์อย่างเดียว กันแอปล่มทั้งวง) · FORCE/REGRADE (สั่งมือ) ไม่โดน
   const usage = await usageRead();
