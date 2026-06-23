@@ -136,32 +136,8 @@ function scorerHitOne(s, actualScorers, qwenMap) {   // ชื่อเดีย
   return false;
 }
 
-// 📚 self-learning: Qwen แมพชื่อไทย→คนยิงจริง ที่ดิก/นามสกุลยังจับไม่ได้ → เติม config/learnedAliases (แยกจาก aliases.json)
-const isAsciiName = s => /^[\x00-\x7f]+$/.test(s);
-async function learnAliases(qwenMap) {
-  const add = {};   // canonical -> [alias ไทยใหม่]
-  const allCanon = Object.keys(aliases);
-  for (const [typed, canon] of Object.entries(qwenMap)) {
-    const t = (typed||"").trim();
-    if (!canon || isAsciiName(t) || t.length < 3 || t.length > 30) continue;   // เรียนเฉพาะไทย ความยาวพอเหมาะ (อังกฤษจับนามสกุลได้เอง)
-    if (matchScorer(t, [canon], aliases)) continue;                            // ดิก/นามสกุลจับได้แล้ว ไม่ต้องเรียน
-    const other = matchScorer(t, allCanon, aliases);                           // 🛡️ ชื่อไทยนี้ชนคนอื่นในดิกอยู่แล้วไหม → DeepSeek อ่านผิด อย่าเรียน (กัน FP เช่น มามูช→Trézéguet ทั้งที่ดิกมี →Marmoush)
-    if (other && other !== canon) { console.log(`  🛡️ ข้าม learn "${t}"→${canon} (ดิกมี "${t}"→${other} อยู่แล้ว ขัดกัน)`); continue; }
-    (add[canon] = add[canon] || []).push(t);
-  }
-  if (!Object.keys(add).length) return;
-  for (const [c, arr] of Object.entries(add)) {                                // merge เข้า runtime (ใช้ในรอบนี้ต่อเลย)
-    aliases[c] = [...new Set([...(aliases[c]||[]), ...arr])];
-    console.log(`  📚 เรียนรู้: ${c} += ${arr.join(", ")}`);
-  }
-  if (DRY) return;
-  try {
-    const ref = db.doc("config/learnedAliases");
-    const cur = (await ref.get()).data() || {};
-    for (const [c, arr] of Object.entries(add)) cur[c] = [...new Set([...(cur[c]||[]), ...arr])];
-    await ref.set(cur);
-  } catch(e){ console.log("  ⚠️ เซฟ learnedAliases ล้มเหลว:", e.message); }
-}
+// 🚫 ปิด auto-learn (2026-06-23) — DeepSeek resolve สดทุกครั้งแล้ว · self-learning เคย poison ดิก (เช่น โอลิเซ่→Mbappé, ฮาแลนด์→Pedersen)
+// config/learnedAliases ที่มีอยู่ (ล้าง poison แล้ว) ยังโหลดมาใช้เป็นดิกเสริม แต่ไม่เขียนเพิ่มแล้ว
 function scorerHit(pred, actualScorers, qwenMap) {
   if (pred.homeScore===0 && pred.awayScore===0) return null; // 0-0 แอปคิดเอง
   return scorerHitOne(pred.scorer1, actualScorers, qwenMap) || scorerHitOne(pred.scorer2, actualScorers, qwenMap);
@@ -270,8 +246,7 @@ async function gradeScorers(p, matchId, actualScorers, lineup) {
     preds.forEach(d=>{ const pr=d.data(); if(pr.homeScore===0&&pr.awayScore===0)return;
       // ส่ง DeepSeek เฉพาะชื่อ "อ่านไม่ออก" จริง (ไทยนอกดิก) · อังกฤษ readable=true → ไม่ส่ง (กัน DeepSeek force-map ชื่อเป็นคนยิงมั่ว เช่น Nusa→FP) · accent ให้ norm จัดการ
       [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !matchScorer(s, actualScorers, aliases) && !readable(s, aliases)) unknown.add(s); }); });
-    qwenMap = await askQwen(actualScorers, [...unknown]);
-    await learnAliases(qwenMap);   // 📚 เติมดิกจากที่ DeepSeek ยืนยัน (ครั้งหน้า matchScorer จับเอง ไม่ต้องถามซ้ำ)
+    qwenMap = await askQwen(actualScorers, [...unknown]);   // DeepSeek resolve สด (ไม่ cache/ไม่เรียน — กัน poison · ตอนจบถามใหม่หมด = ตรวจใหญ่อีกรอบ)
   }
   let changed = 0;
   for (const d of preds) {
