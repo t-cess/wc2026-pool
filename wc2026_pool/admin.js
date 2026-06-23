@@ -24,7 +24,10 @@ export function renderAdmin(){
   if(!isAdmin()) return; const box=$("#tab-admin");
   const gradeable=S.matches.filter(m=>stateOf(m)!=="open");   // เฉพาะคู่ที่ปิดรับ/จบ
   const opts=gradeable.map(m=>`<option value="${m.id}" ${m.id===S.adminSel?"selected":""}>${esc(m.home)} vs ${esc(m.away)} ${m.status==="finished"?`(จบ ${m.homeScore}-${m.awayScore})`:"(ปิดรับ)"}</option>`).join("");
-  const selM=gradeable.find(m=>m.id===S.adminSel)||gradeable[0]; S.adminSel=selM?selM.id:"";
+  const selM=gradeable.find(m=>m.id===S.adminSel)||gradeable[gradeable.length-1]; S.adminSel=selM?selM.id:"";   // ค่าเริ่มต้น = คู่ล่าสุด (gradeable เรียงตาม kickoff น้อย→มาก)
+  const selIdx=selM?gradeable.findIndex(m=>m.id===selM.id):-1;
+  const amArrow=(d,g)=>{ const t=gradeable[selIdx+d], off=selIdx<0||!t;   // ◀︎ d=-1 คู่ก่อนหน้า (เตะก่อน) · ▶︎ d=+1 คู่ถัดไป (เตะหลัง) · หรี่+กดไม่ได้เมื่อสุดทาง
+    return `<div ${off?"":`data-amnav="${t.id}"`} class="k" style="flex:none;display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;background:#283042;border:1px solid #2A303A;color:#EEF1F4;font-size:15px;${off?"opacity:.3;":"cursor:pointer;"}">${g}</div>`; };
   const glocked=!!(selM&&selM.status==="finished"&&!S.gameEdit);   // จบเกมแล้ว = ล็อก จนกว่ากดแก้ไข
   let gradeRows="";
   if(selM){ const preds=S.allPreds.filter(p=>p.matchId===selM.id);
@@ -70,7 +73,7 @@ export function renderAdmin(){
       <div id="amAdd" class="k btnG" style="height:44px;font-size:14px;">เพิ่มคู่</div></div>`:""}
     <div style="background:#14171D;border:1px solid #232830;border-radius:16px;padding:15px;margin-bottom:13px;">
       <div class="k" style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;margin-bottom:12px;">✅ กรอกผล + ให้แต้มคนยิง${glocked?'<span style="font-size:11px;color:#9cc3f3;font-weight:600;">🔒 จบแล้ว</span>':''}</div>
-      <select id="amSel" class="field" style="margin-bottom:8px;">${opts}</select>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">${amArrow(-1,"◀︎")}<select id="amSel" class="field" style="flex:1;margin:0;">${opts}</select>${amArrow(1,"▶︎")}</div>
       ${selM?`${isSuper()?`<div style="${glocked?'opacity:.55;pointer-events:none;':''}">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">${flag(selM.home)}<div class="k" style="flex:1;min-width:0;font-weight:600;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(selM.home)} ${fe(selM.home)}</div><div style="display:flex;align-items:center;gap:6px;flex:none;"><div data-step="Hs:-1" class="k" style="${stBtn}">−</div><input id="amHs" inputmode="numeric" value="${selM.homeScore||0}" ${glocked?"disabled":""} style="${stInp}"><div data-step="Hs:1" class="k" style="${stBtn}">+</div></div></div>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">${flag(selM.away)}<div class="k" style="flex:1;min-width:0;font-weight:600;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(selM.away)} ${fe(selM.away)}</div><div style="display:flex;align-items:center;gap:6px;flex:none;"><div data-step="As:-1" class="k" style="${stBtn}">−</div><input id="amAs" inputmode="numeric" value="${selM.awayScore||0}" ${glocked?"disabled":""} style="${stInp}"><div data-step="As:1" class="k" style="${stBtn}">+</div></div></div></div>
@@ -163,6 +166,7 @@ export function renderAdmin(){
     try{ await setDoc(poolDoc("config","admins"),{emails}); S.admins=emails; toast("ถอดแล้ว"); renderAdmin(); }catch(e){ toast("ถอดไม่ได้ (Rules?)"); }
   });
   $("#amSel").onchange=e=>{ S.adminSel=e.target.value; S.gameEdit=false; renderAdmin(); };
+  box.querySelectorAll("[data-amnav]").forEach(el=>el.onclick=()=>{ S.adminSel=el.dataset.amnav; S.gameEdit=false; renderAdmin(); });   // ◀︎▶︎ เลื่อนคู่ก่อนหน้า/ถัดไป
   if($("#amGameEdit")) $("#amGameEdit").onclick=()=>{ S.gameEdit=true; renderAdmin(); };
   box.querySelectorAll("[data-step]").forEach(el=>el.onclick=()=>{ const [f,d]=el.dataset.step.split(":"); const inp=$("#am"+f); let v=(parseInt(inp.value)||0)+parseInt(d); v=Math.max(0,Math.min(99,v)); inp.value=v; });
   if($("#amLive")) $("#amLive").onclick=async()=>{ if(!S.adminSel){toast("ยังไม่มีคู่");return;} const hs=parseInt($("#amHs").value),as=parseInt($("#amAs").value); if(isNaN(hs)||isNaN(as)){toast("ใส่สกอร์ครบ");return;} await updateDoc(doc(db,"matches",S.adminSel),{homeScore:hs,awayScore:as,live:true}); await commitScorers(S.adminSel); const mo=S.matches.find(x=>x.id===S.adminSel); if(mo)Object.assign(mo,{homeScore:hs,awayScore:as,live:true}); toast("อัพเดตสด 🔴 บันทึกแล้ว"); renderAdmin(); };

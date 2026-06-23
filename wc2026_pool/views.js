@@ -56,6 +56,9 @@ export function renderNav(){
 /* ===== fixtures ===== */
 export function renderFixtures(){
   const box=$("#tab-fixtures");
+  // กันล้างที่กรอกค้าง: ถ้ากำลังพิมพ์ในฟอร์มทาย (ช่องสกอร์/คนยิง) อย่า re-render ทับ DOM ที่โฟกัสอยู่ — ค่าที่พิมพ์ยังไม่บันทึกจะไม่หาย (รอ render รอบหน้าตอนพ้นโฟกัส/กดบันทึก)
+  const ae=document.activeElement;
+  if(ae && box.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
   const openMs=S.matches.filter(m=>stateOf(m)==="open");
   const openCount=openMs.length;
   const liveCount=S.matches.filter(m=>m.live).length;
