@@ -268,7 +268,8 @@ async function gradeScorers(p, matchId, actualScorers, lineup) {
   if (hasGoals) {
     const unknown = new Set();
     preds.forEach(d=>{ const pr=d.data(); if(pr.homeScore===0&&pr.awayScore===0)return;
-      [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !matchScorer(s, actualScorers, aliases) && !readable(s, aliases)) unknown.add(s); }); });   // ส่ง DeepSeek เฉพาะชื่อ "อ่านไม่ออก" จริง · ชื่อที่ดิก/อังกฤษระบุตัวได้แต่ไม่ตรงคนยิง = ไม่ใช่คนยิง (กัน DeepSeek force-map → FP)
+      // ส่ง DeepSeek เฉพาะชื่อ "อ่านไม่ออก" จริง (ไทยนอกดิก) · อังกฤษ readable=true → ไม่ส่ง (กัน DeepSeek force-map ชื่อเป็นคนยิงมั่ว เช่น Nusa→FP) · accent ให้ norm จัดการ
+      [pr.scorer1,pr.scorer2].forEach(s=>{ if(s && !matchScorer(s, actualScorers, aliases) && !readable(s, aliases)) unknown.add(s); }); });
     qwenMap = await askQwen(actualScorers, [...unknown]);
     await learnAliases(qwenMap);   // 📚 เติมดิกจากที่ DeepSeek ยืนยัน (ครั้งหน้า matchScorer จับเอง ไม่ต้องถามซ้ำ)
   }

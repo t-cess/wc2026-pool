@@ -47,6 +47,11 @@ const CASES = [
   ["Mikel", ESP, null],                           // ชื่อต้นล้วน → ไม่ auto-credit (Oyarzabal ต้องผ่านนามสกุล/ดิก)
   ["Bruno", ["Bruno Fernandes","Bruno Guimarães"], null],   // 2 คนชื่อ Bruno → ชื่อต้นเดียวไม่พอ
   ["Fernandes", ["Bruno Fernandes","Bruno Guimarães"], "Bruno Fernandes"],  // นามสกุลแยกได้
+
+  // — accent-insensitive: พิมพ์อังกฤษไม่ใส่ accent ต้องตรงคนยิงที่มี accent —
+  ["Mbappe", ["Kylian Mbappé"], "Kylian Mbappé"], ["mbappe", ["Kylian Mbappé"], "Kylian Mbappé"],
+  ["Nunez", ["Darwin Núñez"], "Darwin Núñez"], ["Munoz", ["Daniel Muñoz"], "Daniel Muñoz"],
+  ["Alvarez", ["Julián Álvarez"], "Julián Álvarez"],
 ];
 
 let pass=0, fpFail=[], fnFail=[];

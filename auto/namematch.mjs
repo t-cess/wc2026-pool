@@ -3,7 +3,8 @@
 // → bound false positive (เทียบเฉพาะคนที่ยิงจริง) + จับมุก/ประโยคยาวได้เองโดยไม่ต้องเติมทั้งประโยคลงดิก
 // deterministic ล้วน (ไม่เรียก Qwen) → เทสได้เร็ว/ซ้ำได้ · ชื่อใหม่ที่ดิกไม่มี → คืน null ให้ Qwen รับช่วง
 
-export const norm = s => (s||"").toString().trim().toLowerCase().replace(/\s+/g," ");
+// ตัด accent ละติน (é→e, ñ→n) ให้ Mbappe=Mbappé, Nunez=Núñez · ไทย (U+0E00+) ไม่โดน (combining อยู่คนละช่วง)
+export const norm = s => (s||"").toString().trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g," ");
 const isAscii = s => /^[\x00-\x7f]+$/.test(s);
 
 // alias ของคน 1 คน = ชื่อเต็ม + นามสกุล(token ท้าย เป็นหลักฐานแรง) + ดิก
