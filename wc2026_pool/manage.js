@@ -186,7 +186,8 @@ function renderPoolManage(box){
         <div id="cpSave" class="k btnG" style="height:42px;font-size:14px;">บันทึกทายแชมป์ให้คนนี้</div></div></div>
 
     <div style="background:#14171D;border:1px solid #232830;border-radius:16px;padding:15px;margin-bottom:13px;">
-      <div class="k" style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;margin-bottom:12px;">🧑‍🤝‍🧑 สมาชิก (${mgRoster().length})${S.mgCarryEdit?'<span style="font-size:11px;color:#5fcf94;font-weight:600;">แก้คะแนนยกมา</span>':''}</div>${memberRows}
+      <div class="k" style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;margin-bottom:8px;">🧑‍🤝‍🧑 สมาชิก (${mgRoster().length})${S.mgCarryEdit?'<span style="font-size:11px;color:#5fcf94;font-weight:600;">แก้คะแนนยกมา</span>':''}</div>
+      <div id="amLockReg" class="k" style="height:38px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:${D.tournament.regLocked?'#5fcf94':'#f0a3a8'};font-weight:700;font-size:12.5px;cursor:pointer;margin-bottom:10px;">${D.tournament.regLocked?'🔒 ปิดรับสมัครอยู่ — แตะเปิดรับ':'🚪 เปิดรับสมัครอยู่ — แตะปิดรับ'}</div>${memberRows}
       ${S.mgCarryEdit?`<div id="mcSave" class="k btnG" style="height:40px;font-size:13px;margin-top:6px;">บันทึกคะแนนยกมา</div>`:`<div id="mcEdit" class="k" style="height:38px;display:flex;align-items:center;justify-content:center;font-size:13px;margin-top:6px;border-radius:11px;border:1px solid #2A303A;color:#8A929E;cursor:pointer;">🔓 แก้คะแนนยกมา</div>`}
       <div class="k" style="font-size:11px;color:var(--mut);margin:12px 0 6px;">เพิ่มสมาชิก → เขา login มาเลือกชื่อนี้ได้ + ผูกคะแนนยกมา</div>
       <div style="display:flex;gap:8px;"><input id="amMemName" class="field" placeholder="ชื่อสมาชิกใหม่"><input id="amMemCarry" class="field" inputmode="numeric" placeholder="ยกมา" style="width:84px;"></div>
@@ -232,6 +233,7 @@ function renderPoolManage(box){
   }
 
   // --- สมาชิก / carry ---
+  if($("#amLockReg")) $("#amLockReg").onclick=async()=>{ const nv=!D.tournament.regLocked; await setDoc(poolDocFor(code,"config","tournament"),{regLocked:nv},{merge:true}); toast(nv?"ปิดรับสมัครแล้ว":"เปิดรับสมัครแล้ว ✓"); refresh(); };
   if($("#mcEdit")) $("#mcEdit").onclick=()=>{ S.mgCarryEdit=true; renderManage(); };
   if($("#mcSave")) $("#mcSave").onclick=async()=>{ if(!confirm("บันทึกคะแนนยกมาใหม่ของวงนี้? (กระทบยอดรวมทุกคน)"))return; const c2={...(D.carry||{})}; box.querySelectorAll("[data-mcarry]").forEach(i=>{c2[i.dataset.mcarry]=parseInt(i.value)||0;});
     await setDoc(poolDocFor(code,"config","carry"),c2,{merge:true}); S.mgCarryEdit=false; toast("บันทึกคะแนนยกมาแล้ว"); refresh(); };

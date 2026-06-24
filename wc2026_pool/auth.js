@@ -23,8 +23,17 @@ export function bindAuthButtons(){
   };
   $("#logoutBtn").onclick = ()=> signOut(auth);
   $("#confirmIdentity").onclick = async ()=>{
-    const name = S.pickName;
-    if(!name){ toast("เลือกชื่อก่อน"); return; }
+    const name = (S.pickName||"").trim();
+    if(!name){ toast(S.pickIsNew?"พิมพ์ชื่อก่อน":"เลือกชื่อก่อน"); return; }
+    if(S.pickIsNew){
+      if([...name].length>25){ toast("ชื่อยาวเกิน 25 ตัว"); return; }
+      try{   // re-check ชื่อซ้ำสดๆ (กัน race + กันยัดชื่อคนอื่น) — เทียบแบบไม่สนตัวพิมพ์
+        const [pSnap,bSnap] = await Promise.all([ getDocs(poolCol("players")), getDoc(poolDoc("config","bind")) ]);
+        const taken=new Set(); pSnap.forEach(d=>{const p=d.data(); if(p.name&&p.uid!==S.me.uid) taken.add(p.name.trim().toLowerCase());});
+        if(bSnap.exists()) Object.values(bSnap.data()).forEach(nm=>{ if(nm) taken.add(String(nm).trim().toLowerCase()); });
+        if(taken.has(name.toLowerCase())){ toast("ชื่อนี้มีคนใช้แล้ว ลองชื่ออื่น"); return; }
+      }catch(e){}
+    }
     try{ await setDoc(poolDoc("players",S.me.uid),{uid:S.me.uid,email:S.me.email,name,photo:S.me.photo,champ1:"",champ2:""},{merge:true});
       S.me.name=name; enterApp(); }
     catch(e){ toast("บันทึกไม่ได้: "+(e.code||e.message)); }
@@ -76,33 +85,38 @@ function blockScreen(title,msg){
 }
 
 async function showIdentity(){
-  // โหลดสมาชิก + carry + bind "ของวงนี้" (ตอน login ยังไม่ได้ watchData → S ยังว่าง)
-  const [pSnap, cSnap, bSnap] = await Promise.all([ getDocs(poolCol("players")), getDoc(poolDoc("config","carry")), getDoc(poolDoc("config","bind")) ]);
+  // โหลดสมาชิก + carry + bind + tournament(regLocked) "ของวงนี้" (ตอน login ยังไม่ได้ watchData → S ยังว่าง)
+  const [pSnap, cSnap, bSnap, tSnap] = await Promise.all([ getDocs(poolCol("players")), getDoc(poolDoc("config","carry")), getDoc(poolDoc("config","bind")), getDoc(poolDoc("config","tournament")) ]);
   const taken = new Set(); pSnap.forEach(d=>{const p=d.data(); if(p.name&&p.uid!==S.me.uid) taken.add(p.name);});
   if(bSnap.exists()) Object.values(bSnap.data()).forEach(nm=>{ if(nm) taken.add(nm); });   // ชื่อที่ผูกอีเมลไว้ = จองให้คนนั้น ไม่ให้คนอื่นเลือก (แม้ยังไม่ login)
   const carryNames = cSnap.exists() ? Object.keys(cSnap.data()) : [];
-  const base = carryNames.length ? carryNames : (POOL_ID ? [] : ROSTER);   // วงหลัก: fallback ROSTER · วงรอง: ใช้รายชื่อจริง (ว่าง=รอแอดมิน)
+  const base = carryNames.length ? carryNames : (POOL_ID ? [] : ROSTER);   // วงหลัก: fallback ROSTER · วงรอง: ใช้รายชื่อจริง
   const avail = base.filter(n=>!taken.has(n));
-  if(!avail.length){ blockScreen("รอแอดมินเพิ่มชื่อ","ยังไม่มีชื่อของคุณในวงทายผลบอลนี้ — บอกแอดมินให้เพิ่มชื่อก่อนนะ"); return; }
+  const regLocked = !!(tSnap.exists() && tSnap.data().regLocked);
+  if(!avail.length && regLocked){ blockScreen("ปิดรับสมัครแล้ว","วงนี้ปิดรับสมาชิกใหม่ — บอกแอดมินถ้าจะเข้าร่วม"); return; }
   show("identity");
-  $("#identityView h2").textContent="คุณคือใคร?";
-  $("#identityView p").textContent="เลือกชื่อตัวเองจากรายชื่อวงทายผลบอล — ผูกกับบัญชี Google นี้ครั้งเดียว";
-  $("#newNameWrap").classList.add("hidden");
+  $("#identityView h2").textContent = avail.length ? "คุณคือใคร?" : "ตั้งชื่อของคุณ";
+  $("#identityView p").textContent = avail.length
+    ? "เลือกชื่อจากรายชื่อวง — หรือพิมพ์ชื่อใหม่ด้านล่าง · ผูกกับ Google นี้ครั้งเดียว"
+    : "พิมพ์ชื่อที่จะใช้ในวง (ไม่เกิน 25 ตัว) — ผูกกับ Google นี้ครั้งเดียว";
   $("#confirmIdentity").style.display="";
-  S.pickName = avail[0];
+  $("#newNameWrap").classList.toggle("hidden", regLocked);   // เปิดรับ → โชว์ช่องพิมพ์ชื่อใหม่
+  const newInp=$("#newName"); if(newInp){ newInp.value=""; newInp.maxLength=25; }
+  S.pickName = avail[0] || ""; S.pickIsNew = !avail.length;
   const box = $("#rosterChips"); box.innerHTML="";
   avail.forEach(n=>{
-    const sel = n===S.pickName;
+    const sel = !S.pickIsNew && n===S.pickName;
     const c = document.createElement("div"); c.className="k";
     c.style.cssText = `font-weight:700;font-size:16px;padding:11px 20px;border-radius:13px;cursor:pointer;background:${sel?"#1FB85E":"#14171D"};color:${sel?"#04210F":"#EEF1F4"};border:1px solid ${sel?"#1FB85E":"#262b33"};`;
     c.textContent = n;
-    c.onclick = ()=>{ S.pickName=n; showIdentityRefresh(); };
+    c.onclick = ()=>{ S.pickName=n; S.pickIsNew=false; if(newInp)newInp.value=""; showIdentityRefresh(); };
     box.appendChild(c);
   });
+  if(newInp) newInp.oninput=()=>{ S.pickName=newInp.value.trim(); S.pickIsNew=true; showIdentityRefresh(); };
 }
 function showIdentityRefresh(){
   [...$("#rosterChips").children].forEach(c=>{
-    const sel = c.textContent===S.pickName;
+    const sel = !S.pickIsNew && c.textContent===S.pickName;
     c.style.background = sel?"#1FB85E":"#14171D"; c.style.color = sel?"#04210F":"#EEF1F4";
     c.style.border = "1px solid "+(sel?"#1FB85E":"#262b33");
   });

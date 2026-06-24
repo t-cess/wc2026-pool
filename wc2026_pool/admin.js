@@ -14,6 +14,7 @@ const groupOpts = `<option value="">— กลุ่ม/รอบ —</option>`
 const roundOpts = `<option value="">— นัด —</option>`+["นัด 1","นัด 2","นัด 3"].map(r=>`<option value="${r}">${r}</option>`).join("");
 export function renderAdmin(){
   if(!isAdmin()) return; const box=$("#tab-admin");
+  const regLocked=!!(S.tournament&&S.tournament.regLocked);
   const carryRows=rosterNames().map(n=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;"><div class="k" style="flex:1;font-weight:600;">${esc(n)}</div><input data-carry="${esc(n)}" class="field" inputmode="numeric" value="${S.carry[n]||0}" ${S.carryEdit?"":"disabled"} style="width:90px;height:36px;text-align:center;${S.carryEdit?"":"opacity:.5;"}"></div>`).join("");
   const adminEmailOf=n=>{ const be=Object.entries(S.bind||{}).find(([e,nm])=>nm===n&&(S.admins||[]).includes(e)); if(be)return be[0];
     const pe=S.playersByName[n]&&S.playersByName[n].email; return (pe&&(S.admins||[]).includes(pe))?pe:null; };   // อีเมลแอดมินของสมาชิกชื่อนี้ (null=ไม่ใช่แอดมิน)
@@ -34,11 +35,13 @@ export function renderAdmin(){
     <div style="background:#14171D;border:1px solid #232830;border-radius:16px;padding:15px;margin-bottom:13px;">
       <div class="k" style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;margin-bottom:12px;">⭐ คะแนนยกมา (ฐานตั้งต้น)${S.carryEdit?'<span style="font-size:11px;color:#5fcf94;font-weight:600;">โหมดแก้ไข</span>':'<span style="font-size:11px;color:#5b626d;font-weight:600;">🔒 ล็อก</span>'}</div>${carryRows}
       ${S.carryEdit?`<div id="acSave" class="k btnG" style="height:42px;font-size:14px;margin-top:6px;">บันทึกคะแนนยกมา</div>`:`<div id="acEdit" class="k" style="height:42px;display:flex;align-items:center;justify-content:center;font-size:13px;margin-top:6px;border-radius:11px;border:1px solid #2A303A;color:#8A929E;cursor:pointer;">🔓 แตะเพื่อแก้ไข</div>`}</div>
+    <div style="background:#14171D;border:1px solid #232830;border-radius:16px;padding:15px;margin-bottom:13px;">
+      <div class="k" style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;margin-bottom:8px;">🚪 รับสมัครสมาชิก${regLocked?'<span style="font-size:11px;color:#f0a3a8;font-weight:600;">🔒 ปิดรับ</span>':'<span style="font-size:11px;color:#5fcf94;font-weight:600;">เปิดรับ</span>'}</div>
+      <div class="k" style="font-size:12px;color:var(--mut);margin-bottom:10px;">ปิดรับ = คนใหม่ login แล้วตั้งชื่อเองไม่ได้ (เฉพาะคนที่มีชื่ออยู่แล้วเข้าได้)</div>
+      <div id="amLockReg" class="k" style="height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:${regLocked?'#5fcf94':'#f0a3a8'};font-weight:700;font-size:13px;cursor:pointer;">${regLocked?'🔓 เปิดรับสมัครอีกครั้ง':'🔒 ปิดรับสมัคร'}</div></div>
     <div style="background:#14171D;border:1px solid #232830;border-radius:16px;padding:15px;">
       <div class="k" style="font-weight:700;font-size:15px;margin-bottom:12px;">🧑‍🤝‍🧑 สมาชิก (${rosterNames().length})</div>${memberRows}
-      <div class="k" style="font-size:11px;color:var(--mut);margin:10px 0 6px;">เพิ่มสมาชิก → เขา login มาเลือกชื่อนี้ได้ + ผูกคะแนนยกมา</div>
-      <div style="display:flex;gap:8px;"><input id="amMemName" class="field" placeholder="ชื่อสมาชิกใหม่"><input id="amMemCarry" class="field" inputmode="numeric" placeholder="ยกมา" style="width:90px;"></div>
-      <div id="amMemAdd" class="k btnG" style="height:42px;font-size:14px;margin-top:8px;">เพิ่มสมาชิก</div></div>`;
+      <div class="k" style="font-size:11px;color:var(--mut);margin:10px 0 0;">สมาชิกใหม่ login แล้วตั้งชื่อเองได้ (ตอนนี้${regLocked?'<b style="color:#f0a3a8;">ปิดรับ</b>':'<b style="color:#5fcf94;">เปิดรับ</b>'}) · แก้คะแนนยกมาที่ช่องด้านบน · ลบสมาชิกที่ปุ่มลบ</div></div>`;
   box.querySelectorAll("[data-delmem]").forEach(el=>el.onclick=async()=>{ const n=el.dataset.delmem; const admE=adminEmailOf(n);
     if(admE&&!isSuper()){ toast("คนนี้เป็นแอดมิน — เฉพาะ super ลบได้"); return; }   // แอดมินลบกันเองไม่ได้
     if(!confirm(`ลบสมาชิก "${n}"?${admE?" (เป็นแอดมินด้วย — จะถอดแอดมิน + ปลดผูกอีเมล)":""} (ลบคะแนนยกมา + ปลดการจับคู่)`))return;
@@ -50,7 +53,7 @@ export function renderAdmin(){
     }
     delete S.carry[n]; delete S.playersByName[n];
     toast("ลบสมาชิกแล้ว"); renderAdmin(); });
-  if($("#amMemAdd")) $("#amMemAdd").onclick=async()=>{ const n=$("#amMemName").value.trim(); if(!n){toast("ใส่ชื่อ");return;} const v=parseInt($("#amMemCarry").value)||0; await setDoc(poolDoc("config","carry"),{...S.carry,[n]:v},{merge:true}); S.carry[n]=v; toast("เพิ่มสมาชิกแล้ว ✓"); renderAdmin(); };
+  if($("#amLockReg")) $("#amLockReg").onclick=async()=>{ const nv=!regLocked; await setDoc(poolDoc("config","tournament"),{regLocked:nv},{merge:true}); S.tournament.regLocked=nv; toast(nv?"ปิดรับสมัครแล้ว":"เปิดรับสมัครแล้ว ✓"); renderAdmin(); };
   if($("#acEdit")) $("#acEdit").onclick=()=>{ S.carryEdit=true; renderAdmin(); };
   if($("#acSave")) $("#acSave").onclick=async()=>{ if(!confirm("บันทึกคะแนนยกมาใหม่? (กระทบยอดรวมทุกคน)"))return; const c2={...(S.carry||{})}; box.querySelectorAll("[data-carry]").forEach(i=>{c2[i.dataset.carry]=parseInt(i.value)||0;}); await setDoc(poolDoc("config","carry"),c2,{merge:true}); Object.assign(S.carry,c2); S.carryEdit=false; toast("บันทึกคะแนนยกมาแล้ว"); renderAdmin(); };
   $("#amLockPicks").onclick=async()=>{ const nv=!S.tournament.picksLocked; S.tournament.picksLocked=nv; await setDoc(poolDoc("config","tournament"),{picksLocked:nv},{merge:true}); toast(nv?"ล็อกแล้ว":"ปลดล็อกแล้ว"); renderAdmin(); };
