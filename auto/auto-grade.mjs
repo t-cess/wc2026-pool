@@ -142,7 +142,8 @@ async function spiceFrame(frozen, kind, hint="") {
 ขอ "ประโยคเกริ่นกวนๆ" 1 บรรทัด และ "ประโยคปิดท้ายแซวๆ" 1 บรรทัด แบบสุดขีด ตลกร้าย ปากจัด เหมือนเพื่อนซี้แซวกัน (ห้ามหยาบคายรุนแรง/ด่าพ่อแม่/เหยียด)
 ไว้ครอบข้อความข้างล่าง — บล็อกจะถูกแปะตามเดิมเป๊ะอยู่แล้ว ❌ ห้ามพิมพ์ตัวเลขสกอร์/ชื่อคนในบล็อกซ้ำให้ผิดเพี้ยน ❌ ห้ามสมมุติชื่อใครเพิ่ม
 ✅ แซวภาพรวมโพยได้หลายมุม — เลือกมุกให้เข้ากับ "ข้อมูลรอบนี้" ด้านล่าง: เททางเดียวมากๆ เล่น "รถผ้าป่า/ลอกกัน" ก็ได้ · ถ้ามี "คนทายสวนทาง" ให้ไปแซวหรืออวยคนนั้น (กล้าต่าง/มั่นใจ/บ้าบิ่น) · ❌ ไม่ต้องเล่นรถผ้าป่าทุกครั้ง เลือกมุมที่เด็ดสุด
-✅ แซวตามอันดับวงได้ (อวยจ่าฝูง/แซวบ๊วย/เชียร์คนไล่จี้/ลุ้นบ๊วย) เช่น "เจ้าจ่าฝูงรอคนอื่นบ้าง" — แต่ ❌ ห้ามโชว์ตัวเลขคะแนน/อันดับในข้อความ เอามาเป็นมุกเฉยๆ ❌ ห้ามแต่งอันดับเกินจากข้อมูล${hint?`\nข้อมูลรอบนี้ (วัตถุดิบแซว ยึดเป๊ะ ห้ามแต่งเกิน): ${hint}`:""}
+✅ แซวตามอันดับวง + "แต้มที่ได้วันนี้" ได้ — เด็ดสุดคือผสมกัน เช่น "วันนี้ได้เยอะกำลังไล่จ่าฝูง" · "ยัง +0 วันนี้ยิ่งจมบ๊วย" · "จ่าฝูงวันนี้แป้กระวังโดนไล่" — แต่ ❌ ห้ามโชว์ตัวเลขคะแนน/อันดับในข้อความ เอามาเป็นมุกเฉยๆ ❌ ห้ามแต่งอันดับเกินจากข้อมูล${hint?`\nข้อมูลรอบนี้ (วัตถุดิบแซว ยึดเป๊ะ ห้ามแต่งเกิน): ${hint}`:""}
+🎤 สไตล์: เขียนให้ "ลื่นเป็นมุกเล่าต่อเนื่อง" แบบตลกคาเฟ่/น้าค่อม — ปากจัด จริงใจ ตลกร้าย หยาบได้แต่ไม่หยาบโลน · ❌ ห้ามไล่รายงานข้อมูลทีละคนแบบลิสต์ ให้ร้อยข้อมูลเข้าไปในมุกอย่างเนียน · เล่นลีลาตลกไทยได้ (เช่น "ไอ้สั้ส"(ไม่บ่อย)/"จัดไป"/"โถ่เอ๊ย"/"เอาดิ") พอดีๆ ไม่ยัด · ❌ ห้ามขึ้นต้นซ้ำคำเดิมทุกข้อความ
 รูปแบบ: 2 บรรทัดเท่านั้น บรรทัดแรก=ประโยคเกริ่น บรรทัดสอง=ประโยคปิดท้าย — เขียนประโยคตรงๆ ❌ ห้ามขึ้นต้นด้วยคำว่า "เกริ่น"/"ปิดท้าย" ❌ ห้ามครอบด้วยเครื่องหมายคำพูด
 ใส่อิโมจิกวนๆ "1-2 อันเท่านั้น" รวมทั้ง 2 บรรทัด (เช่น 😏🔥😂💀🤡😈) ❌ ห้ามเกิน 2 อัน ❌ ห้ามรัวหลายตัว
 ประเภท: ${kind}
@@ -166,6 +167,7 @@ ${instr}
 - อ้างชื่อ/ตัวเลข/เวลาได้เฉพาะที่อยู่ในบล็อก "หรือในคำสั่ง/ข้อมูลด้านบน" เท่านั้น ❌ ห้ามแต่งเลข/เวลา/ชื่อใหม่ ❌ ห้ามสมมุติชื่อคนที่ไม่มี ❌ ห้ามโชว์ตัวเลขคะแนน/อันดับในข้อความ (เอามาเป็นมุกเฉยๆ)
 - ❌ ห้ามแตะ/ห้ามพิมพ์บล็อกซ้ำ · ❌ ห้ามแซวแทรกทีละบรรทัด — เขียนแค่ย่อหน้าแซวล้วนๆ 2-4 บรรทัด ❌ ห้ามมีคำนำ/ป้ายกำกับ/เครื่องหมาย \`\`\`
 - ใส่อิโมจิกวนๆ "1-2 อันเท่านั้น" ทั้งย่อหน้า (เช่น 😏🔥😂💀🤡😈) ❌ ห้ามเกิน 2 อัน ❌ ห้ามรัวหลายตัว
+🎤 สไตล์: เขียนให้ "ลื่นเป็นมุกเล่าต่อเนื่อง" แบบตลกคาเฟ่/น้าค่อม — ปากจัด จริงใจ ตลกร้าย หยาบได้แต่ไม่หยาบโลน · ❌ ห้ามไล่รายงานข้อมูลทีละคนแบบลิสต์ ให้ร้อยข้อมูลเข้าไปในมุกอย่างเนียน · เล่นลีลาตลกไทยได้ (เช่น "ไอ้สั้ส"(ไม่บ่อย)/"จัดไป"/"โถ่เอ๊ย"/"เอาดิ") พอดีๆ ไม่ยัด · ❌ ห้ามขึ้นต้นซ้ำคำเดิมทุกข้อความ
 ประเภท: ${kind}
 
 บล็อก (ห้ามแก้/ห้ามพิมพ์ซ้ำ):
@@ -393,13 +395,26 @@ function standingsHint(board) {
   const close = board[n-2] && (board[n-2].total-last.total)<=2 ? ` · คู่ลุ้นบ๊วย ${board[n-2].name} กับ ${last.name} สูสีมาก (ใครพลาดจมบ๊วย)` : "";
   return `อันดับวงตอนนี้ ${rows}${close} — ❌ ห้ามเอาตัวเลขคะแนน/อันดับไปโชว์ในข้อความ`;
 }
+// แต้มที่ "ได้วันนี้" (จาก board.today) → วัตถุดิบแซวเชิงคุณภาพ: ไฟแรง/ได้น้อย/ยัง +0 · ไม่โชว์เลข
+function todayHint(td) {
+  const ents = Object.entries(td||{}); if (!ents.length) return "";
+  const mx = Math.max(...ents.map(e=>e[1])), mn = Math.min(...ents.map(e=>e[1]));
+  const hot = ents.filter(e=>e[1]===mx && mx>0).map(e=>e[0]);
+  const zero = ents.filter(e=>e[1]===0).map(e=>e[0]);
+  const low = ents.filter(e=>e[1]===mn && mn>0).map(e=>e[0]);
+  const parts = [];
+  if (hot.length) parts.push(`วันนี้ได้เยอะสุด(ไฟแรง): ${hot.join(", ")}`);
+  if (low.length && mn!==mx) parts.push(`วันนี้ได้น้อยสุด: ${low.join(", ")}`);
+  if (zero.length) parts.push(`วันนี้ยัง +0 (ยังไม่ออกตัว): ${zero.join(", ")}`);
+  return parts.length ? `แต้มที่ได้วันนี้ (คู่ที่จบไปแล้ว) — ${parts.join(" · ")}` : "";
+}
 // #1 โพยตอนปิดรับ + #5 เตือนก่อนปิดรับ — รวมเป็น query เดียว/รอบ (window คลุมทั้งคู่) · flag ต่อวง (กันชนถ้า multipool)
 async function lineLockNotify() {
   if (!LINE_TOKEN || !LINE_GROUP) return;   // ยังไม่ตั้ง LINE → ปิดสนิท (ไม่ query/ไม่ log)
   const POOL = TOP, now = Date.now(), pid = POOL.id;
   const snap = RD(await matchesCol().where("kickoff",">=", now-60*60*1000).where("kickoff","<=", now+LOCK_BEFORE_MS+PRELOCK_LEAD_MS+60000).get());
   let roster = null, board = null;
-  const getStandings = async () => standingsHint(board || (board = await computeBoardNode(POOL)));   // คำนวณ board ครั้งเดียว/รอบ (lazy · เฉพาะตอนจะโพสต์จริง)
+  const getBoard = async () => board || (board = await computeBoardNode(POOL));   // คำนวณ board ครั้งเดียว/รอบ (lazy · เฉพาะตอนจะโพสต์จริง) · มี .today = แต้มวันนี้
   for (const d of snap.docs) {
     const m = d.data();
     if (!m.kickoff || m.status==="finished") continue;
@@ -407,7 +422,8 @@ async function lineLockNotify() {
     if (now >= lockTs) {                                   // #1 ปิดรับแล้ว → โพยทั้งวง
       if (m["lockPosted_"+pid] || m.lockPosted) continue;  // โพสต์แล้ว (รองรับ flag เก่า)
       const preds = RD(await col(POOL,"predictions").where("matchId","==",d.id).get()).docs.map(x=>x.data());
-      const hint = [lockConsensus(m, preds), await getStandings()].filter(Boolean).join(" · ");   // แนวโน้มโพย + อันดับวง
+      const b = await getBoard();
+      const hint = [lockConsensus(m, preds), todayHint(b.today), standingsHint(b)].filter(Boolean).join(" · ");   // แนวโน้มโพย + แต้มวันนี้ + อันดับวง
       const text = await spiceFrame(formatLockMsg(m, preds), "ปิดรับโพย เปิดไพ่ทุกคน (โพยล็อกแล้วแก้ไม่ได้)", hint);
       if (DRY) { console.log(`[DRY] LOCK → ${m.home}-${m.away} (${preds.length} โพย)\n${text}\n`); continue; }
       if (await linePush(text)) await d.ref.set({["lockPosted_"+pid]:true},{merge:true});
@@ -419,8 +435,9 @@ async function lineLockNotify() {
       if (!missing.length) { if(!DRY) await d.ref.set({["preLockPosted_"+pid]:true},{merge:true}); continue; }   // ทุกคนทายแล้ว ไม่กวน
       const mins = Math.max(1, Math.round((lockTs-now)/60000));
       const dry = `⏰ อีก ~${mins} น.ปิดรับ — ${m.home} vs ${m.away}\nยังไม่ทาย: ${missing.join(", ")}`;
-      const instr = `- แซวคนที่ยังไม่ทาย (ชื่อในบรรทัด "ยังไม่ทาย") รายคนตามอันดับของเขา (จ่าฝูง/กลางตาราง/บ๊วย) กระตุ้นให้รีบทายก่อนปิด
-- ❌ ห้ามโชว์ตัวเลขคะแนน/อันดับ · อันดับวง: ${await getStandings()}`;
+      const b = await getBoard();
+      const instr = `- แซวคนที่ยังไม่ทาย (ชื่อในบรรทัด "ยังไม่ทาย") รายคนตามอันดับ/แต้มวันนี้ของเขา (จ่าฝูง/กลางตาราง/บ๊วย · วันนี้ไฟแรง/ยัง +0) กระตุ้นให้รีบทายก่อนปิด
+- ❌ ห้ามโชว์ตัวเลขคะแนน/อันดับ · ${[standingsHint(b), todayHint(b.today)].filter(Boolean).join(" · ")}`;
       const text = await spiceOutro(dry, "เตือนคนยังไม่ทายก่อนปิดรับ", instr);   // frozen (เส้นตาย+รายชื่อคงเป๊ะ) + แซวด้านล่าง
       if (DRY) { console.log(`[DRY] PRELOCK → ${m.home}-${m.away}\n${text}\n`); continue; }
       if (await linePush(text)) await d.ref.set({["preLockPosted_"+pid]:true},{merge:true});
@@ -451,8 +468,11 @@ async function computeBoardNode(POOL) {   // = computeBoard · ลำดับ +
   const champion = normTxt(tourn.champion||"");
   const champPicks = {...cfgChamp};   // deriveChampPicks: config + player champ1/2 ทับ
   players.forEach(p=>{ if(p.name){ const a=[p.champ1,p.champ2].filter(Boolean); if(a.length) champPicks[p.name]=a; } });
-  const mp={};
-  preds.forEach(p=>{ const m=mById[p.matchId]; mp[p.player]=(mp[p.player]||0)+scoreMatchNode(p,m); });
+  const todayKey = ymd6(Date.now());
+  const todayIds = new Set(matches.filter(m=>m.status==="finished" && ymd6(m.kickoff)===todayKey).map(m=>m.id));   // คู่ที่จบไปแล้ว "วันนี้"
+  const mp={}, td={};
+  preds.forEach(p=>{ const m=mById[p.matchId]; const pts=scoreMatchNode(p,m); mp[p.player]=(mp[p.player]||0)+pts;
+    if (todayIds.has(p.matchId)) td[p.player]=(td[p.player]||0)+pts; });
   const names = new Set([...Object.keys(carry), ...players.map(p=>p.name).filter(Boolean), ...Object.keys(champPicks)]);
   const rows=[...names].map(name=>{
     const champPts = champion ? (champPicks[name]||[]).map(normTxt).filter(t=>t===champion).length*10 : 0;
@@ -460,6 +480,7 @@ async function computeBoardNode(POOL) {   // = computeBoard · ลำดับ +
   });
   rows.sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,"th"));   // คะแนนเท่า → ตัวอักษร (ตรงกับแอป)
   rows.forEach((r,i)=>r.rank=i+1);
+  rows.today = todayIds.size ? Object.fromEntries([...names].map(n=>[n, td[n]||0])) : {};   // แต้มวันนี้ต่อคน (ว่าง=ยังไม่มีคู่จบวันนี้)
   return rows;
 }
 async function nightDigest(recent) {   // recent = คู่ 48 ชม. (แชร์จาก autoAddNext กัน read ซ้ำ)
