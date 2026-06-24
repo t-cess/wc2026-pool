@@ -113,7 +113,7 @@ export function renderFixtures(){
   list.forEach(({m,st})=>{
     const rowBase="display:flex;align-items:center;gap:12px;padding:7px 0;";
     const pill = st==="done" ? `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#16243a;color:#9cc3f3;">จบ</div>`
-      : (st==="locked" && m.live) ? `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#3a1c1f;color:#ff6b6b;"><span style="animation:pulse 1.4s infinite;">🔴</span> สด${m.clock?` · ${esc(m.clock)}`:""}</div>`
+      : (st==="locked" && m.live) ? `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#10301f;color:#5fcf94;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1FB85E;animation:pulse 1.4s infinite;vertical-align:middle;margin-right:4px;"></span>สด${m.clock?` · ${esc(m.clock)}`:""}</div>`
       : st==="locked" ? `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#3a1c1f;color:#f0a3a8;">ปิดรับ</div>`
       : `<div class="k" style="font-weight:700;font-size:11px;padding:4px 10px;border-radius:99px;background:#10301f;color:#5fcf94;">เปิดทาย</div>`;
     let inner=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;">
@@ -160,7 +160,7 @@ export function renderFixtures(){
       if(done) raw.sort((a,b)=>b.pts-a.pts);   // live ไม่เรียง (กันแถวกระโดด)
       const mine=raw.find(r=>r.uid===S.me.uid);
       const note=done?("คุณได้ "+(mine?mine.pts:0)+" แต้มจากคู่นี้")
-        :(m.live?("🔴 ตอนนี้คุณได้ "+(mine?mine.pts:0)+" แต้ม (สด)"):("ปิดรับแล้ว · "+raw.length+" คนส่งโพย"));
+        :(m.live?(`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1FB85E;animation:pulse 1.4s infinite;vertical-align:middle;margin-right:5px;"></span>ตอนนี้คุณได้ `+(mine?mine.pts:0)+" แต้ม (สด)"):("ปิดรับแล้ว · "+raw.length+" คนส่งโพย"));
       const exp=!!S.expanded[m.id];
       inner+=`<div style="margin-top:13px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #232830;padding-top:12px;">
           <span class="k" style="font-size:12.5px;color:var(--mut);">${note}</span>
