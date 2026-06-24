@@ -13,6 +13,11 @@ export const S = {
   expanded: {}, editing: {}, scorerStage: {},
   nowTs: Date.now(),
   adminSel: "", carryEdit: false, gameEdit: false, fp: null,
+  // ----- หน้า "จัดการ" ข้ามวง (super) -----
+  mgPool: null,    // code วงที่กำลังจัดการ (null = แสดงรายการวงทั้งหมด)
+  mgList: null,    // [{code,name,count}] รายการวงจาก registry (null = ยังไม่โหลด)
+  mgData: null,    // ข้อมูลวงที่เลือก {code,carry,configChampPicks,champPicks,tournament,admins,meta,bind,playersByName,preds}
+  mgCarryEdit: false,
 };
 
 export function rosterNames(){

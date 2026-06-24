@@ -16,5 +16,9 @@ export const provider = new GoogleAuthProvider();
 export const poolCol = name => POOL_ID ? collection(db,"pools",POOL_ID,name) : collection(db,name);
 export const poolDoc = (...p) => POOL_ID ? doc(db,"pools",POOL_ID,...p) : doc(db,...p);
 
+// เวอร์ชันระบุวงได้ (สำหรับหน้า "จัดการ" ข้ามวงของ super) — code ว่าง = วงหลัก top-level
+export const poolColFor = (code,name) => code ? collection(db,"pools",code,name) : collection(db,name);
+export const poolDocFor = (code,...p) => code ? doc(db,"pools",code,...p) : doc(db,...p);
+
 export { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy,
   signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged };
