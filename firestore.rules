@@ -31,22 +31,22 @@ service cloud.firestore {
     }
 
     // ===== คู่แข่งขัน: ใช้ร่วมทุกวง — อ่านได้หมด · เพิ่ม/แก้/ลบ = super เท่านั้น =====
-    match /matches/{id} { allow read: if true; allow write: if isSuper(); }
+    match /matches/{id} { allow read: if request.auth != null; allow write: if isSuper(); }
 
     // ===== วงหลัก (top-level) =====
     // ผู้เล่น: อ่านได้หมด · เขียน = เจ้าของ (doc id = uid) หรือแอดมินวงหลัก (จัดการสมาชิก/ทายแชมป์)
     match /players/{uid} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if request.auth != null && (request.auth.uid == uid || topAdmin());
     }
     // ตั้งค่า: admins/meta = super (แต่งตั้ง/สร้าง) · ที่เหลือ (carry/tournament/champPicks/...) = แอดมินวงหลัก
     match /config/{id} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if (id == 'admins' || id == 'meta') ? isSuper() : topAdmin();
     }
     // โพย: อ่านได้หมด · แก้ = แอดมินวงหลัก (ติ๊กคนยิง) หรือ เจ้าของก่อนเตะ 10 นาที
     match /predictions/{pid} {
-      allow read: if true;
+      allow read: if request.auth != null;
       // doc id ต้อง = "{matchId}__{uid}" → กันสร้างโพยหลายใบ/ยัดชื่อคนอื่น (โกงปั๊มแต้ม) · แอดมินเขียนอิสระ
       allow create, update: if request.auth != null && ( topAdmin()
         || ( ownerBeforeKickoff() && pid == request.resource.data.matchId + '__' + request.auth.uid ) );
@@ -55,15 +55,15 @@ service cloud.firestore {
 
     // ===== วงอื่น (pools/{pool}) — แอดมินวงนั้นๆ ดูแลของตัวเอง · matches ยังใช้ร่วม top-level =====
     match /pools/{pool}/players/{uid} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if request.auth != null && (request.auth.uid == uid || poolAdmin(pool));
     }
     match /pools/{pool}/config/{id} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if (id == 'admins' || id == 'meta') ? isSuper() : poolAdmin(pool);
     }
     match /pools/{pool}/predictions/{pid} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow create, update: if request.auth != null && ( poolAdmin(pool)
         || ( ownerBeforeKickoff() && pid == request.resource.data.matchId + '__' + request.auth.uid ) );
       allow delete: if false;

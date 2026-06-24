@@ -42,12 +42,19 @@ async function tryWrite(idToken, path, obj) {
   return r.status;   // 200 = allow · 403 = deny
 }
 
+// ยิง read (GET) — idToken=null = ไม่ login (เทส PII คนนอกอ่านอีเมล)
+async function tryRead(idToken, path) {
+  const r = await fetch(`${REST}/${path}`, idToken ? { headers:{ "authorization":"Bearer "+idToken } } : {});
+  return r.status;
+}
+
 async function main() {
   const now = Date.now();
   // ---- setup: test data ใต้ _rt* ----
   await db.doc("matches/_rt_future").set({ home:"RTH", away:"RTA", kickoff: now + 86400000, homeScore:0, awayScore:0, status:"upcoming" });
   await db.doc("matches/_rt_past").set({   home:"RTH", away:"RTA", kickoff: now - 3600000,  homeScore:0, awayScore:0, status:"upcoming" });
   await db.doc("pools/_rt/config/admins").set({ emails: ["pooladmin@test.com"] });
+  await db.doc("config/_rt_pii").set({ secret: "email@x.com" });   // เทส PII: คนนอกอ่านไม่ได้
 
   // ---- tokens ----
   const sup = await signIn("u_rt_super",   SUPER_EMAIL);
@@ -71,6 +78,9 @@ async function main() {
     ["เจ้าของแอบใส่ scorerManual (กัน grader ทับ)", () => tryWrite(own, "predictions/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", homeScore:1, awayScore:0, scorerManual:true }), "deny"],
     ["🔴 เจ้าของสร้างโพยใบที่ 2 id มั่ว (โกงปั๊มแต้ม)", () => tryWrite(own, "predictions/_rt_evil_extra", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner", homeScore:2, awayScore:1, scorer1:"y", scorer2:"" }), "deny"],
     ["🔴 เจ้าของยัดโพย id เป็นของคนอื่น",          () => tryWrite(own, "predictions/_rt_future__someone_else", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner", homeScore:0, awayScore:0 }), "deny"],
+    ["🔒 คนนอก(ไม่ login) อ่าน config (PII อีเมล)", () => tryRead(null, "config/_rt_pii"), "deny"],
+    ["🔒 คนนอก(ไม่ login) อ่าน players (PII)",      () => tryRead(null, "players"),         "deny"],
+    ["สมาชิก(login) อ่าน config ได้ (regression)", () => tryRead(str,  "config/_rt_pii"), "allow"],
   ];
 
   let pass=0, fail=0;
@@ -86,7 +96,7 @@ async function main() {
   console.log(`\nสรุป: ${pass} ผ่าน / ${fail} พลาด`);
 
   // ---- cleanup ----
-  const dels = ["matches/_rt_future","matches/_rt_past","matches/_rt_x","config/_rt_carry",
+  const dels = ["matches/_rt_future","matches/_rt_past","matches/_rt_x","config/_rt_carry","config/_rt_pii",
     "predictions/_rt_future__u_rt_owner","predictions/_rt_past__u_rt_owner","predictions/_rt_evil_extra","predictions/_rt_future__someone_else",
     "pools/_rt/predictions/p1","pools/_rt/predictions/p2","pools/_rt/config/admins"];
   for (const p of dels) { try { await db.doc(p).delete(); } catch(e){} }
