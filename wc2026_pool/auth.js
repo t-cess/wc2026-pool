@@ -3,10 +3,12 @@ import { S, rosterNames } from "./state.js";
 import { firebaseConfig, POOL_ID, ROSTER, MOCK } from "./config.js";
 import { auth, provider, poolDoc, poolCol, getDoc, getDocs, setDoc,
   signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "./firebase.js";
-import { $, toast, isAdmin, isSuper } from "./utils.js";
+import { $, toast, isAdmin, isSuper, openMenu, promptModal } from "./utils.js";
 import { renderNav } from "./views.js";
 import { renderAdmin } from "./admin.js";
 import { watchData, renderAll } from "./data.js";
+import { renameMember } from "./member-ops.js";
+import { stateOf } from "./scoring.js";
 
 export function bindAuthButtons(){
   $("#googleBtn").onclick = async ()=>{
@@ -20,7 +22,6 @@ export function bindAuthButtons(){
       $("#liMsg").textContent="เข้าไม่สำเร็จ: "+(e.code||e.message)+h;
     }
   };
-  $("#logoutBtn").onclick = ()=> signOut(auth);
   $("#confirmIdentity").onclick = async ()=>{
     const name = (S.pickName||"").trim();
     if(!name){ toast(S.pickIsNew?"พิมพ์ชื่อก่อน":"เลือกชื่อก่อน"); return; }
@@ -137,6 +138,7 @@ function showIdentityRefresh(){
 export function enterAppUI(){   // เข้าแอป (แสดงผล) — ไม่ต่อ Firestore (mock ใช้ร่วม)
   show("app");
   setAvatar();
+  if($("#menuBtn")) $("#menuBtn").onclick = ()=> openProfileMenu($("#menuBtn"));   // ☰ เมนูโปรไฟล์
   // กู้แท็บล่าสุดจาก localStorage (admin เฉพาะถ้าเป็นแอดมิน · mock ข้าม) → refresh/เข้าใหม่ อยู่หน้าเดิม
   if(!MOCK){ try{ const t=localStorage.getItem("wc_tab"); if(t && ["fixtures","champion","board","admin"].includes(t) && (t!=="admin"||isAdmin())) S.tab=t; }catch(e){} }
   if(!S.me.name) S.tab="admin";   // แอดมินล้วน → เปิดแท็บแอดมิน
@@ -160,4 +162,34 @@ function setAvatar(){
   } else {
     el.replaceWith(initialAvatar(S.me.name));
   }
+}
+
+// ===== เมนูโปรไฟล์ (☰): เปลี่ยนชื่อ / เปลี่ยนรูป / ออกจากระบบ =====
+function openProfileMenu(anchor){
+  openMenu(anchor, [
+    { label:"เปลี่ยนชื่อ", onClick:doRenameSelf },
+    { label:"เปลี่ยนรูปโปรไฟล์", onClick:doChangePhoto },
+    { label:"ออกจากระบบ", danger:true, onClick:()=>signOut(auth) },
+  ], (S.me&&S.me.name)||"โปรไฟล์");
+}
+async function doRenameSelf(){
+  const old=(S.me&&S.me.name)||""; if(!old){ toast("ยังไม่มีชื่อ"); return; }
+  if(!isAdmin()){   // คนทั่วไป: เปลี่ยนชื่อเองได้เฉพาะตอนยังไม่มีแต้ม (rule กันแก้ยกมา/โพยที่ปิดแล้ว → แต้มหาย)
+    if(old in S.carry){ toast("มีคะแนนยกมาแล้ว — บอกแอดมินเปลี่ยนชื่อให้ (กันแต้มหาย)"); return; }
+    const hasLocked=(S.allPreds||[]).some(p=>{ if(p.uid!==S.me.uid) return false; const m=S.matches.find(x=>x.id===p.matchId); return m&&stateOf(m)!=="open"; });
+    if(hasLocked){ toast("มีโพยที่ปิดรับแล้ว — บอกแอดมินเปลี่ยนชื่อให้ (กันแต้มหาย)"); return; }
+  }
+  const nn=await promptModal("เปลี่ยนชื่อของคุณ",{value:old}); const nm=(nn||"").trim();
+  if(!nm||nm===old) return; if([...nm].length>25){ toast("ชื่อยาวเกิน 25 ตัว"); return; }
+  try{ await renameMember(POOL_ID, old, nm, S.me.uid); S.me.name=nm; toast("เปลี่ยนชื่อแล้ว ✓"); }
+  catch(e){ toast("เปลี่ยนชื่อไม่ได้: "+(e.code||e.message)); }
+}
+async function doChangePhoto(){
+  const url=await promptModal("วางลิงก์รูปโปรไฟล์ (URL รูปภาพ) · เว้นว่าง = กลับไปใช้รูป Google",{value:(S.me&&S.me.photo)||"",placeholder:"https://..."});
+  if(url===null) return; const u=url.trim();
+  try{ await setDoc(poolDoc("players",S.me.uid),{photo:u},{merge:true}); S.me.photo=u;
+    const el=$("#mePhoto");
+    if(el){ if(u){ const img=document.createElement("img"); img.id="mePhoto"; img.referrerPolicy="no-referrer"; img.style.cssText="width:38px;height:38px;border-radius:50%;box-shadow:0 0 0 1.5px #2a2f38;flex:none;object-fit:cover;"; img.src=u; img.onerror=()=>img.replaceWith(initialAvatar(S.me.name)); el.replaceWith(img); } else el.replaceWith(initialAvatar(S.me.name)); }
+    toast("เปลี่ยนรูปแล้ว ✓");
+  }catch(e){ toast("เปลี่ยนรูปไม่ได้"); }
 }
