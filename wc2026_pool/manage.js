@@ -40,20 +40,21 @@ async function fetchPool(code){
   if(MOCK){   // mock ไม่ต่อ DB → ยืมข้อมูลวงปัจจุบันใน S เป็นวงที่เลือก
     S.mgData={ code, carry:{...S.carry}, configChampPicks:{...S.champPicks}, champPicks:{...S.champPicks},
       tournament:{...S.tournament}, admins:[...(S.admins||[])], meta:S.poolMeta, bind:{...(S.bind||{})},
-      playersByName:{...S.playersByName}, preds:[...S.allPreds] };
+      playersByName:{...S.playersByName}, emailByUid:{...(S.emailByUid||{})}, preds:[...S.allPreds] };
     return;
   }
   const [carryS,champS,tourS,adminsS,metaS,bindS]=await Promise.all([
     getDoc(poolDocFor(code,"config","carry")), getDoc(poolDocFor(code,"config","champPicks")),
     getDoc(poolDocFor(code,"config","tournament")), getDoc(poolDocFor(code,"config","admins")),
     getDoc(poolDocFor(code,"config","meta")), getDoc(poolDocFor(code,"config","bind")) ]);
-  const [playersSnap,predsSnap]=await Promise.all([ getDocs(poolColFor(code,"players")), getDocs(poolColFor(code,"predictions")) ]);
-  const playersByName={}; playersSnap.forEach(d=>{ const p=d.data(); if(p.name) playersByName[p.name]={photo:p.photo||"",email:p.email||"",uid:p.uid,champ1:p.champ1||"",champ2:p.champ2||""}; });
+  const [playersSnap,predsSnap,emailsSnap]=await Promise.all([ getDocs(poolColFor(code,"players")), getDocs(poolColFor(code,"predictions")), getDocs(poolColFor(code,"emails")).catch(()=>null) ]);
+  const playersByName={}; playersSnap.forEach(d=>{ const p=d.data(); if(p.name) playersByName[p.name]={photo:p.photo||"",uid:p.uid,champ1:p.champ1||"",champ2:p.champ2||""}; });   // ไม่มี email (แยก emails/{uid})
+  const emailByUid={}; if(emailsSnap) emailsSnap.forEach(d=>{ const e=d.data(); if(e.uid) emailByUid[e.uid]=e.email||""; });   // super=admin อ่าน emails ได้
   const configChampPicks=champS.exists()?champS.data():{};
   S.mgData={ code, carry:carryS.exists()?carryS.data():{}, configChampPicks,
     champPicks:deriveChampPicks(configChampPicks,playersByName),
     tournament:tourS.exists()?tourS.data():{}, admins:adminsS.exists()?(adminsS.data().emails||[]):[],
-    meta:metaS.exists()?metaS.data():null, bind:bindS.exists()?bindS.data():{}, playersByName, preds:predsSnap.docs.map(d=>d.data()) };
+    meta:metaS.exists()?metaS.data():null, bind:bindS.exists()?bindS.data():{}, playersByName, emailByUid, preds:predsSnap.docs.map(d=>d.data()) };
 }
 const mgRoster = () => { const d=S.mgData; const s=[...Object.keys(d.carry||{})]; Object.keys(d.playersByName||{}).forEach(n=>{ if(!s.includes(n)) s.push(n); }); return s; };
 async function refresh(){ await fetchPool(S.mgPool); renderManage(); }   // เขียนเสร็จ → re-fetch + re-render (ไม่มี listener)
@@ -163,7 +164,7 @@ function renderPoolManage(box){
   // ----- สมาชิก (carry) -----
   const memberRows=mgRoster().map(n=>{ const p=D.playersByName[n]; const claimed=!!p;
     return `<div style="display:flex;align-items:center;gap:8px;background:#14171D;border:1px solid #232830;border-radius:11px;padding:9px 11px;margin-bottom:6px;">
-      <div style="flex:1;min-width:0;"><div class="k" style="font-weight:700;font-size:14px;">${esc(n)}</div><div style="font-size:11px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc(p.email||"เข้าแล้ว"):"ยังไม่ล็อกอิน"}</div></div>
+      <div style="flex:1;min-width:0;"><div class="k" style="font-weight:700;font-size:14px;">${esc(n)}</div><div style="font-size:11px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc((D.emailByUid&&D.emailByUid[p.uid])||"เข้าแล้ว"):"ยังไม่ล็อกอิน"}</div></div>
       <input data-mcarry="${esc(n)}" class="field" inputmode="numeric" value="${D.carry[n]||0}" ${S.mgCarryEdit?"":"disabled"} style="width:74px;height:34px;text-align:center;margin:0;${S.mgCarryEdit?"":"opacity:.5;"}">
       <div data-delmem="${esc(n)}" class="k" style="cursor:pointer;color:#EF3E42;font-size:11px;font-weight:700;padding:6px 8px;border:1px solid #5a2227;border-radius:8px;flex:none;">ลบ</div></div>`; }).join("")||`<div class="k" style="color:var(--dim);font-size:13px;">— ยังไม่มีสมาชิก —</div>`;
   const adminRows=(D.admins||[]).map(e=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><div class="k" style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(e)}</div><div data-deladmin="${esc(e)}" class="k" style="cursor:pointer;color:#EF3E42;font-size:11px;font-weight:700;padding:4px 9px;border:1px solid #5a2227;border-radius:8px;">ถอด</div></div>`).join("")||`<div class="k" style="color:var(--dim);font-size:12px;margin-bottom:6px;">— ยังไม่มี (super ดูแลได้อยู่แล้ว) —</div>`;
@@ -249,7 +250,7 @@ function renderPoolManage(box){
   if($("#amMemAdd")) $("#amMemAdd").onclick=async()=>{ const n=$("#amMemName").value.trim(); if(!n){toast("ใส่ชื่อ");return;} const v=parseInt($("#amMemCarry").value)||0;
     await setDoc(poolDocFor(code,"config","carry"),{...D.carry,[n]:v},{merge:true}); toast("เพิ่มสมาชิกแล้ว ✓"); refresh(); };
   box.querySelectorAll("[data-delmem]").forEach(el=>el.onclick=async()=>{ const n=el.dataset.delmem; const p=D.playersByName[n];
-    const admE=p&&p.email&&(D.admins||[]).includes(p.email)?p.email:(Object.entries(D.bind||{}).find(([e,nm])=>nm===n&&(D.admins||[]).includes(e))||[])[0];
+    const pe=p&&D.emailByUid&&D.emailByUid[p.uid]; const admE=pe&&(D.admins||[]).includes(pe)?pe:(Object.entries(D.bind||{}).find(([e,nm])=>nm===n&&(D.admins||[]).includes(e))||[])[0];
     if(!confirm(`ลบสมาชิก "${n}"?${admE?" (เป็นแอดมินด้วย — จะถอดแอดมิน + ปลดผูกอีเมล)":""} (ลบคะแนนยกมา + ปลดการจับคู่)`))return;
     const c2={...D.carry}; delete c2[n]; await setDoc(poolDocFor(code,"config","carry"),c2);   // ไม่ merge = ลบ key
     if(p&&p.uid){ try{ await deleteDoc(poolDocFor(code,"players",p.uid)); }catch(e){} }

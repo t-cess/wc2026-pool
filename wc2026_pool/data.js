@@ -2,6 +2,7 @@
 import { S } from "./state.js";
 import { db, collection, query, orderBy, onSnapshot, poolCol } from "./firebase.js";
 import { renderHeader, renderFixtures, renderChampion, renderBoard } from "./views.js";
+import { isAdmin } from "./utils.js";
 
 function applyVisibility(){   // matches = allMatches กรองด้วย startFrom + hidden ของวงนี้
   const sf = S.visibility.startFrom||0, hid = S.visibility.hidden||[];
@@ -27,8 +28,11 @@ export function watchData(){
     deriveChampPicks(); applyVisibility(); renderAll();
   });
   onSnapshot(poolCol("players"), snap=>{
-    S.playersByName={}; snap.forEach(d=>{ const p=d.data(); if(p.name) S.playersByName[p.name]={photo:p.photo||"",email:p.email||"",uid:p.uid,champ1:p.champ1||"",champ2:p.champ2||""}; });
+    S.playersByName={}; snap.forEach(d=>{ const p=d.data(); if(p.name) S.playersByName[p.name]={photo:p.photo||"",uid:p.uid,champ1:p.champ1||"",champ2:p.champ2||""}; });   // ⚠️ ไม่มี email (PII แยกไป emails/{uid})
     deriveChampPicks(); renderAll();
+  });
+  if(isAdmin()) onSnapshot(poolCol("emails"), snap=>{   // email = PII → โหลดเฉพาะแอดมิน (rule กัน non-admin list emails) · S.admins โหลดแล้วใน startAuth ก่อนถึงนี่
+    S.emailByUid={}; snap.forEach(d=>{ const e=d.data(); if(e.uid) S.emailByUid[e.uid]=e.email||""; }); renderAll();
   });
 }
 export function renderAll(){ renderFixtures(); renderHeader(); renderChampion(); renderBoard(); }   // fixtures ก่อน header → resolve default filter ให้ header อ่านตรง · แอดมินไม่รีเฟรชอัตโนมัติ (กันล้างที่กรอกค้าง)   // แอดมินไม่รีเฟรชอัตโนมัติ (กันล้างที่กรอกค้าง)

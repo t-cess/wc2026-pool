@@ -8,6 +8,7 @@ export const S = {
   matches: [], allMatches: [], allPreds: [], myPreds: {},
   visibility: { startFrom:0, hidden:[] },     // ต่อวง: เริ่มจากวันที่ + ซ่อนคู่ (matches=allMatches กรองแล้ว)
   carry: {}, champPicks: {}, configChampPicks: {}, tournament: {}, playersByName: {}, prev: {},
+  emailByUid: {},                              // uid→email (PII · โหลดเฉพาะแอดมิน จาก emails/{uid} · non-admin ว่าง)
   admins: [], poolMeta: null, bind: {},        // admins ของวงนี้ · meta (ชื่อวง) · bind {email:ชื่อ} (แอดมินที่เป็นผู้เล่น)
   tab: "fixtures", filter: "open", filterTouched: false, dayKey: null, pickName: "", pickIsNew: false,   // dayKey = คืนแข่งที่เลือกอยู่ · pickIsNew = ผู้เล่นพิมพ์ชื่อใหม่เอง (self-register)
   expanded: {}, editing: {}, scorerStage: {},

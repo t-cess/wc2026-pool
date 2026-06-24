@@ -56,6 +56,7 @@ async function main() {
   await db.doc("pools/_rt/config/admins").set({ emails: ["pooladmin@test.com"] });
   await db.doc("config/_rt_pii").set({ secret: "email@x.com" });   // เทส PII: คนนอกอ่านไม่ได้
   await db.doc("players/u_rt_owner").set({ uid:"u_rt_owner", name:"owner" });   // ชื่อที่ลงทะเบียน → rule เช็ก player ต้องตรงนี้
+  await db.doc("emails/u_rt_owner").set({ uid:"u_rt_owner", email:"owner@test.com" });   // PII แยก gated — เทสอ่านได้เฉพาะเจ้าของ+แอดมิน
 
   // ---- tokens ----
   const sup = await signIn("u_rt_super",   SUPER_EMAIL);
@@ -81,10 +82,14 @@ async function main() {
     ["🔴 เจ้าของยัดโพย id เป็นของคนอื่น",          () => tryWrite(own, "predictions/_rt_future__someone_else", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner", homeScore:0, awayScore:0 }), "deny"],
     ["🔴 เจ้าของยัดชื่อคนอื่น (id ตัวเอง · player=คนอื่น = ปั๊มแต้ม/alt)", () => tryWrite(own, "predictions/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", player:"someone_else", homeScore:0, awayScore:0 }), "deny"],
     ["🔒 คนนอก(ไม่ login) อ่าน config (PII อีเมล)", () => tryRead(null, "config/_rt_pii"), "deny"],
-    ["🔒 คนนอก(ไม่ login) อ่าน players (PII)",      () => tryRead(null, "players"),         "deny"],
+    ["🔒 คนนอก(ไม่ login) อ่าน players",            () => tryRead(null, "players"),         "deny"],
     ["สมาชิก(login) อ่าน config ได้ (regression)", () => tryRead(str,  "config/_rt_pii"), "allow"],
-    ["🔒 คน login แต่ไม่ใช่สมาชิก ดัมพ์ players (PII)", () => tryRead(str, "players"), "deny"],
+    ["🆕 คนใหม่(login) list players ได้ → onboarding/self-register ทำงาน", () => tryRead(str, "players"), "allow"],
     ["สมาชิก ดัมพ์ players ได้ (regression)",          () => tryRead(own, "players"), "allow"],
+    ["🔒 PII: คนใหม่ list emails ไม่ได้",             () => tryRead(str, "emails"),              "deny"],
+    ["🔒 PII: คนนอก(ไม่ login) list emails ไม่ได้",   () => tryRead(null, "emails"),             "deny"],
+    ["เจ้าของอ่าน email ตัวเองได้",                   () => tryRead(own, "emails/u_rt_owner"),   "allow"],
+    ["super(แอดมิน) list emails ได้ (ดูสมาชิก)",      () => tryRead(sup, "emails"),              "allow"],
   ];
 
   let pass=0, fail=0;
@@ -100,7 +105,7 @@ async function main() {
   console.log(`\nสรุป: ${pass} ผ่าน / ${fail} พลาด`);
 
   // ---- cleanup ----
-  const dels = ["matches/_rt_future","matches/_rt_past","matches/_rt_x","config/_rt_carry","config/_rt_pii","players/u_rt_owner",
+  const dels = ["matches/_rt_future","matches/_rt_past","matches/_rt_x","config/_rt_carry","config/_rt_pii","players/u_rt_owner","emails/u_rt_owner",
     "predictions/_rt_future__u_rt_owner","predictions/_rt_past__u_rt_owner","predictions/_rt_evil_extra","predictions/_rt_future__someone_else",
     "pools/_rt/predictions/p1","pools/_rt/predictions/p2","pools/_rt/config/admins"];
   for (const p of dels) { try { await db.doc(p).delete(); } catch(e){} }
