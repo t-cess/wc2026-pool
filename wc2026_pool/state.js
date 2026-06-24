@@ -18,6 +18,8 @@ export const S = {
   mgPools: [],     // ทุกวง: [{code,name,carry,admins,champPicks,configChampPicks,tournament,bind,playersByName,emailByUid,preds,meta}]
   mgTab: "pools",  // แท็บปัจจุบัน: pools | scores | champ | matches
   mgMatchSel: "",  // คู่ที่เลือกในแท็บสกอร์ (matchId)
+  mgEnter: null,   // แท็บวง: code วงที่กดเข้าไปดูรายละเอียด (null=รายการวง)
+  mgChampPool: "", mgChampName: "",   // แท็บแชมป์: วง + สมาชิกที่เลือก
   mgCarryEdit: {}, // {code:true} โหมดแก้คะแนนยกมาของวงนั้น
   mgNextSet: null, // พรีวิวคู่ชุดถัดไป (config/nextSet · auto-grade เขียนจาก ESPN) {key,fixtures:[{home,away,group,kickoff}]}
 };

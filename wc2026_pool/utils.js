@@ -22,6 +22,74 @@ let toastT;
 export function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.remove("hidden");
   t.style.animation="toastIn .2s ease"; clearTimeout(toastT); toastT=setTimeout(()=>t.classList.add("hidden"),1800); }
 
+// ===== Modal ยืนยัน + dropdown เมนู (ของแอปเอง · แทน confirm()/native) =====
+export function confirmModal(message, opts={}){
+  const { okText="ยืนยัน", cancelText="ยกเลิก", danger=true } = opts;
+  return new Promise(resolve=>{
+    const ov=document.createElement("div");
+    ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;z-index:300;padding:28px;animation:toastIn .15s ease;";
+    ov.innerHTML=`<div style="background:#14171D;border:1px solid #2A303A;border-radius:18px;padding:22px 20px;max-width:340px;width:100%;">
+      <div class="k" style="font-size:15px;line-height:1.55;color:#EEF1F4;margin-bottom:20px;white-space:pre-line;">${esc(message)}</div>
+      <div style="display:flex;gap:10px;"><div data-c="0" class="k" style="flex:1;height:46px;display:flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid #2A303A;color:#8A929E;font-weight:700;cursor:pointer;">${esc(cancelText)}</div>
+      <div data-c="1" class="k" style="flex:1;height:46px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:${danger?"#EF3E42":"#1FB85E"};color:#fff;font-weight:700;cursor:pointer;">${esc(okText)}</div></div></div>`;
+    document.body.appendChild(ov);
+    const done=v=>{ ov.remove(); resolve(v); };
+    ov.querySelector('[data-c="0"]').onclick=()=>done(false);
+    ov.querySelector('[data-c="1"]').onclick=()=>done(true);
+    ov.onclick=e=>{ if(e.target===ov) done(false); };
+  });
+}
+// prompt อินพุต (เปลี่ยนชื่อ/แก้ยกมา) → resolve(ค่า) หรือ null (ยกเลิก)
+export function promptModal(message, opts={}){
+  const { value="", placeholder="", okText="บันทึก", numeric=false } = opts;
+  return new Promise(resolve=>{
+    const ov=document.createElement("div");
+    ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;z-index:300;padding:28px;animation:toastIn .15s ease;";
+    ov.innerHTML=`<div style="background:#14171D;border:1px solid #2A303A;border-radius:18px;padding:22px 20px;max-width:340px;width:100%;">
+      <div class="k" style="font-size:15px;line-height:1.5;color:#EEF1F4;margin-bottom:14px;white-space:pre-line;">${esc(message)}</div>
+      <input id="__pm" class="field" ${numeric?'inputmode="numeric"':''} placeholder="${esc(placeholder)}" style="margin-bottom:18px;height:46px;">
+      <div style="display:flex;gap:10px;"><div data-c="0" class="k" style="flex:1;height:46px;display:flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid #2A303A;color:#8A929E;font-weight:700;cursor:pointer;">ยกเลิก</div>
+      <div data-c="1" class="k btnG" style="flex:1;height:46px;">${esc(okText)}</div></div></div>`;
+    document.body.appendChild(ov);
+    const inp=ov.querySelector("#__pm"); inp.value=value; setTimeout(()=>inp.focus(),30);
+    const done=v=>{ ov.remove(); resolve(v); };
+    ov.querySelector('[data-c="0"]').onclick=()=>done(null);
+    ov.querySelector('[data-c="1"]').onclick=()=>done(inp.value);
+    inp.onkeydown=e=>{ if(e.key==="Enter") done(inp.value); };
+    ov.onclick=e=>{ if(e.target===ov) done(null); };
+  });
+}
+// เลือกจากรายการ (ย้ายวง) · options:[{label,value}] → resolve(value) หรือ null
+export function pickModal(message, options){
+  return new Promise(resolve=>{
+    const ov=document.createElement("div");
+    ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;z-index:300;padding:28px;animation:toastIn .15s ease;";
+    ov.innerHTML=`<div style="background:#14171D;border:1px solid #2A303A;border-radius:18px;padding:20px;max-width:340px;width:100%;">
+      <div class="k" style="font-size:15px;line-height:1.5;color:#EEF1F4;margin-bottom:14px;">${esc(message)}</div>
+      ${options.map(o=>`<div data-v="${esc(o.value)}" class="k" style="padding:13px;border:1px solid #2A303A;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:8px;">${esc(o.label)}</div>`).join("")||`<div class="k" style="color:var(--dim);font-size:13px;margin-bottom:8px;">— ไม่มีตัวเลือก —</div>`}
+      <div data-c="0" class="k" style="height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid #2A303A;color:#8A929E;font-weight:700;cursor:pointer;margin-top:4px;">ยกเลิก</div></div>`;
+    document.body.appendChild(ov);
+    const done=v=>{ ov.remove(); resolve(v); };
+    ov.querySelectorAll("[data-v]").forEach(el=>el.onclick=()=>done(el.dataset.v));
+    ov.querySelector('[data-c="0"]').onclick=()=>done(null);
+    ov.onclick=e=>{ if(e.target===ov) done(null); };
+  });
+}
+// items: [{label, danger, onClick}] · เปิดเมนูลอยใกล้ปุ่ม ⋮ · ปิดเมื่อเลือก/แตะนอก
+export function openMenu(anchorEl, items){
+  const ov=document.createElement("div"); ov.style.cssText="position:fixed;inset:0;z-index:300;";
+  const menu=document.createElement("div"); menu.className="k";
+  menu.style.cssText="position:fixed;min-width:184px;background:#1b1f27;border:1px solid #2A303A;border-radius:13px;padding:6px;box-shadow:0 14px 36px -10px rgba(0,0,0,.75);animation:toastIn .12s ease;";
+  menu.innerHTML=items.map((it,i)=>`<div data-i="${i}" style="padding:11px 13px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;color:${it.danger?"#ff6b6b":"#EEF1F4"};">${esc(it.label)}</div>`).join("");
+  ov.appendChild(menu); document.body.appendChild(ov);
+  const r=anchorEl.getBoundingClientRect(); const mw=menu.offsetWidth||184;
+  menu.style.left=Math.max(8, Math.min(r.right-mw, window.innerWidth-mw-8))+"px";
+  menu.style.top=(r.bottom+5+menu.offsetHeight>window.innerHeight-8 ? Math.max(8,r.top-menu.offsetHeight-5) : r.bottom+5)+"px";
+  const close=()=>ov.remove();
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  items.forEach((it,i)=>{ menu.querySelector(`[data-i="${i}"]`).onclick=()=>{ close(); it.onClick&&it.onClick(); }; });
+}
+
 export function countdown(ms){ if(ms<=0) return "ปิดรับแล้ว";
   const s=Math.floor(ms/1000), d=Math.floor(s/86400);
   if(d>=1) return "ปิดใน "+d+" วัน "+Math.floor((s%86400)/3600)+" ชม.";

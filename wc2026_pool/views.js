@@ -51,13 +51,6 @@ export function renderNav(){
     d.onclick=()=>{ S.tab=k; if(!MOCK)try{localStorage.setItem("wc_tab",k)}catch(e){}; ["fixtures","champion","board","admin"].forEach(t=>$("#tab-"+t).classList.toggle("hidden",t!==k)); renderNav(); renderHeader(); if(k==="admin")renderAdmin(); };
     nav.appendChild(d);
   });
-  if(isSuper()){   // super → ลิงก์ไปหน้าจัดการแยก (manage.html)
-    const d=document.createElement("div");
-    d.style.cssText="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 0;cursor:pointer;";
-    d.innerHTML=`<div style="width:22px;height:3px;border-radius:99px;background:transparent;"></div><div class="k" style="font-weight:500;font-size:12px;color:#b9a6f0;">⚙️ จัดการ</div>`;
-    d.onclick=()=>{ location.href="manage.html"; };
-    nav.appendChild(d);
-  }
 }
 
 /* ===== fixtures ===== */
@@ -285,9 +278,6 @@ export function renderBoard(){
   let html=`<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 14px;">
       <h2 class="k" style="margin:0;font-weight:800;font-size:26px;">ตารางคะแนน</h2>
       <span class="k" style="font-size:11px;color:var(--mut);display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:#1FB85E;animation:pulse 1.6s infinite;"></span>สด</span></div>`;
-  if(S.tournament.batchLabel) html+=`<div style="display:flex;align-items:center;gap:8px;margin:0 4px 14px;padding:9px 13px;background:#14171D;border:1px solid #232830;border-radius:12px;">
-      <span class="k" style="font-weight:700;font-size:10px;letter-spacing:1px;color:#5fcf94;background:#10301f;padding:3px 8px;border-radius:6px;">อัพเดต</span>
-      <span style="font-size:12px;color:var(--mut);">${esc(S.tournament.batchLabel)}</span></div>`;
   const moveHTML=mv=> mv>0?`<span class="k" style="font-size:11px;color:#1FB85E;">▲</span>`:mv<0?`<span class="k" style="font-size:11px;color:#EF3E42;">▼</span>`:`<span class="k" style="font-size:11px;color:#5b626d;">–</span>`;
   if(rows.length){
     const L=rows[0]; const isMe=L.name===S.me.name;

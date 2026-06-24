@@ -4,8 +4,9 @@
 import { S } from "./state.js";
 import { db, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, poolColFor, poolDocFor } from "./firebase.js";
 import { TEAMS, fe, CHAMP_TEAMS, genCode, MOCK } from "./config.js";
-import { $, esc, flag, toast, isSuper, avatarHTML, silhouetteHTML, bindAvatars } from "./utils.js";
+import { $, esc, flag, toast, isSuper, avatarHTML, silhouetteHTML, bindAvatars, confirmModal, promptModal, pickModal, openMenu } from "./utils.js";
 import { stateOf, scoreMatch } from "./scoring.js";
+import { renameMember, moveMember } from "./member-ops.js";
 
 const TEAM_LIST = Object.keys(TEAMS).sort((a,b)=>a.localeCompare(b,"th"));
 const teamOpts = sel => `<option value="">— เลือกทีม —</option>`+TEAM_LIST.map(n=>`<option value="${esc(n)}" ${n===sel?"selected":""}>${fe(n)} ${esc(n)}</option>`).join("");
@@ -79,70 +80,70 @@ const card = (inner,accent) => `<div style="background:#14171D;border:1px solid 
 
 // ===================== แท็บ 1: วง =====================
 function renderPoolsTab(box){
-  const poolsHTML=S.mgPools.map(p=>{
-    const reg=!!(p.tournament&&p.tournament.regLocked); const edit=!!S.mgCarryEdit[p.code];
-    const memberRows=mgRoster(p).map(n=>{ const pl=p.playersByName[n], claimed=!!pl, em=claimed?(p.emailByUid[pl.uid]||"เข้าแล้ว"):"";
-      return `<div style="display:flex;align-items:center;gap:8px;background:#0E1116;border:1px solid #232830;border-radius:11px;padding:8px 10px;margin-bottom:6px;">
-        ${claimed?avatarHTML(pl.photo,30):silhouetteHTML(30)}
-        <div style="flex:1;min-width:0;"><div class="k" style="font-weight:700;font-size:14px;">${esc(n)}</div><div style="font-size:10.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc(em):"ยังไม่ล็อกอิน"}</div></div>
-        <input data-carry="${p.code}|${esc(n)}" class="field" inputmode="numeric" value="${p.carry[n]||0}" ${edit?"":"disabled"} style="width:64px;height:32px;text-align:center;margin:0;${edit?"":"opacity:.5;"}">
-        <div data-delmem="${p.code}|${esc(n)}" class="k" style="cursor:pointer;color:#EF3E42;font-size:11px;font-weight:700;padding:6px 7px;border:1px solid #5a2227;border-radius:8px;flex:none;">ลบ</div></div>`; }).join("")||`<div class="k" style="color:var(--dim);font-size:13px;">— ยังไม่มีสมาชิก —</div>`;
-    const adminRows=(p.admins||[]).map(e=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><div class="k" style="flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(e)}</div><div data-deladmin="${p.code}|${esc(e)}" class="k" style="cursor:pointer;color:#EF3E42;font-size:11px;font-weight:700;padding:4px 8px;border:1px solid #5a2227;border-radius:8px;">ถอด</div></div>`).join("")||`<div class="k" style="color:var(--dim);font-size:11.5px;margin-bottom:5px;">— ยังไม่มี —</div>`;
-    return `<div style="background:#161226;border:1px solid #2e2546;border-radius:16px;padding:15px;margin-bottom:14px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><div class="k" style="flex:1;font-weight:800;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${poolName(p)}</div><span class="k" style="font-size:10px;color:#b9a6f0;border:1px solid #34294f;border-radius:6px;padding:2px 7px;flex:none;">${poolTag(p)}</span><div data-delpool="${p.code}" class="k" style="cursor:pointer;color:#EF3E42;font-size:11px;font-weight:700;padding:4px 8px;border:1px solid #5a2227;border-radius:8px;flex:none;">${p.code?"ลบวง":""}</div></div>
-      <div id="mgReg|${p.code}" data-reg="${p.code}" class="k" style="height:38px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:${reg?"#5fcf94":"#f0a3a8"};font-weight:700;font-size:12.5px;cursor:pointer;margin-bottom:11px;">${reg?"🔒 ปิดรับสมัครอยู่ — แตะเปิดรับ":"🚪 เปิดรับสมัครอยู่ — แตะปิดรับ"}</div>
-      <div class="k" style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:13px;color:var(--mut);margin-bottom:7px;">🧑 สมาชิก (${mgRoster(p).length})<span data-carryedit="${p.code}" style="cursor:pointer;font-size:11px;color:${edit?"#5fcf94":"#8A929E"};">${edit?"💾 บันทึกยกมา":"🔓 แก้ยกมา"}</span></div>${memberRows}
-      <div style="display:flex;gap:7px;margin-top:7px;"><input id="mgAddMem|${p.code}" class="field" placeholder="เพิ่มชื่อสมาชิก" style="height:38px;"><input id="mgAddCarry|${p.code}" class="field" inputmode="numeric" placeholder="ยกมา" style="width:70px;height:38px;"><div data-addmem="${p.code}" class="k btnG" style="width:54px;height:38px;font-size:12px;flex:none;">เพิ่ม</div></div>
-      <div class="k" style="font-weight:700;font-size:13px;color:var(--mut);margin:13px 0 7px;border-top:1px solid #2e2546;padding-top:11px;">🛡️ แอดมินวงนี้</div>${adminRows}
-      <input id="mgAdminEmail|${p.code}" class="field" inputmode="email" placeholder="อีเมลแอดมินใหม่" style="height:38px;margin-top:4px;margin-bottom:6px;">
-      <div data-isplayer="${p.code}" data-on="0" style="display:flex;align-items:center;gap:9px;cursor:pointer;font-size:12px;color:#cfc2f5;margin-bottom:7px;user-select:none;"><span style="width:20px;height:20px;border-radius:6px;border:1.5px solid #6b5fa0;background:#0E1116;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex:none;"></span> เป็นผู้เล่นด้วย</div>
-      <input id="mgPlayerName|${p.code}" class="field" placeholder="ชื่อผู้เล่น (ถ้าติ๊ก)" style="height:38px;margin-bottom:7px;">
-      <div data-addadmin="${p.code}" class="k btnG" style="height:40px;font-size:13px;">+ เพิ่มแอดมิน</div></div>`;
-  }).join("");
+  if(S.mgEnter==null){   // ----- รายการวง -----
+    const cards=S.mgPools.map(p=>{ const reg=!!(p.tournament&&p.tournament.regLocked);
+      return `<div data-enter="${p.code}" style="display:flex;align-items:center;gap:10px;background:#161226;border:1px solid #2e2546;border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;">
+        <div style="flex:1;min-width:0;"><div class="k" style="font-weight:800;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${poolName(p)}</div>
+        <div class="k" style="font-size:11.5px;color:var(--mut);margin-top:2px;">${poolTag(p)} · 🧑 ${mgRoster(p).length} คน · ${reg?"🔒 ปิดรับ":"🚪 เปิดรับ"}</div></div>
+        <div class="k btnG" style="width:62px;height:38px;font-size:13px;flex:none;">เข้า ▸</div></div>`; }).join("");
+    box.innerHTML=`
+      ${card(`<div class="k" style="font-weight:700;font-size:15px;color:#b9a6f0;margin-bottom:10px;">🆕 สร้างวงใหม่</div>
+        <div style="display:flex;gap:8px;"><input id="npName" class="field" placeholder="ชื่อวงใหม่"><div id="npCreate" class="k btnG" style="width:92px;height:42px;font-size:13px;flex:none;">+ สร้างวง</div></div>
+        <div id="npResult" class="k" style="font-size:12px;line-height:1.5;color:#5fcf94;margin-top:8px;word-break:break-all;"></div>`,"#2e2546")}
+      ${cards}`;
+    box.querySelectorAll("[data-enter]").forEach(el=>el.onclick=()=>{ S.mgEnter=el.dataset.enter; renderManage(); });
+    if($("#npCreate")) $("#npCreate").onclick=async()=>{ const name=$("#npName").value.trim(); if(!name){toast("ใส่ชื่อวง");return;} const code=genCode(), created=Date.now();
+      try{ await setDoc(doc(db,"pools",code,"config","meta"),{name,owner:S.me.email,createdAt:created});
+        await setDoc(doc(db,"pools",code,"config","admins"),{emails:[]}); await setDoc(doc(db,"pools",code,"config","visibility"),{startFrom:created});
+        await setDoc(doc(db,"config","poolsIndex"),{pools:[...S.mgPools.map(p=>({code:p.code,name:p.name})),{code,name}]});
+        const link=location.origin+location.pathname.replace(/manage\.html$/,"index.html")+"?pool="+code;
+        try{ await navigator.clipboard.writeText(link); }catch(e){}
+        toast(`สร้างวง ${code} ✓ ก๊อปลิงก์แล้ว`); await refetchOne(code); S.mgEnter=code; renderManage();
+      }catch(e){ toast("สร้างวงไม่ได้"); } };
+    return;
+  }
+  // ----- รายละเอียดวงที่เข้า -----
+  const p=pool(S.mgEnter); const code=p.code; const reg=!!(p.tournament&&p.tournament.regLocked);
+  const memberRows=mgRoster(p).map(n=>{ const pl=p.playersByName[n], claimed=!!pl; const pe=claimed&&p.emailByUid[pl.uid]; const isAdm=pe&&(p.admins||[]).includes(pe);
+    return `<div style="display:flex;align-items:center;gap:9px;background:#0E1116;border:1px solid #232830;border-radius:11px;padding:9px 6px 9px 11px;margin-bottom:6px;">
+      ${claimed?avatarHTML(pl.photo,32):silhouetteHTML(32)}
+      <div style="flex:1;min-width:0;"><div class="k" style="font-weight:700;font-size:14px;">${esc(n)}${isAdm?' <span style="font-size:9px;color:#b9a6f0;border:1px solid #34294f;border-radius:5px;padding:1px 5px;vertical-align:middle;">แอดมิน</span>':""}</div>
+      <div style="font-size:10.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc(pe||"—"):"ยังไม่ล็อกอิน"} · ยกมา ${p.carry[n]||0}</div></div>
+      <div data-menu="${code}|${esc(n)}" class="k" style="cursor:pointer;flex:none;font-size:22px;color:#8A929E;padding:0 9px;line-height:1;">⋮</div></div>`; }).join("")||`<div class="k" style="color:var(--dim);font-size:13px;">— ยังไม่มีสมาชิก (รอคนสมัครเอง) —</div>`;
   box.innerHTML=`
-    ${card(`<div class="k" style="font-weight:700;font-size:15px;color:#b9a6f0;margin-bottom:10px;">🆕 สร้างวงใหม่</div>
-      <div style="display:flex;gap:8px;"><input id="npName" class="field" placeholder="ชื่อวงใหม่"><div id="npCreate" class="k btnG" style="width:92px;height:42px;font-size:13px;flex:none;">+ สร้างวง</div></div>
-      <div id="npResult" class="k" style="font-size:12px;line-height:1.5;color:#5fcf94;margin-top:8px;word-break:break-all;"></div>`,"#2e2546")}
-    ${poolsHTML}`;
+    <div data-back class="k" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:#b9a6f0;font-size:13px;font-weight:700;margin-bottom:12px;">◀︎ วงทั้งหมด</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:13px;"><div class="k" style="flex:1;font-weight:800;font-size:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${poolName(p)}</div><span class="k" style="font-size:10px;color:#b9a6f0;border:1px solid #34294f;border-radius:6px;padding:2px 7px;flex:none;">${poolTag(p)}</span></div>
+    <div data-reg="${code}" class="k" style="height:40px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:${reg?"#5fcf94":"#f0a3a8"};font-weight:700;font-size:13px;cursor:pointer;margin-bottom:13px;">${reg?"🔒 ปิดรับสมัครอยู่ — แตะเปิดรับ":"🚪 เปิดรับสมัครอยู่ — แตะปิดรับ"}</div>
+    <div class="k" style="font-weight:700;font-size:14px;color:var(--mut);margin-bottom:8px;">🧑 สมาชิก (${mgRoster(p).length}) <span style="font-size:11px;color:#5b626d;">· แตะ ⋮ จัดการ</span></div>${memberRows}
+    ${code?`<div data-delpool="${code}" class="k" style="cursor:pointer;color:#EF3E42;font-size:12px;font-weight:700;padding:10px;border:1px solid #5a2227;border-radius:11px;text-align:center;margin-top:12px;">เอาวงออกจากรายการ</div>`
+          :`<div class="k" style="color:#5b626d;font-size:12px;padding:10px;border:1px solid #2A303A;border-radius:11px;text-align:center;margin-top:12px;">วงหลัก — ลบไม่ได้</div>`}`;
+  box.querySelector("[data-back]").onclick=()=>{ S.mgEnter=null; renderManage(); };
+  box.querySelector("[data-reg]").onclick=async()=>{ const nv=!reg; await setDoc(poolDocFor(code,"config","tournament"),{regLocked:nv},{merge:true}); toast(nv?"ปิดรับสมัครแล้ว":"เปิดรับสมัครแล้ว ✓"); refetchOne(code); };
+  box.querySelectorAll("[data-menu]").forEach(el=>el.onclick=()=>{ const [c,n]=splitCode(el.dataset.menu); memberMenu(el,c,n); });
+  const dp=box.querySelector("[data-delpool]"); if(dp) dp.onclick=async()=>{ if(!await confirmModal(`เอาวง "${code}" ออกจากรายการ?\nไม่ลบข้อมูลจริง — สมาชิก/โพยยังอยู่ · ลิงก์ ?pool=${code} ยังเข้าได้ · แค่ซ่อนจากรายการ`))return;
+    try{ await setDoc(doc(db,"config","poolsIndex"),{pools:S.mgPools.filter(x=>x.code!==code).map(x=>({code:x.code,name:x.name}))}); S.mgPools=S.mgPools.filter(x=>x.code!==code); S.mgEnter=null; toast("เอาออกแล้ว"); renderManage(); }catch(e){ toast("เอาออกไม่ได้"); } };
+}
 
-  box.querySelectorAll("[data-reg]").forEach(el=>el.onclick=async()=>{ const code=el.dataset.reg; const p=pool(code); const nv=!(p.tournament&&p.tournament.regLocked);
-    await setDoc(poolDocFor(code,"config","tournament"),{regLocked:nv},{merge:true}); toast(nv?"ปิดรับสมัครแล้ว":"เปิดรับสมัครแล้ว ✓"); refetchOne(code); });
-  box.querySelectorAll("[data-carryedit]").forEach(el=>el.onclick=async()=>{ const code=el.dataset.carryedit;
-    if(S.mgCarryEdit[code]){ const c2={...(pool(code).carry||{})}; box.querySelectorAll(`[data-carry^="${code}|"]`).forEach(i=>{ c2[i.dataset.carry.split("|").slice(1).join("|")]=parseInt(i.value)||0; });
-      await setDoc(poolDocFor(code,"config","carry"),c2,{merge:true}); S.mgCarryEdit[code]=false; toast("บันทึกคะแนนยกมาแล้ว"); refetchOne(code); }
-    else { S.mgCarryEdit[code]=true; renderManage(); } });
-  box.querySelectorAll("[data-addmem]").forEach(el=>el.onclick=async()=>{ const code=el.dataset.addmem; const n=byId(`mgAddMem|${code}`).value.trim(); if(!n){toast("ใส่ชื่อ");return;} const v=parseInt(byId(`mgAddCarry|${code}`).value)||0;
-    await setDoc(poolDocFor(code,"config","carry"),{...pool(code).carry,[n]:v},{merge:true}); toast("เพิ่มสมาชิกแล้ว ✓"); refetchOne(code); });
-  box.querySelectorAll("[data-delmem]").forEach(el=>el.onclick=async()=>{ const [code,n]=splitCode(el.dataset.delmem); const p=pool(code); const pl=p.playersByName[n];
-    const pe=pl&&p.emailByUid[pl.uid]; const admE=pe&&(p.admins||[]).includes(pe)?pe:(Object.entries(p.bind||{}).find(([e,nm])=>nm===n&&(p.admins||[]).includes(e))||[])[0];
-    if(!confirm(`ลบสมาชิก "${n}" จาก ${poolName(p)}?${admE?" (เป็นแอดมินด้วย)":""}`))return;
-    const c2={...p.carry}; delete c2[n]; await setDoc(poolDocFor(code,"config","carry"),c2);
-    if(pl&&pl.uid){ try{ await deleteDoc(poolDocFor(code,"players",pl.uid)); }catch(e){} }
-    if(admE){ await setDoc(poolDocFor(code,"config","admins"),{emails:(p.admins||[]).filter(e=>e!==admE)}); const b2={...(p.bind||{})}; delete b2[admE]; await setDoc(poolDocFor(code,"config","bind"),b2); }
-    toast("ลบสมาชิกแล้ว"); refetchOne(code); });
-  box.querySelectorAll("[data-isplayer]").forEach(el=>el.onclick=()=>{ const on=el.dataset.on==="1"; el.dataset.on=on?"0":"1"; const b=el.firstElementChild; b.style.background=on?"#0E1116":"#7c6fc0"; b.textContent=on?"":"✓"; });
-  box.querySelectorAll("[data-addadmin]").forEach(el=>el.onclick=async()=>{ const code=el.dataset.addadmin; const em=byId(`mgAdminEmail|${code}`).value.trim().toLowerCase(); if(!em||!em.includes("@")){toast("ใส่อีเมลให้ถูก");return;}
-    const wrap=box.querySelector(`[data-isplayer="${code}"]`); const isP=wrap&&wrap.dataset.on==="1"; const pn=byId(`mgPlayerName|${code}`)?byId(`mgPlayerName|${code}`).value.trim():"";
-    if(isP&&!pn){toast("ติ๊กผู้เล่น → ใส่ชื่อ");return;} const p=pool(code);
-    try{ await setDoc(poolDocFor(code,"config","admins"),{emails:[...new Set([...(p.admins||[]),em])]},{merge:true});
-      if(isP&&pn){ await setDoc(poolDocFor(code,"config","carry"),{[pn]:(p.carry&&p.carry[pn])||0},{merge:true}); await setDoc(poolDocFor(code,"config","bind"),{[em]:pn},{merge:true}); }
-      toast(isP?`เพิ่มแอดมิน+ผู้เล่น "${pn}" ✓`:"เพิ่มแอดมินแล้ว ✓"); refetchOne(code);
-    }catch(e){ toast("เพิ่มไม่ได้"); } });
-  box.querySelectorAll("[data-deladmin]").forEach(el=>el.onclick=async()=>{ const [code,em]=splitCode(el.dataset.deladmin); if(!confirm(`ถอดแอดมิน ${em}?`))return;
-    await setDoc(poolDocFor(code,"config","admins"),{emails:(pool(code).admins||[]).filter(x=>x!==em)}); toast("ถอดแล้ว"); refetchOne(code); });
-  box.querySelectorAll("[data-delpool]").forEach(el=>el.onclick=async()=>{ const code=el.dataset.delpool; if(!code)return;
-    if(!confirm(`เอาวง "${code}" ออกจากรายการ?\n(ไม่ลบข้อมูลจริง — สมาชิก/โพยยังอยู่ · ลิงก์ ?pool=${code} ยังเข้าได้ · แค่ซ่อนจากรายการ)`))return;
-    const pools=S.mgPools.filter(p=>p.code!==code).map(p=>({code:p.code,name:p.name}));
-    try{ await setDoc(doc(db,"config","poolsIndex"),{pools}); S.mgPools=S.mgPools.filter(p=>p.code!==code); toast("เอาออกแล้ว"); renderManage(); }catch(e){ toast("เอาออกไม่ได้"); } });
-  if($("#npCreate")) $("#npCreate").onclick=async()=>{ const name=$("#npName").value.trim(); if(!name){toast("ใส่ชื่อวง");return;} const code=genCode(), created=Date.now();
-    try{ await setDoc(doc(db,"pools",code,"config","meta"),{name,owner:S.me.email,createdAt:created});
-      await setDoc(doc(db,"pools",code,"config","admins"),{emails:[]}); await setDoc(doc(db,"pools",code,"config","visibility"),{startFrom:created});
-      await setDoc(doc(db,"config","poolsIndex"),{pools:[...S.mgPools.map(p=>({code:p.code,name:p.name})),{code,name}]});
-      const link=location.origin+location.pathname.replace(/manage\.html$/,"index.html")+"?pool="+code;
-      try{ await navigator.clipboard.writeText(link); }catch(e){}
-      if($("#npResult")) $("#npResult").innerHTML=`สร้าง "<b>${esc(name)}</b>" (${code}) ✓ ก๊อปลิงก์เชิญแล้ว`;
-      await refetchOne(code); toast(`สร้างวง ${code} ✓`);
-    }catch(e){ toast("สร้างวงไม่ได้"); } };
+// เมนู ⋮ ของสมาชิก (manage · super): เปลี่ยนชื่อ/แก้ยกมา/ย้ายวง/แต่งตั้ง-ปลดแอดมิน/เตะ
+function memberMenu(anchor, code, name){
+  const p=pool(code); const pl=p.playersByName[name]; const uid=pl&&pl.uid; const pe=uid&&p.emailByUid[uid]; const isAdm=pe&&(p.admins||[]).includes(pe);
+  openMenu(anchor, [
+    {label:"เปลี่ยนชื่อ", onClick:async()=>{ const nn=await promptModal(`เปลี่ยนชื่อ "${name}"`,{value:name}); if(nn&&nn.trim()&&nn.trim()!==name){ await renameMember(code,name,nn.trim(),uid); toast("เปลี่ยนชื่อแล้ว ✓"); refetchOne(code); } }},
+    {label:"แก้คะแนนยกมา", onClick:async()=>{ const v=await promptModal(`คะแนนยกมาของ "${name}"`,{value:String(p.carry[name]||0),numeric:true}); if(v!==null){ await setDoc(poolDocFor(code,"config","carry"),{[name]:parseInt(v)||0},{merge:true}); toast("บันทึกแล้ว ✓"); refetchOne(code); } }},
+    {label:"ย้ายวง", onClick:async()=>{ const others=S.mgPools.filter(x=>x.code!==code).map(x=>({label:poolName(x),value:x.code})); if(!others.length){ toast("ไม่มีวงอื่น"); return; }
+      const to=await pickModal(`ย้าย "${name}" ไปวงไหน?`,others); if(to===null)return;
+      if(!await confirmModal(`ย้าย "${name}" ไป ${poolName(pool(to))}?\nยกคะแนนยกมา + โพยเก่าไปด้วย (โพยในวงเดิมจะถูกซ่อน)`))return;
+      await moveMember(code,to,name,uid); toast("ย้ายวงแล้ว ✓"); await refetchOne0(code); await refetchOne0(to); renderManage(); }},
+    {label:isAdm?"ปลดแอดมิน":"แต่งตั้งเป็นแอดมิน", onClick:async()=>{ if(!pe){ toast("สมาชิกต้อง login ก่อนถึงตั้งแอดมินได้"); return; }
+      if(!await confirmModal(isAdm?`ปลดแอดมิน "${name}"?`:`แต่งตั้ง "${name}" เป็นแอดมินวงนี้?`))return;
+      const emails=isAdm?(p.admins||[]).filter(e=>e!==pe):[...new Set([...(p.admins||[]),pe])];
+      await setDoc(poolDocFor(code,"config","admins"),{emails}); toast(isAdm?"ปลดแอดมินแล้ว":"แต่งตั้งแล้ว ✓"); refetchOne(code); }},
+    {label:"เตะออกจากวง", danger:true, onClick:async()=>{ if(!await confirmModal(`เตะ "${name}" ออกจาก ${poolName(p)}?\nลบคะแนนยกมา + ปลดการจับคู่`))return;
+      const c2={...p.carry}; delete c2[name]; await setDoc(poolDocFor(code,"config","carry"),c2);
+      if(uid){ try{ await deleteDoc(poolDocFor(code,"players",uid)); }catch(e){} }
+      if(pe&&(p.admins||[]).includes(pe)){ await setDoc(poolDocFor(code,"config","admins"),{emails:(p.admins||[]).filter(e=>e!==pe)}); const b2={...(p.bind||{})}; delete b2[pe]; await setDoc(poolDocFor(code,"config","bind"),b2); }
+      toast("เตะแล้ว"); refetchOne(code); }},
+  ]);
 }
 
 // ===================== แท็บ 2: สกอร์ & คนยิง =====================
@@ -152,6 +153,8 @@ function renderScoresTab(box){
   const selM=gradeable.find(m=>m.id===S.mgMatchSel)||gradeable[gradeable.length-1]; S.mgMatchSel=selM?selM.id:"";
   if(!selM){ box.innerHTML=card(`<div class="k" style="color:var(--dim);">— ยังไม่มีคู่ที่ปิดรับ/จบ —</div>`); return; }
   const glocked=selM.status==="finished"&&!S.gameEdit;
+  const selIdx=gradeable.findIndex(m=>m.id===selM.id);
+  const navBtn=(d,g)=>{ const tgt=gradeable[selIdx+d], off=!tgt; return `<div ${off?"":`data-nav="${tgt.id}"`} class="k" style="flex:none;display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:11px;background:#283042;border:1px solid #2A303A;color:#EEF1F4;font-size:15px;${off?"opacity:.3;":"cursor:pointer;"}">${g}</div>`; };
   const poolGrade=p=>{ const preds=p.preds.filter(x=>x.matchId===selM.id);
     const rows=preds.length?preds.map(pr=>{ const zero=pr.homeScore===0&&pr.awayScore===0, pid=`${pr.matchId}__${pr.uid}`, key=`${p.code}|${pid}`;
       const scored=scoreMatch(pr,selM)>0;
@@ -168,7 +171,7 @@ function renderScoresTab(box){
     return `<div style="margin-bottom:11px;"><div class="k" style="font-weight:700;font-size:13px;color:#b9a6f0;margin-bottom:5px;">${poolName(p)} <span style="font-size:10px;color:#5b626d;">${poolTag(p)}</span></div><div style="background:#0E1116;border:1px solid #232830;border-radius:11px;overflow:hidden;">${rows}</div></div>`; };
   box.innerHTML=`
     ${card(`<div class="k" style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;margin-bottom:10px;">✅ กรอกผล (ใช้ร่วมทุกวง)${glocked?'<span style="font-size:11px;color:#9cc3f3;">🔒 จบแล้ว</span>':''}</div>
-      <select id="mgSel" class="field" style="margin-bottom:10px;">${opts}</select>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">${navBtn(-1,"◀︎")}<select id="mgSel" class="field" style="flex:1;margin:0;">${opts}</select>${navBtn(1,"▶︎")}</div>
       <div style="${glocked?'opacity:.55;pointer-events:none;':''}">
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px;">${flag(selM.home)}<div class="k" style="flex:1;min-width:0;font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(selM.home)} ${fe(selM.home)}</div><div style="display:flex;gap:5px;flex:none;"><div data-step="Hs:-1" class="k" style="${stBtn}">−</div><input id="mgHs" inputmode="numeric" value="${selM.homeScore||0}" ${glocked?"disabled":""} style="${stInp}"><div data-step="Hs:1" class="k" style="${stBtn}">+</div></div></div>
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;">${flag(selM.away)}<div class="k" style="flex:1;min-width:0;font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(selM.away)} ${fe(selM.away)}</div><div style="display:flex;gap:5px;flex:none;"><div data-step="As:-1" class="k" style="${stBtn}">−</div><input id="mgAs" inputmode="numeric" value="${selM.awayScore||0}" ${glocked?"disabled":""} style="${stInp}"><div data-step="As:1" class="k" style="${stBtn}">+</div></div></div></div>
@@ -183,10 +186,11 @@ function renderScoresTab(box){
     box.querySelectorAll(`[data-pick^="${key}|"]`).forEach(b=>{ const bn=+b.dataset.pick.split("|").pop(); const on=nv===bn; const c=bn===0?["#3a1c1f","#ff6b6b","#5a2227"]:["#10301f","#5fcf94","#1f5a39"];
       b.style.background=on?c[0]:"#23272f"; b.style.color=on?c[1]:"#8A929E"; b.style.border="1px solid "+(on?c[2]:"#333"); }); });
   $("#mgSel").onchange=e=>{ S.mgMatchSel=e.target.value; S.gameEdit=false; renderManage(); };
+  box.querySelectorAll("[data-nav]").forEach(el=>el.onclick=()=>{ S.mgMatchSel=el.dataset.nav; S.gameEdit=false; renderManage(); });
   if($("#mgGameEdit")) $("#mgGameEdit").onclick=()=>{ S.gameEdit=true; renderManage(); };
   box.querySelectorAll("[data-step]").forEach(el=>el.onclick=()=>{ const [f,d]=el.dataset.step.split(":"); const inp=$("#mg"+f); let v=(parseInt(inp.value)||0)+parseInt(d); inp.value=Math.max(0,Math.min(99,v)); });
   const writeScore=async fin=>{ const hs=parseInt($("#mgHs").value),as=parseInt($("#mgAs").value); if(isNaN(hs)||isNaN(as)){toast("ใส่สกอร์ครบ");return;}
-    if(fin&&!confirm(`จบเกม ${selM.home} ${hs}-${as} ${selM.away}? (คิดแต้มถาวร ทุกวง)`))return;
+    if(fin&&!(await confirmModal(`จบเกม ${selM.home} ${hs}-${as} ${selM.away}?\nคิดแต้มถาวร ทุกวง`)))return;
     await updateDoc(doc(db,"matches",selM.id), fin?{homeScore:hs,awayScore:as,status:"finished",autoGraded:true,live:false}:{homeScore:hs,awayScore:as,live:true});
     const mo=S.allMatches.find(x=>x.id===selM.id); if(mo)Object.assign(mo,fin?{homeScore:hs,awayScore:as,status:"finished",live:false}:{homeScore:hs,awayScore:as,live:true});
     for(const p of S.mgPools) await commitScorers(p,selM.id);
@@ -196,27 +200,28 @@ function renderScoresTab(box){
 }
 async function refetchOne0(code){ if(MOCK)return; const cur=S.mgPools.find(p=>p.code===code); const fresh=await fetchPoolData(code,cur&&cur.name); const i=S.mgPools.findIndex(p=>p.code===code); if(i>=0)S.mgPools[i]=fresh; }
 
-// ===================== แท็บ 3: แชมป์ =====================
+// ===================== แท็บ 3: แชมป์ (เลือกวง → เลือกคน → เลือกทีม) =====================
 function renderChampTab(box){
-  box.innerHTML=S.mgPools.map(p=>{ const reg=p.tournament&&p.tournament.picksLocked;
-    return `<div style="background:#1a1410;border:1px solid #3a2f1e;border-radius:16px;padding:15px;margin-bottom:13px;">
-      <div class="k" style="font-weight:700;font-size:16px;color:var(--gold);margin-bottom:3px;">${poolName(p)} <span style="font-size:10px;color:#caa75a;">${poolTag(p)}${reg?" · 🔒ล็อก":""}</span></div>
-      <div class="k" style="font-size:11.5px;color:var(--gold);margin:7px 0 5px;">ตั้งผลแชมป์จริง (+10)</div>
-      <select id="mgChamp|${p.code}" class="field" style="margin-bottom:7px;">${teamOpts(p.tournament.champion||"")}</select>
-      <div data-setchamp="${p.code}" class="k btnG" style="height:40px;font-size:13px;background:var(--gold);color:#1a1410;">ตั้งแชมป์ (+10)</div>
-      <div style="border-top:1px solid #3a2f1e;margin-top:11px;padding-top:11px;">
-        <div class="k" style="font-size:11.5px;color:var(--gold);margin-bottom:6px;">ทายแชมป์ให้สมาชิก (ทะลุล็อก)</div>
-        <select id="mgCpName|${p.code}" class="field" style="margin-bottom:6px;"><option value="">— เลือกสมาชิก —</option>${mgRoster(p).map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")}</select>
-        <div style="display:flex;gap:7px;margin-bottom:7px;"><select id="mgCp0|${p.code}" class="field">${champOptsC("")}</select><select id="mgCp1|${p.code}" class="field">${champOptsC("")}</select></div>
-        <div data-cpsave="${p.code}" class="k btnG" style="height:40px;font-size:13px;">บันทึกทายแชมป์ให้คนนี้</div></div></div>`;
-  }).join("");
-  box.querySelectorAll("[data-setchamp]").forEach(el=>el.onclick=async()=>{ const code=el.dataset.setchamp; const c=byId(`mgChamp|${code}`).value.trim();
-    if(c&&!confirm(`ตั้งแชมป์ ${c} ของ ${poolName(pool(code))}? (+10)`))return;
-    await setDoc(poolDocFor(code,"config","tournament"),{champion:c,championLocked:!!c},{merge:true}); toast("ตั้งแชมป์แล้ว 🏆"); refetchOne(code); });
-  box.querySelectorAll("[data-cpsave]").forEach(el=>el.onclick=async()=>{ const code=el.dataset.cpsave; const n=byId(`mgCpName|${code}`).value; if(!n){toast("เลือกสมาชิกก่อน");return;}
-    const t0=byId(`mgCp0|${code}`).value,t1=byId(`mgCp1|${code}`).value; if(t0&&t1&&t0===t1){toast("เลือกทีมซ้ำ");return;}
-    await setDoc(poolDocFor(code,"config","champPicks"),{[n]:[t0,t1].filter(Boolean)},{merge:true}); toast("บันทึกแชมป์ให้ "+n+" ✓"); refetchOne(code); });
-  box.querySelectorAll("[id^='mgCpName|']").forEach(sel=>sel.onchange=()=>{ const code=sel.id.split("|").slice(1).join("|"); const pk=(pool(code).champPicks[sel.value])||[]; byId(`mgCp0|${code}`).value=pk[0]||""; byId(`mgCp1|${code}`).value=pk[1]||""; });
+  if(!S.mgChampPool && S.mgPools[0]) S.mgChampPool=S.mgPools[0].code;
+  const p=pool(S.mgChampPool); const name=S.mgChampName; const pk=(name&&p.champPicks[name])||[];
+  const goldCard=inner=>`<div style="background:#1a1410;border:1px solid #3a2f1e;border-radius:16px;padding:15px;margin-bottom:13px;">${inner}</div>`;
+  box.innerHTML=`
+    ${card(`<div class="k" style="font-weight:700;font-size:14px;margin-bottom:9px;">🏟️ เลือกวง</div>
+      <select id="mgChampPoolSel" class="field">${S.mgPools.map(x=>`<option value="${x.code}" ${x.code===S.mgChampPool?"selected":""}>${esc(poolName(x))}</option>`).join("")}</select>`)}
+    ${goldCard(`<div class="k" style="font-weight:700;font-size:14px;color:var(--gold);margin-bottom:8px;">🏆 ตั้งผลแชมป์จริง (+10)${p.tournament.picksLocked?' <span style="font-size:10px;color:#caa75a;">· 🔒ล็อกทาย</span>':""}</div>
+      <select id="mgSetChampSel" class="field" style="margin-bottom:8px;">${teamOpts(p.tournament.champion||"")}</select>
+      <div id="mgSetChampBtn" class="k btnG" style="height:42px;font-size:14px;background:var(--gold);color:#1a1410;">ตั้งแชมป์ (+10)</div>`)}
+    ${goldCard(`<div class="k" style="font-weight:700;font-size:14px;color:var(--gold);margin-bottom:8px;">✍️ ทายแชมป์ให้สมาชิก <span style="font-size:10px;color:#caa75a;">· ทะลุล็อก</span></div>
+      <select id="mgCpNameSel" class="field" style="margin-bottom:8px;"><option value="">— เลือกสมาชิก —</option>${mgRoster(p).map(n=>`<option value="${esc(n)}" ${n===name?"selected":""}>${esc(n)}</option>`).join("")}</select>
+      ${name?`<div style="display:flex;gap:8px;margin-bottom:8px;"><select id="mgCp0" class="field">${champOptsC(pk[0]||"")}</select><select id="mgCp1" class="field">${champOptsC(pk[1]||"")}</select></div>
+      <div id="mgCpSaveBtn" class="k btnG" style="height:42px;font-size:14px;">บันทึกทายแชมป์ให้ ${esc(name)}</div>`:`<div class="k" style="color:var(--dim);font-size:12.5px;">— เลือกสมาชิกก่อน —</div>`}`)}`;
+  $("#mgChampPoolSel").onchange=e=>{ S.mgChampPool=e.target.value; S.mgChampName=""; renderManage(); };
+  $("#mgCpNameSel").onchange=e=>{ S.mgChampName=e.target.value; renderManage(); };
+  $("#mgSetChampBtn").onclick=async()=>{ const c=$("#mgSetChampSel").value.trim();
+    if(c&&!(await confirmModal(`ตั้งแชมป์ ${c} ของ ${poolName(p)}? (+10 ให้คนทายถูก)`,{danger:false})))return;
+    await setDoc(poolDocFor(p.code,"config","tournament"),{champion:c,championLocked:!!c},{merge:true}); toast("ตั้งแชมป์แล้ว 🏆"); refetchOne(p.code); };
+  if($("#mgCpSaveBtn")) $("#mgCpSaveBtn").onclick=async()=>{ const t0=$("#mgCp0").value,t1=$("#mgCp1").value; if(t0&&t1&&t0===t1){toast("เลือกทีมซ้ำ");return;}
+    await setDoc(poolDocFor(p.code,"config","champPicks"),{[name]:[t0,t1].filter(Boolean)},{merge:true}); toast("บันทึกแชมป์ให้ "+name+" ✓"); refetchOne(p.code); };
 }
 
 // ===================== แท็บ 4: การแข่งขัน =====================
@@ -243,4 +248,3 @@ function renderMatchesTab(box){
 // ===== utils =====
 const pool = code => S.mgPools.find(p=>p.code===code) || {carry:{},admins:[],bind:{},playersByName:{},emailByUid:{},tournament:{},champPicks:{}};
 const splitCode = s => { const i=s.indexOf("|"); return [s.slice(0,i), s.slice(i+1)]; };   // "code|rest" · code อาจว่าง
-const byId = id => document.getElementById(id);   // id มี "|" → querySelector parse ไม่ได้ (CSS namespace) ต้องใช้ getElementById
