@@ -4,7 +4,6 @@ import { db, doc, setDoc, updateDoc, deleteDoc, poolDoc } from "./firebase.js"; 
 import { TEAMS, fe, CHAMP_TEAMS, POOL_ID, genCode } from "./config.js";
 import { $, esc, flag, avatarHTML, silhouetteHTML, bindAvatars, toast, isAdmin, isSuper, confirmModal, promptModal, openMenu } from "./utils.js";
 import { stateOf } from "./scoring.js";
-import { renameMember } from "./member-ops.js";
 
 const TEAM_LIST = Object.keys(TEAMS).sort((a,b)=>a.localeCompare(b,"th"));
 const teamOpts = sel => `<option value="">— เลือกทีม —</option>`+TEAM_LIST.map(n=>`<option value="${esc(n)}" ${n===sel?"selected":""}>${fe(n)} ${esc(n)}</option>`).join("");
@@ -46,11 +45,6 @@ export function renderAdmin(){
 function adminMemberMenu(anchor, n){
   const p=S.playersByName[n]; const uid=p&&p.uid; const admE=adminEmailOf(n);
   openMenu(anchor, [
-    {label:"เปลี่ยนชื่อ", onClick:async()=>{ const nn=await promptModal(`เปลี่ยนชื่อ "${n}"`,{value:n}); const nm=(nn||"").trim(); if(!nm||nm===n)return;
-      await renameMember(POOL_ID,n,nm,uid);
-      if(n in S.carry){ S.carry[nm]=S.carry[n]; delete S.carry[n]; }
-      if(S.playersByName[n]){ S.playersByName[nm]=S.playersByName[n]; delete S.playersByName[n]; }
-      toast("เปลี่ยนชื่อแล้ว ✓"); renderAdmin(); }},
     {label:"แก้คะแนนยกมา", onClick:async()=>{ const v=await promptModal(`คะแนนยกมาของ "${n}"`,{value:String(S.carry[n]||0),numeric:true}); if(v===null)return;
       const num=parseInt(v)||0; await setDoc(poolDoc("config","carry"),{[n]:num},{merge:true}); S.carry[n]=num; toast("บันทึกแล้ว ✓"); renderAdmin(); }},
     {label:"เตะออกจากวง", danger:true, onClick:async()=>{ if(admE&&!isSuper()){ toast("คนนี้เป็นแอดมิน — เฉพาะ super เตะได้"); return; }

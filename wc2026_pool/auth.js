@@ -3,12 +3,10 @@ import { S, rosterNames } from "./state.js";
 import { firebaseConfig, POOL_ID, ROSTER, MOCK } from "./config.js";
 import { auth, provider, poolDoc, poolCol, getDoc, getDocs, setDoc,
   signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "./firebase.js";
-import { $, toast, isAdmin, isSuper, openMenu, promptModal } from "./utils.js";
+import { $, toast, isAdmin, isSuper, openMenu } from "./utils.js";
 import { renderNav } from "./views.js";
 import { renderAdmin } from "./admin.js";
 import { watchData, renderAll } from "./data.js";
-import { renameMember } from "./member-ops.js";
-import { stateOf } from "./scoring.js";
 
 export function bindAuthButtons(){
   $("#googleBtn").onclick = async ()=>{
@@ -167,29 +165,27 @@ function setAvatar(){
 // ===== เมนูโปรไฟล์ (☰): เปลี่ยนชื่อ / เปลี่ยนรูป / ออกจากระบบ =====
 function openProfileMenu(anchor){
   openMenu(anchor, [
-    { label:"เปลี่ยนชื่อ", onClick:doRenameSelf },
     { label:"เปลี่ยนรูปโปรไฟล์", onClick:doChangePhoto },
     { label:"ออกจากระบบ", danger:true, onClick:()=>signOut(auth) },
   ], (S.me&&S.me.name)||"โปรไฟล์");
 }
-async function doRenameSelf(){
-  const old=(S.me&&S.me.name)||""; if(!old){ toast("ยังไม่มีชื่อ"); return; }
-  if(!isAdmin()){   // คนทั่วไป: เปลี่ยนชื่อเองได้เฉพาะตอนยังไม่มีแต้ม (rule กันแก้ยกมา/โพยที่ปิดแล้ว → แต้มหาย)
-    if(old in S.carry){ toast("มีคะแนนยกมาแล้ว — บอกแอดมินเปลี่ยนชื่อให้ (กันแต้มหาย)"); return; }
-    const hasLocked=(S.allPreds||[]).some(p=>{ if(p.uid!==S.me.uid) return false; const m=S.matches.find(x=>x.id===p.matchId); return m&&stateOf(m)!=="open"; });
-    if(hasLocked){ toast("มีโพยที่ปิดรับแล้ว — บอกแอดมินเปลี่ยนชื่อให้ (กันแต้มหาย)"); return; }
-  }
-  const nn=await promptModal("เปลี่ยนชื่อของคุณ",{value:old}); const nm=(nn||"").trim();
-  if(!nm||nm===old) return; if([...nm].length>25){ toast("ชื่อยาวเกิน 25 ตัว"); return; }
-  try{ await renameMember(POOL_ID, old, nm, S.me.uid); S.me.name=nm; toast("เปลี่ยนชื่อแล้ว ✓"); }
-  catch(e){ toast("เปลี่ยนชื่อไม่ได้: "+(e.code||e.message)); }
+function doChangePhoto(){   // อัปรูปจากคลังรูป → ย่อ/ครอบสี่เหลี่ยม 256px → เก็บเป็น data URL ใน player.photo (เล็ก · ไม่ต้องใช้ Storage)
+  const inp=document.createElement("input"); inp.type="file"; inp.accept="image/*";
+  inp.onchange=async()=>{ const f=inp.files&&inp.files[0]; if(!f) return; toast("กำลังอัปรูป…");
+    try{ const dataUrl=await resizeImage(f,256,.82);
+      await setDoc(poolDoc("players",S.me.uid),{photo:dataUrl},{merge:true}); S.me.photo=dataUrl;
+      const el=$("#mePhoto"); if(el){ const img=document.createElement("img"); img.id="mePhoto"; img.referrerPolicy="no-referrer"; img.style.cssText="width:38px;height:38px;border-radius:50%;box-shadow:0 0 0 1.5px #2a2f38;flex:none;object-fit:cover;"; img.src=dataUrl; el.replaceWith(img); }
+      toast("เปลี่ยนรูปแล้ว ✓");
+    }catch(e){ toast("เปลี่ยนรูปไม่ได้: "+(e.message||e)); }
+  };
+  inp.click();
 }
-async function doChangePhoto(){
-  const url=await promptModal("วางลิงก์รูปโปรไฟล์ (URL รูปภาพ) · เว้นว่าง = กลับไปใช้รูป Google",{value:(S.me&&S.me.photo)||"",placeholder:"https://..."});
-  if(url===null) return; const u=url.trim();
-  try{ await setDoc(poolDoc("players",S.me.uid),{photo:u},{merge:true}); S.me.photo=u;
-    const el=$("#mePhoto");
-    if(el){ if(u){ const img=document.createElement("img"); img.id="mePhoto"; img.referrerPolicy="no-referrer"; img.style.cssText="width:38px;height:38px;border-radius:50%;box-shadow:0 0 0 1.5px #2a2f38;flex:none;object-fit:cover;"; img.src=u; img.onerror=()=>img.replaceWith(initialAvatar(S.me.name)); el.replaceWith(img); } else el.replaceWith(initialAvatar(S.me.name)); }
-    toast("เปลี่ยนรูปแล้ว ✓");
-  }catch(e){ toast("เปลี่ยนรูปไม่ได้"); }
+function resizeImage(file, size, q){   // center-crop สี่เหลี่ยม + ย่อเป็น size×size JPEG → data URL
+  return new Promise((res,rej)=>{ const fr=new FileReader();
+    fr.onload=()=>{ const img=new Image();
+      img.onload=()=>{ const side=Math.min(img.width,img.height), sx=(img.width-side)/2, sy=(img.height-side)/2;
+        const c=document.createElement("canvas"); c.width=c.height=size; c.getContext("2d").drawImage(img,sx,sy,side,side,0,0,size,size);
+        res(c.toDataURL("image/jpeg",q)); };
+      img.onerror=()=>rej(new Error("อ่านรูปไม่ได้")); img.src=fr.result; };
+    fr.onerror=()=>rej(new Error("อ่านไฟล์ไม่ได้")); fr.readAsDataURL(file); });
 }
