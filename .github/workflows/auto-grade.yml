@@ -44,7 +44,7 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           QWEN_TOKEN: ${{ secrets.QWEN_TOKEN }}
           QWEN_BASE_URL: https://api.deepseek.com
-          QWEN_MODEL: deepseek-chat
+          QWEN_MODEL: deepseek-v4-pro
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
           LINE_GROUP: ${{ secrets.LINE_GROUP }}
           FORCE_FLAG: ${{ inputs.force && '--force' || '' }}
