@@ -323,11 +323,12 @@ export function openPlayerSheet(name){
     .map(m => { const pr=S.allPreds.find(p=>p.player===name && p.matchId===m.id); return {m, pr, pts: pr?scoreMatch(pr,m):0}; })
     .filter(x => x.pr)
     .sort((a,b) => (b.m.kickoff||0)-(a.m.kickoff||0));
+  const liveBadge=` <span class="k" style="font-size:9px;font-weight:700;color:#5fcf94;background:#10301f;border-radius:99px;padding:1px 6px 1px 5px;vertical-align:middle;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#1FB85E;animation:pulse 1.4s infinite;vertical-align:middle;margin-right:3px;"></span>สด</span>`;
   const rowsHtml = list.length ? list.map(({m,pr,pts})=>{
     const exact = pr.homeScore===m.homeScore && pr.awayScore===m.awayScore;
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1c2129;">
         <div style="flex:1;min-width:0;">
-          <div class="k" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(m.home)}-${esc(m.away)}${m.live?' <span style="color:#ff6b6b;font-size:10px;">🔴</span>':''}</div>
+          <div class="k" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(m.home)}-${esc(m.away)}${m.live?liveBadge:''}</div>
           <div style="font-size:10px;color:var(--mut);">${esc(m.group||"")} · ผล ${m.homeScore}-${m.awayScore} · ทาย ${pr.homeScore}-${pr.awayScore}${exact?' 🔥':''}</div>
         </div>
         <div class="k" style="flex:none;width:34px;text-align:right;font-weight:800;font-size:15px;color:${pts>0?'#1FB85E':'#5b626d'};">${pts>0?'+'+pts:pts}</div>
@@ -335,16 +336,26 @@ export function openPlayerSheet(name){
   }).join("") : `<div class="k" style="color:var(--dim);padding:14px 0;text-align:center;">ยังไม่มีคู่ที่คิดแต้ม</div>`;
   const sheet=document.createElement("div"); sheet.id="pSheet";
   sheet.style.cssText="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;";
-  sheet.innerHTML=`<div style="width:100%;max-width:480px;max-height:84vh;overflow-y:auto;background:#0E1116;border:1px solid #232830;border-radius:20px 20px 0 0;padding:18px 18px 26px;">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-        ${avatarHTML(row.photo,44)}
-        <div style="flex:1;min-width:0;"><div class="k" style="font-weight:800;font-size:20px;">${esc(name)}</div>
-          <div style="font-size:11px;color:var(--mut);">ยกมา ${row.carryPts} · รายคู่ ${row.matchPts} · แชมป์ ${row.champPts}</div></div>
-        <div style="text-align:right;"><div class="k" style="font-weight:800;font-size:24px;color:#27d26e;">${row.total}</div><div style="font-size:10px;color:var(--mut);">รวม</div></div></div>
-      ${rowsHtml}
-      <div id="pSheetClose" class="k btnG" style="margin-top:16px;height:44px;font-size:14px;">ปิด</div></div>`;
+  sheet.innerHTML=`<div style="width:100%;max-width:480px;max-height:86vh;background:#0E1116;border:1px solid #232830;border-radius:20px 20px 0 0;display:flex;flex-direction:column;overflow:hidden;">
+      <div id="pSheetScroll" style="flex:1;overflow-y:auto;padding:18px 18px 6px;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 18px);mask-image:linear-gradient(to bottom,transparent 0,#000 18px);">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-top:6px;">
+          ${avatarHTML(row.photo,44)}
+          <div style="flex:1;min-width:0;"><div class="k" style="font-weight:800;font-size:20px;">${esc(name)}</div>
+            <div style="font-size:11px;color:var(--mut);">ยกมา ${row.carryPts} · รายคู่ ${row.matchPts} · แชมป์ ${row.champPts}</div></div>
+          <div style="text-align:right;"><div class="k" style="font-weight:800;font-size:24px;color:#27d26e;">${row.total}</div><div style="font-size:10px;color:var(--mut);">รวม</div></div></div>
+        ${rowsHtml}
+      </div>
+      <div style="flex:none;position:relative;padding:0 18px 18px;">
+        <div id="pSheetFade" style="position:absolute;left:0;right:0;top:-34px;height:34px;background:linear-gradient(to top,#0E1116,transparent);pointer-events:none;"></div>
+        <div id="pSheetDown" style="text-align:center;cursor:pointer;color:#8A929E;font-size:22px;line-height:1;padding:2px 0 8px;">⌄</div>
+        <div id="pSheetClose" class="k btnG" style="height:46px;font-size:14px;">ปิด</div></div>
+    </div>`;
   document.body.appendChild(sheet);
   const close=()=>sheet.remove();
   sheet.onclick=e=>{ if(e.target===sheet) close(); };
   sheet.querySelector("#pSheetClose").onclick=close;
+  const sc=sheet.querySelector("#pSheetScroll"), down=sheet.querySelector("#pSheetDown"), fade=sheet.querySelector("#pSheetFade");
+  const upd=()=>{ const more=sc.scrollHeight-sc.scrollTop-sc.clientHeight>24; down.style.display=more?"block":"none"; fade.style.display=more?"block":"none"; };
+  sc.onscroll=upd; upd();
+  down.onclick=()=>sc.scrollTo({top:sc.scrollHeight,behavior:"smooth"});
 }
