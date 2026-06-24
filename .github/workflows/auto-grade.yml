@@ -15,6 +15,10 @@ on:
         description: "ยิงข้อความทดสอบไป LINE (เทส token/group)"
         type: boolean
         default: false
+      dry:
+        description: "dry-run: ไม่เขียน DB/ไม่ยิง LINE — โชว์ข้อความที่ DeepSeek แต่งใน log (ดูตัวอย่างก่อนใช้จริง)"
+        type: boolean
+        default: false
   schedule:
     - cron: "*/5 * * * *"        # สำรอง · ตัวขับหลัก = cron-job.org ยิงทุก 1 นาที
 
@@ -46,4 +50,5 @@ jobs:
           FORCE_FLAG: ${{ inputs.force && '--force' || '' }}
           REGRADE_FLAG: ${{ inputs.regrade && '--regrade' || '' }}
           LINETEST_FLAG: ${{ inputs.linetest && '--line-test' || '' }}
-        run: node auto-grade.mjs $FORCE_FLAG $REGRADE_FLAG $LINETEST_FLAG || true
+          DRY_FLAG: ${{ inputs.dry && '--dry-run' || '' }}
+        run: node auto-grade.mjs $FORCE_FLAG $REGRADE_FLAG $LINETEST_FLAG $DRY_FLAG || true
