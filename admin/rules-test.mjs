@@ -83,6 +83,8 @@ async function main() {
     ["🔒 คนนอก(ไม่ login) อ่าน config (PII อีเมล)", () => tryRead(null, "config/_rt_pii"), "deny"],
     ["🔒 คนนอก(ไม่ login) อ่าน players (PII)",      () => tryRead(null, "players"),         "deny"],
     ["สมาชิก(login) อ่าน config ได้ (regression)", () => tryRead(str,  "config/_rt_pii"), "allow"],
+    ["🔒 คน login แต่ไม่ใช่สมาชิก ดัมพ์ players (PII)", () => tryRead(str, "players"), "deny"],
+    ["สมาชิก ดัมพ์ players ได้ (regression)",          () => tryRead(own, "players"), "allow"],
   ];
 
   let pass=0, fail=0;

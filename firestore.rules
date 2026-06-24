@@ -36,7 +36,10 @@ service cloud.firestore {
     // ===== วงหลัก (top-level) =====
     // ผู้เล่น: อ่านได้หมด · เขียน = เจ้าของ (doc id = uid) หรือแอดมินวงหลัก (จัดการสมาชิก/ทายแชมป์)
     match /players/{uid} {
-      allow read: if request.auth != null;
+      // อ่าน = เจ้าของ doc (bootstrap login ไม่พัง) · แอดมิน · หรือ "เป็นสมาชิก" (มี player doc ตัวเอง) → คนนอกที่แค่ login Google ดัมพ์อีเมลทุกคนไม่ได้
+      allow read: if request.auth != null
+        && ( request.auth.uid == uid || topAdmin()
+             || exists(/databases/$(database)/documents/players/$(request.auth.uid)) );
       allow write: if request.auth != null && (request.auth.uid == uid || topAdmin());
     }
     // ตั้งค่า: admins/meta = super (แต่งตั้ง/สร้าง) · ที่เหลือ (carry/tournament/champPicks/...) = แอดมินวงหลัก
@@ -57,7 +60,9 @@ service cloud.firestore {
 
     // ===== วงอื่น (pools/{pool}) — แอดมินวงนั้นๆ ดูแลของตัวเอง · matches ยังใช้ร่วม top-level =====
     match /pools/{pool}/players/{uid} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null
+        && ( request.auth.uid == uid || poolAdmin(pool)
+             || exists(/databases/$(database)/documents/pools/$(pool)/players/$(request.auth.uid)) );
       allow write: if request.auth != null && (request.auth.uid == uid || poolAdmin(pool));
     }
     match /pools/{pool}/config/{id} {
