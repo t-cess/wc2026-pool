@@ -2,6 +2,7 @@
 import { S } from "./state.js";
 import { db, collection, query, orderBy, onSnapshot, poolCol } from "./firebase.js";
 import { renderHeader, renderFixtures, renderChampion, renderBoard } from "./views.js";
+import { renderAdmin } from "./admin.js";
 import { isAdmin } from "./utils.js";
 
 function applyVisibility(){   // matches = allMatches กรองด้วย startFrom + hidden ของวงนี้
@@ -35,4 +36,6 @@ export function watchData(){
     S.emailByUid={}; snap.forEach(d=>{ const e=d.data(); if(e.uid) S.emailByUid[e.uid]=e.email||""; }); renderAll();
   });
 }
-export function renderAll(){ renderFixtures(); renderHeader(); renderChampion(); renderBoard(); }   // fixtures ก่อน header → resolve default filter ให้ header อ่านตรง · แอดมินไม่รีเฟรชอัตโนมัติ (กันล้างที่กรอกค้าง)   // แอดมินไม่รีเฟรชอัตโนมัติ (กันล้างที่กรอกค้าง)
+export function renderAll(){ renderFixtures(); renderHeader(); renderChampion(); renderBoard();
+  if(S.tab==="admin" && isAdmin()) renderAdmin();   // refresh admin เมื่อ data มา (ไม่มี input ค้างแล้ว · เมนูเป็น modal แยก)
+}
