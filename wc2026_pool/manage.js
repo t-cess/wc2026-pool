@@ -79,49 +79,41 @@ export function renderManage(){
 const card = (inner,accent) => `<div style="background:#14171D;border:1px solid ${accent||"#232830"};border-radius:16px;padding:15px;margin-bottom:13px;">${inner}</div>`;
 
 // ===================== แท็บ 1: วง =====================
+const poolLink = code => location.origin+location.pathname.replace(/manage\.html$/,"index.html")+(code?"?pool="+code:"");
 function renderPoolsTab(box){
-  if(S.mgEnter==null){   // ----- รายการวง -----
-    const cards=S.mgPools.map(p=>{ const reg=!!(p.tournament&&p.tournament.regLocked);
-      return `<div data-enter="${p.code}" style="display:flex;align-items:center;gap:10px;background:#161226;border:1px solid #2e2546;border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;">
-        <div style="flex:1;min-width:0;"><div class="k" style="font-weight:800;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${poolName(p)}</div>
-        <div class="k" style="font-size:11.5px;color:var(--mut);margin-top:2px;">${poolTag(p)} · 🧑 ${mgRoster(p).length} คน · ${reg?"🔒 ปิดรับ":"🚪 เปิดรับ"}</div></div>
-        <div class="k btnG" style="width:62px;height:38px;font-size:13px;flex:none;">เข้า ▸</div></div>`; }).join("");
-    box.innerHTML=`
-      ${card(`<div class="k" style="font-weight:700;font-size:15px;color:#b9a6f0;margin-bottom:10px;">🆕 สร้างวงใหม่</div>
-        <div style="display:flex;gap:8px;"><input id="npName" class="field" placeholder="ชื่อวงใหม่"><div id="npCreate" class="k btnG" style="width:92px;height:42px;font-size:13px;flex:none;">+ สร้างวง</div></div>
-        <div id="npResult" class="k" style="font-size:12px;line-height:1.5;color:#5fcf94;margin-top:8px;word-break:break-all;"></div>`,"#2e2546")}
-      ${cards}`;
-    box.querySelectorAll("[data-enter]").forEach(el=>el.onclick=()=>{ S.mgEnter=el.dataset.enter; renderManage(); });
-    if($("#npCreate")) $("#npCreate").onclick=async()=>{ const name=$("#npName").value.trim(); if(!name){toast("ใส่ชื่อวง");return;} const code=genCode(), created=Date.now();
-      try{ await setDoc(doc(db,"pools",code,"config","meta"),{name,owner:S.me.email,createdAt:created});
-        await setDoc(doc(db,"pools",code,"config","admins"),{emails:[]}); await setDoc(doc(db,"pools",code,"config","visibility"),{startFrom:created});
-        await setDoc(doc(db,"config","poolsIndex"),{pools:[...S.mgPools.map(p=>({code:p.code,name:p.name})),{code,name}]});
-        const link=location.origin+location.pathname.replace(/manage\.html$/,"index.html")+"?pool="+code;
-        try{ await navigator.clipboard.writeText(link); }catch(e){}
-        toast(`สร้างวง ${code} ✓ ก๊อปลิงก์แล้ว`); await refetchOne(code); S.mgEnter=code; renderManage();
-      }catch(e){ toast("สร้างวงไม่ได้"); } };
-    return;
-  }
-  // ----- รายละเอียดวงที่เข้า -----
-  const p=pool(S.mgEnter); const code=p.code; const reg=!!(p.tournament&&p.tournament.regLocked);
-  const memberRows=mgRoster(p).map(n=>{ const pl=p.playersByName[n], claimed=!!pl; const pe=claimed&&p.emailByUid[pl.uid]; const isAdm=pe&&(p.admins||[]).includes(pe);
-    return `<div style="display:flex;align-items:center;gap:9px;background:#0E1116;border:1px solid #232830;border-radius:11px;padding:9px 6px 9px 11px;margin-bottom:6px;">
-      ${claimed?avatarHTML(pl.photo,32):silhouetteHTML(32)}
-      <div style="flex:1;min-width:0;"><div class="k" style="font-weight:700;font-size:14px;">${esc(n)}${isAdm?' <span style="font-size:9px;color:#b9a6f0;border:1px solid #34294f;border-radius:5px;padding:1px 5px;vertical-align:middle;">แอดมิน</span>':""}</div>
-      <div style="font-size:10.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc(pe||"—"):"ยังไม่ล็อกอิน"} · ยกมา ${p.carry[n]||0}</div></div>
-      <div data-menu="${code}|${esc(n)}" class="k" style="cursor:pointer;flex:none;font-size:22px;color:#8A929E;padding:0 9px;line-height:1;">⋮</div></div>`; }).join("")||`<div class="k" style="color:var(--dim);font-size:13px;">— ยังไม่มีสมาชิก (รอคนสมัครเอง) —</div>`;
+  const poolHTML=p=>{ const code=p.code; const reg=!!(p.tournament&&p.tournament.regLocked);
+    const memberRows=mgRoster(p).map(n=>{ const pl=p.playersByName[n], claimed=!!pl; const pe=claimed&&p.emailByUid[pl.uid]; const isAdm=pe&&(p.admins||[]).includes(pe);
+      return `<div style="display:flex;align-items:center;gap:9px;background:#0E1116;border:1px solid #232830;border-radius:11px;padding:9px 6px 9px 11px;margin-bottom:6px;">
+        ${claimed?avatarHTML(pl.photo,32):silhouetteHTML(32)}
+        <div style="flex:1;min-width:0;"><div class="k" style="font-weight:700;font-size:14px;">${esc(n)}${isAdm?' <span style="font-size:9px;color:#b9a6f0;border:1px solid #34294f;border-radius:5px;padding:1px 5px;vertical-align:middle;">แอดมิน</span>':""}</div>
+        <div style="font-size:10.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc(pe||"—"):"ยังไม่ล็อกอิน"} · ยกมา ${p.carry[n]||0}</div></div>
+        <div data-menu="${code}|${esc(n)}" class="k" style="cursor:pointer;flex:none;font-size:22px;color:#8A929E;padding:0 9px;line-height:1;">⋮</div></div>`; }).join("")||`<div class="k" style="color:var(--dim);font-size:13px;">— ยังไม่มีสมาชิก (รอคนสมัครเอง) —</div>`;
+    return `<div style="background:#161226;border:1px solid #2e2546;border-radius:16px;padding:15px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><div class="k" style="flex:1;min-width:0;font-weight:800;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${poolName(p)}</div><span class="k" style="font-size:10px;color:#b9a6f0;border:1px solid #34294f;border-radius:6px;padding:2px 7px;flex:none;">${poolTag(p)}</span></div>
+      <div class="k" style="font-size:11.5px;color:var(--mut);margin-bottom:11px;">🧑 ${mgRoster(p).length} คน · ${reg?"🔒 ปิดรับสมัคร":"🚪 เปิดรับสมัคร"}</div>
+      <div style="display:flex;gap:8px;margin-bottom:11px;"><div data-enterlink="${code}" class="k btnG" style="flex:1;height:40px;font-size:13px;">เข้าวง ▸</div><div data-copylink="${code}" class="k" style="flex:1;height:40px;display:flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid #2A303A;color:#cfc2f5;font-weight:700;font-size:13px;cursor:pointer;">📋 คัดลอกลิงก์</div></div>
+      <div data-reg="${code}" class="k" style="height:38px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:${reg?"#5fcf94":"#f0a3a8"};font-weight:700;font-size:12.5px;cursor:pointer;margin-bottom:11px;">${reg?"🔒 ปิดรับสมัครอยู่ — แตะเปิดรับ":"🚪 เปิดรับสมัครอยู่ — แตะปิดรับ"}</div>
+      <div class="k" style="font-weight:700;font-size:13px;color:var(--mut);margin-bottom:7px;">สมาชิก (${mgRoster(p).length}) <span style="font-size:11px;color:#5b626d;">· แตะ ⋮ จัดการ</span></div>${memberRows}
+      ${code?`<div data-delpool="${code}" class="k" style="cursor:pointer;color:#EF3E42;font-size:12px;font-weight:700;padding:9px;border:1px solid #5a2227;border-radius:11px;text-align:center;margin-top:11px;">เอาวงออกจากรายการ</div>`
+            :`<div class="k" style="color:#5b626d;font-size:12px;padding:9px;border:1px solid #2A303A;border-radius:11px;text-align:center;margin-top:11px;">วงหลัก — ลบไม่ได้</div>`}</div>`; };
   box.innerHTML=`
-    <div data-back class="k" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:#b9a6f0;font-size:13px;font-weight:700;margin-bottom:12px;">◀︎ วงทั้งหมด</div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:13px;"><div class="k" style="flex:1;font-weight:800;font-size:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${poolName(p)}</div><span class="k" style="font-size:10px;color:#b9a6f0;border:1px solid #34294f;border-radius:6px;padding:2px 7px;flex:none;">${poolTag(p)}</span></div>
-    <div data-reg="${code}" class="k" style="height:40px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:${reg?"#5fcf94":"#f0a3a8"};font-weight:700;font-size:13px;cursor:pointer;margin-bottom:13px;">${reg?"🔒 ปิดรับสมัครอยู่ — แตะเปิดรับ":"🚪 เปิดรับสมัครอยู่ — แตะปิดรับ"}</div>
-    <div class="k" style="font-weight:700;font-size:14px;color:var(--mut);margin-bottom:8px;">🧑 สมาชิก (${mgRoster(p).length}) <span style="font-size:11px;color:#5b626d;">· แตะ ⋮ จัดการ</span></div>${memberRows}
-    ${code?`<div data-delpool="${code}" class="k" style="cursor:pointer;color:#EF3E42;font-size:12px;font-weight:700;padding:10px;border:1px solid #5a2227;border-radius:11px;text-align:center;margin-top:12px;">เอาวงออกจากรายการ</div>`
-          :`<div class="k" style="color:#5b626d;font-size:12px;padding:10px;border:1px solid #2A303A;border-radius:11px;text-align:center;margin-top:12px;">วงหลัก — ลบไม่ได้</div>`}`;
-  box.querySelector("[data-back]").onclick=()=>{ S.mgEnter=null; renderManage(); };
-  box.querySelector("[data-reg]").onclick=async()=>{ const nv=!reg; await setDoc(poolDocFor(code,"config","tournament"),{regLocked:nv},{merge:true}); toast(nv?"ปิดรับสมัครแล้ว":"เปิดรับสมัครแล้ว ✓"); refetchOne(code); };
+    ${card(`<div class="k" style="font-weight:700;font-size:15px;color:#b9a6f0;margin-bottom:10px;">🆕 สร้างวงใหม่</div>
+      <div style="display:flex;gap:8px;"><input id="npName" class="field" placeholder="ชื่อวงใหม่"><div id="npCreate" class="k btnG" style="width:92px;height:42px;font-size:13px;flex:none;">+ สร้างวง</div></div>
+      <div id="npResult" class="k" style="font-size:12px;line-height:1.5;color:#5fcf94;margin-top:8px;word-break:break-all;"></div>`,"#2e2546")}
+    ${S.mgPools.map(poolHTML).join("")}`;
+  if($("#npCreate")) $("#npCreate").onclick=async()=>{ const name=$("#npName").value.trim(); if(!name){toast("ใส่ชื่อวง");return;} const code=genCode(), created=Date.now();
+    try{ await setDoc(doc(db,"pools",code,"config","meta"),{name,owner:S.me.email,createdAt:created});
+      await setDoc(doc(db,"pools",code,"config","admins"),{emails:[]}); await setDoc(doc(db,"pools",code,"config","visibility"),{startFrom:created});
+      await setDoc(doc(db,"config","poolsIndex"),{pools:[...S.mgPools.map(p=>({code:p.code,name:p.name})),{code,name}]});
+      try{ await navigator.clipboard.writeText(poolLink(code)); }catch(e){}
+      toast(`สร้างวง ${code} ✓ ก๊อปลิงก์แล้ว`); await refetchOne(code);
+    }catch(e){ toast("สร้างวงไม่ได้"); } };
+  box.querySelectorAll("[data-enterlink]").forEach(el=>el.onclick=()=>{ location.href=poolLink(el.dataset.enterlink); });
+  box.querySelectorAll("[data-copylink]").forEach(el=>el.onclick=async()=>{ try{ await navigator.clipboard.writeText(poolLink(el.dataset.copylink)); toast("คัดลอกลิงก์แล้ว ✓"); }catch(e){ toast("คัดลอกไม่ได้"); } });
+  box.querySelectorAll("[data-reg]").forEach(el=>el.onclick=async()=>{ const code=el.dataset.reg; const nv=!(pool(code).tournament&&pool(code).tournament.regLocked); await setDoc(poolDocFor(code,"config","tournament"),{regLocked:nv},{merge:true}); toast(nv?"ปิดรับสมัครแล้ว":"เปิดรับสมัครแล้ว ✓"); refetchOne(code); });
   box.querySelectorAll("[data-menu]").forEach(el=>el.onclick=()=>{ const [c,n]=splitCode(el.dataset.menu); memberMenu(el,c,n); });
-  const dp=box.querySelector("[data-delpool]"); if(dp) dp.onclick=async()=>{ if(!await confirmModal(`เอาวง "${code}" ออกจากรายการ?\nไม่ลบข้อมูลจริง — สมาชิก/โพยยังอยู่ · ลิงก์ ?pool=${code} ยังเข้าได้ · แค่ซ่อนจากรายการ`))return;
-    try{ await setDoc(doc(db,"config","poolsIndex"),{pools:S.mgPools.filter(x=>x.code!==code).map(x=>({code:x.code,name:x.name}))}); S.mgPools=S.mgPools.filter(x=>x.code!==code); S.mgEnter=null; toast("เอาออกแล้ว"); renderManage(); }catch(e){ toast("เอาออกไม่ได้"); } };
+  box.querySelectorAll("[data-delpool]").forEach(el=>el.onclick=async()=>{ const code=el.dataset.delpool; if(!await confirmModal(`เอาวง "${code}" ออกจากรายการ?\nไม่ลบข้อมูลจริง — สมาชิก/โพยยังอยู่ · ลิงก์ ?pool=${code} ยังเข้าได้ · แค่ซ่อนจากรายการ`))return;
+    try{ await setDoc(doc(db,"config","poolsIndex"),{pools:S.mgPools.filter(x=>x.code!==code).map(x=>({code:x.code,name:x.name}))}); S.mgPools=S.mgPools.filter(x=>x.code!==code); toast("เอาออกแล้ว"); renderManage(); }catch(e){ toast("เอาออกไม่ได้"); } });
 }
 
 // เมนู ⋮ ของสมาชิก (manage · super): เปลี่ยนชื่อ/แก้ยกมา/ย้ายวง/แต่งตั้ง-ปลดแอดมิน/เตะ
