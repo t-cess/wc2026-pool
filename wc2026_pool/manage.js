@@ -175,16 +175,20 @@ function renderScoresTab(box){
       <div style="${glocked?'opacity:.55;pointer-events:none;':''}">
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px;">${flag(selM.home)}<div class="k" style="flex:1;min-width:0;font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(selM.home)} ${fe(selM.home)}</div><div style="display:flex;gap:5px;flex:none;"><div data-step="Hs:-1" class="k" style="${stBtn}">−</div><input id="mgHs" inputmode="numeric" value="${selM.homeScore||0}" ${glocked?"disabled":""} style="${stInp}"><div data-step="Hs:1" class="k" style="${stBtn}">+</div></div></div>
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;">${flag(selM.away)}<div class="k" style="flex:1;min-width:0;font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(selM.away)} ${fe(selM.away)}</div><div style="display:flex;gap:5px;flex:none;"><div data-step="As:-1" class="k" style="${stBtn}">−</div><input id="mgAs" inputmode="numeric" value="${selM.awayScore||0}" ${glocked?"disabled":""} style="${stInp}"><div data-step="As:1" class="k" style="${stBtn}">+</div></div></div></div>
-      ${glocked?`<div id="mgGameEdit" class="k" style="height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:#9cc3f3;font-weight:700;font-size:13px;cursor:pointer;">🔓 แก้ไขผล (จบแล้ว)</div>`:`<div style="display:flex;gap:8px;"><div id="mgLive" class="k" style="flex:1;height:40px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:#3a1c1f;color:#ff6b6b;font-weight:700;font-size:12.5px;cursor:pointer;">🔴 อัพเดตสด</div><div id="mgResult" class="k btnG" style="flex:1;height:40px;font-size:13px;">จบเกม</div></div>
-      <div id="mgSaveScorers" class="k btnG" style="height:42px;font-size:14px;margin-top:8px;background:#2D7DF6;color:#fff;">💾 บันทึกคนยิงที่ติ๊ก</div>`}
-      <div class="k" style="font-size:11px;color:var(--mut);margin-top:9px;">สกอร์ (อัพเดตสด/จบเกม) กับ คนยิง แยกปุ่มกัน · ติ๊กคนยิงด้านล่าง → กด "บันทึกคนยิง" · ได้แต้ม = เขียว</div>`)}
+      ${glocked?`<div id="mgGameEdit" class="k" style="height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:#9cc3f3;font-weight:700;font-size:13px;cursor:pointer;">🔓 แก้ไขผล (จบแล้ว)</div>`:`<div style="display:flex;gap:8px;"><div id="mgLive" class="k" style="flex:1;height:40px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:11px;background:#10301f;color:#5fcf94;border:1px solid #1f5a39;font-weight:700;font-size:12.5px;cursor:pointer;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1FB85E;animation:pulse 1.4s infinite;"></span>อัพเดตสด</div><div id="mgResult" class="k" style="flex:1;height:40px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:#2D7DF6;color:#fff;font-weight:700;font-size:13px;cursor:pointer;">จบเกม</div></div>`}
+      <div class="k" style="font-size:11px;color:var(--mut);margin-top:9px;">สกอร์ (สด/จบเกม) กับ คนยิง แยกกัน · ติ๊กคนยิงแต่ละวงด้านล่าง → กดปุ่ม "บันทึกคนยิง" ท้ายสุด · ได้แต้ม = เขียว</div>`)}
     <div class="k" style="font-weight:700;font-size:14px;margin:0 2px 9px;">โพย & คนยิง — ทุกวง</div>
-    ${S.mgPools.map(poolGrade).join("")}`;
+    ${S.mgPools.map(poolGrade).join("")}
+    ${glocked?"":`<div id="mgSaveScorers" class="k btnG" style="height:48px;font-size:15px;margin-top:8px;">💾 บันทึกคนยิงที่ติ๊ก (ทุกวง)</div>`}`;
 
   box.querySelectorAll("[data-pick]").forEach(el=>el.onclick=()=>{ const parts=el.dataset.pick.split("|"); const n=+parts.pop(); const key=parts.join("|");
-    const code=parts[0], pid=parts[1]; const pr=pool(code).preds.find(x=>`${x.matchId}__${x.uid}`===pid);   // cur ต้องตรงกับ stage ตอน render (เผื่อ scorerOk เดิม)
-    const cur=(key in S.scorerStage)?S.scorerStage[key]:(pr&&pr.scorerOk?(pr.s1hit?1:2):0); const nv=(cur===n)?0:n; S.scorerStage[key]=nv;
-    box.querySelectorAll(`[data-pick^="${key}|"]`).forEach(b=>{ const bn=+b.dataset.pick.split("|").pop(); const on=nv===bn; const c=bn===0?["#3a1c1f","#ff6b6b","#5a2227"]:["#10301f","#5fcf94","#1f5a39"];
+    const code=parts[0], pid=parts[1]; const pr=pool(code).preds.find(x=>`${x.matchId}__${x.uid}`===pid);
+    const def=(pr&&pr.scorerOk)?(pr.s1hit?1:2):null;   // ค่า default จาก scorerOk (null=ไม่มีปุ่มไหน active)
+    const cur=(key in S.scorerStage)?S.scorerStage[key]:def;
+    let active;
+    if(cur===n){ delete S.scorerStage[key]; active=def; }   // กดปุ่มเดิมซ้ำ → ยกเลิก กลับ default (✕/เลข เด้งออก)
+    else { S.scorerStage[key]=n; active=n; }
+    box.querySelectorAll(`[data-pick^="${key}|"]`).forEach(b=>{ const bn=+b.dataset.pick.split("|").pop(); const on=active===bn; const c=bn===0?["#3a1c1f","#ff6b6b","#5a2227"]:["#10301f","#5fcf94","#1f5a39"];
       b.style.background=on?c[0]:"#23272f"; b.style.color=on?c[1]:"#8A929E"; b.style.border="1px solid "+(on?c[2]:"#333"); }); });
   $("#mgSel").onchange=e=>{ S.mgMatchSel=e.target.value; S.gameEdit=false; renderManage(); };
   box.querySelectorAll("[data-nav]").forEach(el=>el.onclick=()=>{ S.mgMatchSel=el.dataset.nav; S.gameEdit=false; renderManage(); });
