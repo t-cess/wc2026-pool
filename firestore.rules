@@ -47,7 +47,9 @@ service cloud.firestore {
     // โพย: อ่านได้หมด · แก้ = แอดมินวงหลัก (ติ๊กคนยิง) หรือ เจ้าของก่อนเตะ 10 นาที
     match /predictions/{pid} {
       allow read: if true;
-      allow create, update: if request.auth != null && (topAdmin() || ownerBeforeKickoff());
+      // doc id ต้อง = "{matchId}__{uid}" → กันสร้างโพยหลายใบ/ยัดชื่อคนอื่น (โกงปั๊มแต้ม) · แอดมินเขียนอิสระ
+      allow create, update: if request.auth != null && ( topAdmin()
+        || ( ownerBeforeKickoff() && pid == request.resource.data.matchId + '__' + request.auth.uid ) );
       allow delete: if false;
     }
 
@@ -62,7 +64,8 @@ service cloud.firestore {
     }
     match /pools/{pool}/predictions/{pid} {
       allow read: if true;
-      allow create, update: if request.auth != null && (poolAdmin(pool) || ownerBeforeKickoff());
+      allow create, update: if request.auth != null && ( poolAdmin(pool)
+        || ( ownerBeforeKickoff() && pid == request.resource.data.matchId + '__' + request.auth.uid ) );
       allow delete: if false;
     }
   }
