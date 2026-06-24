@@ -175,8 +175,9 @@ function renderScoresTab(box){
       <div style="${glocked?'opacity:.55;pointer-events:none;':''}">
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px;">${flag(selM.home)}<div class="k" style="flex:1;min-width:0;font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(selM.home)} ${fe(selM.home)}</div><div style="display:flex;gap:5px;flex:none;"><div data-step="Hs:-1" class="k" style="${stBtn}">−</div><input id="mgHs" inputmode="numeric" value="${selM.homeScore||0}" ${glocked?"disabled":""} style="${stInp}"><div data-step="Hs:1" class="k" style="${stBtn}">+</div></div></div>
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;">${flag(selM.away)}<div class="k" style="flex:1;min-width:0;font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(selM.away)} ${fe(selM.away)}</div><div style="display:flex;gap:5px;flex:none;"><div data-step="As:-1" class="k" style="${stBtn}">−</div><input id="mgAs" inputmode="numeric" value="${selM.awayScore||0}" ${glocked?"disabled":""} style="${stInp}"><div data-step="As:1" class="k" style="${stBtn}">+</div></div></div></div>
-      ${glocked?`<div id="mgGameEdit" class="k" style="height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:#9cc3f3;font-weight:700;font-size:13px;cursor:pointer;">🔓 แก้ไขผล (จบแล้ว)</div>`:`<div style="display:flex;gap:8px;"><div id="mgLive" class="k" style="flex:1;height:40px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:#3a1c1f;color:#ff6b6b;font-weight:700;font-size:12.5px;cursor:pointer;">🔴 อัพเดตสด</div><div id="mgResult" class="k btnG" style="flex:1;height:40px;font-size:13px;">จบเกม</div></div>`}
-      <div class="k" style="font-size:11px;color:var(--mut);margin-top:9px;">ติ๊กคนยิงถูก (+1) แต่ละวงด้านล่าง · สกอร์ได้แต้ม = เขียว</div>`)}
+      ${glocked?`<div id="mgGameEdit" class="k" style="height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:#9cc3f3;font-weight:700;font-size:13px;cursor:pointer;">🔓 แก้ไขผล (จบแล้ว)</div>`:`<div style="display:flex;gap:8px;"><div id="mgLive" class="k" style="flex:1;height:40px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:#3a1c1f;color:#ff6b6b;font-weight:700;font-size:12.5px;cursor:pointer;">🔴 อัพเดตสด</div><div id="mgResult" class="k btnG" style="flex:1;height:40px;font-size:13px;">จบเกม</div></div>
+      <div id="mgSaveScorers" class="k btnG" style="height:42px;font-size:14px;margin-top:8px;background:#2D7DF6;color:#fff;">💾 บันทึกคนยิงที่ติ๊ก</div>`}
+      <div class="k" style="font-size:11px;color:var(--mut);margin-top:9px;">สกอร์ (อัพเดตสด/จบเกม) กับ คนยิง แยกปุ่มกัน · ติ๊กคนยิงด้านล่าง → กด "บันทึกคนยิง" · ได้แต้ม = เขียว</div>`)}
     <div class="k" style="font-weight:700;font-size:14px;margin:0 2px 9px;">โพย & คนยิง — ทุกวง</div>
     ${S.mgPools.map(poolGrade).join("")}`;
 
@@ -193,10 +194,10 @@ function renderScoresTab(box){
     if(fin&&!(await confirmModal(`จบเกม ${selM.home} ${hs}-${as} ${selM.away}?\nคิดแต้มถาวร ทุกวง`)))return;
     await updateDoc(doc(db,"matches",selM.id), fin?{homeScore:hs,awayScore:as,status:"finished",autoGraded:true,live:false}:{homeScore:hs,awayScore:as,live:true});
     const mo=S.allMatches.find(x=>x.id===selM.id); if(mo)Object.assign(mo,fin?{homeScore:hs,awayScore:as,status:"finished",live:false}:{homeScore:hs,awayScore:as,live:true});
-    for(const p of S.mgPools) await commitScorers(p,selM.id);
-    if(fin)S.gameEdit=false; toast(fin?"จบเกม ✓":"อัพเดตสด 🔴"); if(!MOCK){ for(const p of S.mgPools) await refetchOne0(p.code); } renderManage(); };
+    if(fin)S.gameEdit=false; toast(fin?"จบเกม ✓ (สกอร์)":"อัพเดตสด 🔴 (สกอร์)"); if(!MOCK){ for(const p of S.mgPools) await refetchOne0(p.code); } renderManage(); };
   if($("#mgLive")) $("#mgLive").onclick=()=>writeScore(false);
   if($("#mgResult")) $("#mgResult").onclick=()=>writeScore(true);
+  if($("#mgSaveScorers")) $("#mgSaveScorers").onclick=async()=>{ for(const p of S.mgPools) await commitScorers(p,selM.id); toast("บันทึกคนยิงแล้ว ✓"); if(!MOCK){ for(const p of S.mgPools) await refetchOne0(p.code); } renderManage(); };
 }
 async function refetchOne0(code){ if(MOCK)return; const cur=S.mgPools.find(p=>p.code===code); const fresh=await fetchPoolData(code,cur&&cur.name); const i=S.mgPools.findIndex(p=>p.code===code); if(i>=0)S.mgPools[i]=fresh; }
 
