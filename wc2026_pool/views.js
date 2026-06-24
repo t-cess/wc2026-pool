@@ -337,7 +337,7 @@ export function openPlayerSheet(name){
   const sheet=document.createElement("div"); sheet.id="pSheet";
   sheet.style.cssText="position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;";
   sheet.innerHTML=`<div style="width:100%;max-width:480px;max-height:86vh;background:#0E1116;border:1px solid #232830;border-radius:20px 20px 0 0;display:flex;flex-direction:column;overflow:hidden;">
-      <div id="pSheetScroll" style="flex:1;overflow-y:auto;padding:18px 18px 6px;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 18px);mask-image:linear-gradient(to bottom,transparent 0,#000 18px);">
+      <div id="pSheetScroll" style="flex:1;overflow-y:auto;padding:22px 18px 6px;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 46px);mask-image:linear-gradient(to bottom,transparent 0,#000 46px);">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-top:6px;">
           ${avatarHTML(row.photo,44)}
           <div style="flex:1;min-width:0;"><div class="k" style="font-weight:800;font-size:20px;">${esc(name)}</div>
@@ -346,8 +346,8 @@ export function openPlayerSheet(name){
         ${rowsHtml}
       </div>
       <div style="flex:none;position:relative;padding:0 18px 18px;">
-        <div id="pSheetFade" style="position:absolute;left:0;right:0;top:-34px;height:34px;background:linear-gradient(to top,#0E1116,transparent);pointer-events:none;"></div>
-        <div id="pSheetDown" style="text-align:center;cursor:pointer;color:#8A929E;font-size:22px;line-height:1;padding:2px 0 8px;">⌄</div>
+        <div id="pSheetFade" style="position:absolute;left:0;right:0;top:-60px;height:60px;background:linear-gradient(to top,#0E1116 38%,transparent);pointer-events:none;"></div>
+        <div style="text-align:center;position:relative;"><span id="pSheetDown" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;background:#171b22;border:1px solid #2A303A;color:#9cc3f3;font-size:11.5px;font-weight:700;padding:6px 14px;border-radius:99px;margin-bottom:11px;">▾ เลื่อนลงล่างสุด</span></div>
         <div id="pSheetClose" class="k btnG" style="height:46px;font-size:14px;">ปิด</div></div>
     </div>`;
   document.body.appendChild(sheet);
@@ -355,7 +355,7 @@ export function openPlayerSheet(name){
   sheet.onclick=e=>{ if(e.target===sheet) close(); };
   sheet.querySelector("#pSheetClose").onclick=close;
   const sc=sheet.querySelector("#pSheetScroll"), down=sheet.querySelector("#pSheetDown"), fade=sheet.querySelector("#pSheetFade");
-  const upd=()=>{ const more=sc.scrollHeight-sc.scrollTop-sc.clientHeight>24; down.style.display=more?"block":"none"; fade.style.display=more?"block":"none"; };
+  const upd=()=>{ const more=sc.scrollHeight-sc.scrollTop-sc.clientHeight>24; down.style.display=more?"inline-flex":"none"; fade.style.display=more?"block":"none"; };
   sc.onscroll=upd; upd();
   down.onclick=()=>sc.scrollTo({top:sc.scrollHeight,behavior:"smooth"});
 }
