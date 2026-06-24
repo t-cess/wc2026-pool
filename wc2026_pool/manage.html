@@ -31,12 +31,18 @@
   .btnG{ display:flex;align-items:center;justify-content:center; background:var(--green); color:#04210F; border:none; border-radius:12px; font-family:'Kanit'; font-weight:700; cursor:pointer; }
   .hidden{ display:none !important; }
   @keyframes toastIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
   #toast{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:#1b1f27; color:#EEF1F4; border:1px solid #2A303A; padding:11px 18px; border-radius:12px; font-size:13px; z-index:99; animation:toastIn .18s ease; max-width:90%; text-align:center; }
   .mgtab{ flex:1; text-align:center; padding:13px 4px; cursor:pointer; font-size:13px; user-select:none; }
 </style>
 </head>
 <body>
 <div class="app">
+  <!-- SPLASH (โชว์ระหว่างกู้ session / เช็กสิทธิ์) -->
+  <div id="mgSplash" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;position:relative;z-index:1;">
+    <div class="stripes"><div style="width:30px;height:6px;background:#EF3E42;"></div><div style="width:30px;height:6px;background:#18A957;"></div><div style="width:30px;height:6px;background:#2D7DF6;"></div></div>
+    <div class="k" style="color:var(--mut);font-size:14px;animation:pulse 1.4s infinite;">กำลังโหลด…</div>
+  </div>
   <!-- LOGIN (เหมือนหน้าเข้าวง) -->
   <div id="mgLogin" class="hidden" style="flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:46px 26px 40px;">
     <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">

@@ -6,7 +6,8 @@ import { auth, provider, db, collection, query, orderBy, onSnapshot,
 import { $, isSuper } from "./utils.js";
 import { loadAllPools, loadNextSet, renderManage } from "./manage.js";
 
-function show(v){ $("#mgLogin").classList.toggle("hidden",v!=="login"); $("#mgBlock").classList.toggle("hidden",v!=="block"); $("#mgApp").classList.toggle("hidden",v!=="app"); }
+function show(v){ const sp=$("#mgSplash"); if(sp) sp.classList.add("hidden");   // ผ่านขั้นกู้ session แล้ว
+  $("#mgLogin").classList.toggle("hidden",v!=="login"); $("#mgBlock").classList.toggle("hidden",v!=="block"); $("#mgApp").classList.toggle("hidden",v!=="app"); }
 
 function bindNav(){
   document.querySelectorAll("[data-mgtab]").forEach(el=>el.onclick=()=>{ S.mgTab=el.dataset.mgtab; try{localStorage.setItem("mg_tab",S.mgTab)}catch(e){}; renderManage(); });
