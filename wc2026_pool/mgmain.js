@@ -31,9 +31,9 @@ if(MOCK){
   const now=Date.now(), H=3600000;
   S.me={ uid:"u_ton", name:"ต้น", email:"ton.itthiphon@gmail.com", photo:"" };
   S.allMatches=[
-    { id:"m4", home:"อาร์เจนตินา", away:"เม็กซิโก", group:"กลุ่ม C นัด 2", kickoff:now-3*H, homeScore:2, awayScore:0, status:"finished" },
+    { id:"m4", home:"อาร์เจนตินา", away:"เม็กซิโก", group:"กลุ่ม C นัด 2", kickoff:now-3*H, homeScore:2, awayScore:0, status:"finished", scorers:["Lionel Messi","Julian Alvarez"], goals:[{name:"Lionel Messi",time:"23'",side:"h"},{name:"Julian Alvarez",time:"67'",side:"h"}] },
     { id:"m1", home:"บราซิล", away:"สเปน", group:"กลุ่ม G นัด 1", kickoff:now+2*H, homeScore:0, awayScore:0, status:"upcoming" },
-    { id:"m3", home:"ฝรั่งเศส", away:"เดนมาร์ก", group:"กลุ่ม D นัด 2", kickoff:now-1*H, homeScore:2, awayScore:1, live:true, status:"upcoming" },
+    { id:"m3", home:"ฝรั่งเศส", away:"เดนมาร์ก", group:"กลุ่ม D นัด 2", kickoff:now-1*H, homeScore:2, awayScore:1, live:true, status:"upcoming", scorers:["Kylian Mbappé"], goals:[{name:"Kylian Mbappé",time:"12'",side:"h"}] },
   ];
   const mkPool=(code,name,carry,players,preds,tour)=>{ const champPicks={}; Object.entries(players).forEach(([n,pl])=>{ const a=[pl.champ1,pl.champ2].filter(Boolean); if(a.length) champPicks[n]=a; });
     return { code,name,carry, configChampPicks:{}, champPicks, tournament:tour||{}, admins:["graf@example.com"], meta:{name},
