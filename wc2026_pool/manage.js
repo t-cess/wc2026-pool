@@ -143,7 +143,7 @@ function memberMenu(anchor, code, name){
       if(uid){ try{ await deleteDoc(poolDocFor(code,"players",uid)); }catch(e){} }
       if(pe&&(p.admins||[]).includes(pe)){ await setDoc(poolDocFor(code,"config","admins"),{emails:(p.admins||[]).filter(e=>e!==pe)}); const b2={...(p.bind||{})}; delete b2[pe]; await setDoc(poolDocFor(code,"config","bind"),b2); }
       toast("เตะแล้ว"); refetchOne(code); }},
-  ]);
+  ], name);
 }
 
 // ===================== แท็บ 2: สกอร์ & คนยิง =====================

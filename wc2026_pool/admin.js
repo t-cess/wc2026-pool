@@ -59,5 +59,5 @@ function adminMemberMenu(anchor, n){
       if(uid){ try{ await deleteDoc(poolDoc("players",uid)); }catch(e){} }
       if(admE){ const emails=(S.admins||[]).filter(e=>e!==admE); await setDoc(poolDoc("config","admins"),{emails}); S.admins=emails; const b2={...(S.bind||{})}; delete b2[admE]; await setDoc(poolDoc("config","bind"),b2); S.bind=b2; }
       delete S.carry[n]; delete S.playersByName[n]; toast("เตะแล้ว"); renderAdmin(); }},
-  ]);
+  ], n);
 }

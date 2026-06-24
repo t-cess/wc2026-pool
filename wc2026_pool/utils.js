@@ -76,11 +76,12 @@ export function pickModal(message, options){
   });
 }
 // items: [{label, danger, onClick}] · เปิดเมนูลอยใกล้ปุ่ม ⋮ · ปิดเมื่อเลือก/แตะนอก
-export function openMenu(anchorEl, items){
+export function openMenu(anchorEl, items, title){
   const ov=document.createElement("div"); ov.style.cssText="position:fixed;inset:0;z-index:300;";
   const menu=document.createElement("div"); menu.className="k";
-  menu.style.cssText="position:fixed;min-width:184px;background:#1b1f27;border:1px solid #2A303A;border-radius:13px;padding:6px;box-shadow:0 14px 36px -10px rgba(0,0,0,.75);opacity:0;";   // opacity:0 จนกว่าจะวางตำแหน่งเสร็จ (กันเด้งจากกลางจอ)
-  menu.innerHTML=items.map((it,i)=>`<div data-i="${i}" style="padding:11px 13px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;color:${it.danger?"#ff6b6b":"#EEF1F4"};">${esc(it.label)}</div>`).join("");
+  menu.style.cssText="position:fixed;min-width:200px;max-width:280px;background:#1b1f27;border:1px solid #2A303A;border-radius:13px;padding:6px;box-shadow:0 14px 36px -10px rgba(0,0,0,.75);opacity:0;";   // opacity:0 จนกว่าจะวางตำแหน่งเสร็จ (กันเด้งจากกลางจอ)
+  const head=title?`<div style="padding:9px 13px 10px;border-bottom:1px solid #2A303A;margin-bottom:4px;"><div style="font-size:10px;color:#5b626d;font-weight:600;">จัดการ</div><div class="k" style="font-size:14px;font-weight:800;color:#EEF1F4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(title)}</div></div>`:"";
+  menu.innerHTML=head+items.map((it,i)=>`<div data-i="${i}" style="padding:11px 13px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;color:${it.danger?"#ff6b6b":"#EEF1F4"};">${esc(it.label)}</div>`).join("");
   ov.appendChild(menu); document.body.appendChild(ov);
   const r=anchorEl.getBoundingClientRect(); const mw=menu.offsetWidth||184;
   menu.style.left=Math.max(8, Math.min(r.right-mw, window.innerWidth-mw-8))+"px";
