@@ -167,7 +167,7 @@ function renderScoresTab(box){
         if(!enabled) return `<div class="k" style="${base}background:#16191f;color:#3a3f48;border:1px solid #23262d;">${label}</div>`;
         const c=nn===0?["#3a1c1f","#ff6b6b","#5a2227"]:["#10301f","#5fcf94","#1f5a39"];
         return `<div ${glocked?"":`data-pick="${p.code}|${pid}|${nn}"`} class="k" style="${glocked?"":"cursor:pointer;"}${base}background:${on?c[0]:"#23272f"};color:${on?c[1]:"#8A929E"};border:1px solid ${on?c[2]:"#333"};${glocked&&!on?"opacity:.45;":""}">${label}</div>`; };
-      const tick=`<div style="display:flex;gap:5px;flex:none;">${cell("1",1,!!pr.scorer1)}${cell("2",2,!!pr.scorer2)}${cell("✕",0,!!(pr.scorer1||pr.scorer2))}</div>`;
+      const tick=`<div style="display:flex;gap:5px;flex:none;">${cell("1",1,!!pr.scorer1)}${cell("2",2,!!pr.scorer2)}${cell("✕",0,true)}</div>`;   // ✕ active เสมอได้ (= ไม่ให้คะแนน) → มี 1 ปุ่ม active ตลอด
       return `<div style="display:flex;align-items:center;gap:7px;padding:7px 9px;border-bottom:1px solid #1c2129;"><div class="k" style="width:46px;flex:none;font-weight:600;font-size:12.5px;">${esc(pr.player)}</div><div class="k" style="width:34px;flex:none;font-weight:700;color:${scored?'#5fcf94':'#EEF1F4'};">${pr.homeScore}-${pr.awayScore}</div><div style="flex:1;min-width:0;font-size:11.5px;word-break:break-word;line-height:1.3;">${scTxt}</div>${tick}</div>`; }).join(""):`<div class="k" style="color:var(--dim);padding:8px;font-size:12px;">ไม่มีโพยคู่นี้</div>`;
     return `<div style="margin-bottom:11px;"><div class="k" style="font-weight:700;font-size:13px;color:#b9a6f0;margin-bottom:5px;">${poolName(p)} <span style="font-size:10px;color:#5b626d;">${poolTag(p)}</span></div><div style="background:#0E1116;border:1px solid #232830;border-radius:11px;overflow:hidden;">${rows}</div></div>`; };
   box.innerHTML=`
@@ -184,13 +184,8 @@ function renderScoresTab(box){
     ${glocked?"":`<div id="mgSaveScorers" class="k btnG" style="height:48px;font-size:15px;margin-top:8px;">💾 บันทึกคนยิงที่ติ๊ก (ทุกวง)</div>`}`;
 
   box.querySelectorAll("[data-pick]").forEach(el=>el.onclick=()=>{ const parts=el.dataset.pick.split("|"); const n=+parts.pop(); const key=parts.join("|");
-    const code=parts[0], pid=parts[1]; const pr=pool(code).preds.find(x=>`${x.matchId}__${x.uid}`===pid);
-    const def=(pr&&pr.scorerOk)?(pr.s1hit?1:2):null;   // ค่า default จาก scorerOk (null=ไม่มีปุ่มไหน active)
-    const cur=(key in S.scorerStage)?S.scorerStage[key]:def;
-    let active;
-    if(cur===n){ delete S.scorerStage[key]; active=def; }   // กดปุ่มเดิมซ้ำ → ยกเลิก กลับ default (✕/เลข เด้งออก)
-    else { S.scorerStage[key]=n; active=n; }
-    box.querySelectorAll(`[data-pick^="${key}|"]`).forEach(b=>{ const bn=+b.dataset.pick.split("|").pop(); const on=active===bn; const c=bn===0?["#3a1c1f","#ff6b6b","#5a2227"]:["#10301f","#5fcf94","#1f5a39"];
+    S.scorerStage[key]=n;   // radio: เลือกแล้วติดเสมอ มี 1 ปุ่ม active ตลอด (ไม่มีสถานะว่าง)
+    box.querySelectorAll(`[data-pick^="${key}|"]`).forEach(b=>{ const bn=+b.dataset.pick.split("|").pop(); const on=n===bn; const c=bn===0?["#3a1c1f","#ff6b6b","#5a2227"]:["#10301f","#5fcf94","#1f5a39"];
       b.style.background=on?c[0]:"#23272f"; b.style.color=on?c[1]:"#8A929E"; b.style.border="1px solid "+(on?c[2]:"#333"); }); });
   $("#mgSel").onchange=e=>{ S.mgMatchSel=e.target.value; S.gameEdit=false; renderManage(); };
   box.querySelectorAll("[data-nav]").forEach(el=>el.onclick=()=>{ S.mgMatchSel=el.dataset.nav; S.gameEdit=false; renderManage(); });
