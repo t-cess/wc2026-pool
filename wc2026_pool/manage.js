@@ -65,8 +65,16 @@ async function commitScorers(pool, matchId){   // ติ๊กคนยิงท
 }
 
 // ===== entry =====
+export function renderMgBanner(){   // คาดหัวแบบหน้าวง — โชว์เมื่อมีคู่กำลังแข่ง · แตะไปแท็บสกอร์
+  const hb=$("#mgBanner"); if(!hb) return;
+  const liveN=(S.allMatches||[]).filter(m=>m.live).length;
+  if(liveN){ hb.innerHTML=`<div class="k" style="margin:-14px -18px 12px;padding:6px 18px;background:linear-gradient(90deg,#1FB85E,#16a34a);color:#04210F;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#04210F;animation:pulse 1.4s infinite;"></span> กำลังแข่ง ${liveN} คู่ — แตะไปกรอกผล</div>`;
+    hb.onclick=()=>{ S.mgTab="scores"; try{localStorage.setItem("mg_tab","scores")}catch(e){}; renderManage(); }; }
+  else { hb.innerHTML=""; hb.onclick=null; }
+}
 export function renderManage(){
   if(!isSuper()){ const b=$("#mgContent"); if(b) b.innerHTML=`<div class="k" style="color:var(--dim);text-align:center;padding:60px 0;">เฉพาะ super</div>`; return; }
+  renderMgBanner();
   document.querySelectorAll("[data-mgtab]").forEach(el=>{ const on=el.dataset.mgtab===S.mgTab;
     const ind=el.querySelector(".mgind"); if(ind) ind.style.background=on?"#1FB85E":"transparent";
     const sp=el.querySelector("span"); if(sp){ sp.style.color=on?"#EEF1F4":"#5b626d"; sp.style.fontWeight=on?"700":"500"; } });

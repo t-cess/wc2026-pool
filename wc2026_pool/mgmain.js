@@ -4,7 +4,7 @@ import { firebaseConfig, MOCK } from "./config.js";
 import { auth, provider, db, collection, query, orderBy, onSnapshot,
   signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "./firebase.js";
 import { $, isSuper } from "./utils.js";
-import { loadAllPools, loadNextSet, renderManage } from "./manage.js";
+import { loadAllPools, loadNextSet, renderManage, renderMgBanner } from "./manage.js";
 
 function show(v){ const sp=$("#mgSplash"); if(sp) sp.classList.add("hidden");   // ผ่านขั้นกู้ session แล้ว
   $("#mgLogin").classList.toggle("hidden",v!=="login"); $("#mgBlock").classList.toggle("hidden",v!=="block"); $("#mgApp").classList.toggle("hidden",v!=="app"); }
@@ -14,7 +14,7 @@ function bindNav(){
   $("#mgLogout").onclick=()=>signOut(auth);
 }
 function startMatchesWatch(){
-  onSnapshot(query(collection(db,"matches"),orderBy("kickoff")), snap=>{ S.allMatches=snap.docs.map(d=>({id:d.id,...d.data()})); if(S.mgTab==="scores"||S.mgTab==="matches") renderManage(); });
+  onSnapshot(query(collection(db,"matches"),orderBy("kickoff")), snap=>{ S.allMatches=snap.docs.map(d=>({id:d.id,...d.data()})); renderMgBanner(); if(S.mgTab==="scores"||S.mgTab==="matches") renderManage(); });
 }
 
 async function enter(){
