@@ -21,9 +21,13 @@
   input,select{ outline:none; -webkit-appearance:none; }
   input::placeholder{ color:var(--dim); }
   ::-webkit-scrollbar{ width:0; height:0; }
-  .app{ width:100%; max-width:560px; margin:0 auto; min-height:100vh; min-height:100dvh; background:var(--panel); display:flex; flex-direction:column; }
+  .app{ width:100%; max-width:560px; margin:0 auto; height:100vh; height:100dvh; background:var(--panel); display:flex; flex-direction:column; position:relative; overflow:hidden; }
+  .app::before{ content:""; position:absolute; inset:0; background:url("assets/hero.jpg") center/cover no-repeat; filter:grayscale(1) brightness(.65); opacity:.05; pointer-events:none; z-index:0; }
+  #mgLogin,#mgBlock,#mgApp{ position:relative; z-index:1; }
+  #mgLogin{ background:linear-gradient(180deg, rgba(7,8,9,.42) 0%, rgba(7,8,9,.80) 48%, rgba(7,8,9,.94) 74%, #070809 100%), url("assets/hero.jpg") top center/cover no-repeat; }
+  .stripes{ display:flex; gap:5px; }
+  .stripes div{ height:7px; border-radius:99px; }
   .field{ width:100%; height:42px; padding:0 13px; font-size:13px; color:var(--ink); background:var(--inkField); border:1px solid var(--line2); border-radius:11px; font-family:'IBM Plex Sans Thai'; }
-  select.field{ background-image:none; }
   .btnG{ display:flex;align-items:center;justify-content:center; background:var(--green); color:#04210F; border:none; border-radius:12px; font-family:'Kanit'; font-weight:700; cursor:pointer; }
   .hidden{ display:none !important; }
   @keyframes toastIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
@@ -33,33 +37,49 @@
 </head>
 <body>
 <div class="app">
-  <!-- LOGIN -->
-  <div id="mgLogin" class="hidden" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:40px 26px;">
-    <h1 class="k" style="margin:0;font-weight:800;font-size:28px;">⚙️ จัดการ</h1>
-    <p style="margin:0;color:var(--mut);font-size:14px;text-align:center;">ศูนย์คุมทุกวง — เฉพาะ super admin</p>
-    <div id="mgGoogle" class="k btnG" style="height:52px;width:100%;max-width:300px;font-size:16px;">เข้าด้วย Google</div>
-    <div id="mgLiMsg" style="color:#f0a3a8;font-size:12px;text-align:center;"></div>
+  <!-- LOGIN (เหมือนหน้าเข้าวง) -->
+  <div id="mgLogin" class="hidden" style="flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:46px 26px 40px;">
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+      <div class="stripes" style="margin-bottom:22px;"><div style="width:46px;background:#EF3E42;"></div><div style="width:46px;background:#18A957;"></div><div style="width:46px;background:#2D7DF6;"></div></div>
+      <div class="k" style="font-weight:500;font-size:15px;letter-spacing:3px;color:var(--mut);text-transform:uppercase;">World Cup 2026</div>
+      <h1 class="k" style="margin:6px 0 0;font-weight:800;font-size:54px;line-height:.98;letter-spacing:-.5px;">จัดการ<span style="color:var(--green);">.</span></h1>
+      <p style="margin:18px 0 0;font-size:15px;line-height:1.6;color:var(--mut);max-width:300px;">ศูนย์คุมทุกวง — เฉพาะ super admin · ดูแลสมาชิก · สกอร์ · แชมป์ · การแข่งขัน</p>
+    </div>
+    <div>
+      <div id="mgGoogle" style="display:flex;align-items:center;justify-content:center;gap:11px;height:56px;background:#fff;border-radius:15px;cursor:pointer;font-family:'Kanit';font-weight:700;font-size:16px;color:#1a1d22;">
+        <div style="width:22px;height:22px;border-radius:50%;background:conic-gradient(#EA4335 0 25%,#FBBC05 25% 50%,#34A853 50% 75%,#4285F4 75% 100%);"></div>
+        เข้าด้วยบัญชี Google
+      </div>
+      <p id="mgLiMsg" style="text-align:center;margin:14px 0 0;font-size:12.5px;color:var(--dim);">เฉพาะ super admin เท่านั้น</p>
+    </div>
   </div>
   <!-- BLOCK (ไม่ใช่ super) -->
   <div id="mgBlock" class="hidden" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px 26px;">
     <h2 class="k" style="margin:0;font-weight:800;font-size:22px;">เฉพาะ super</h2>
     <p style="margin:0;color:var(--mut);font-size:14px;text-align:center;">บัญชีนี้ไม่มีสิทธิ์เข้าหน้าจัดการ</p>
-    <div id="mgBlockOut" class="k" style="cursor:pointer;color:#f0a3a8;font-size:14px;font-weight:700;" onclick="location.reload()">ลองบัญชีอื่น (รีโหลด)</div>
+    <div class="k" style="cursor:pointer;color:#f0a3a8;font-size:14px;font-weight:700;" onclick="location.reload()">ลองบัญชีอื่น (รีโหลด)</div>
   </div>
   <!-- APP -->
-  <div id="mgApp" class="hidden" style="flex:1;display:flex;flex-direction:column;">
-    <div style="display:flex;align-items:center;gap:8px;padding:16px 16px 10px;">
-      <h1 class="k" style="margin:0;font-weight:800;font-size:22px;flex:1;">⚙️ จัดการ</h1>
-      <span class="k" style="font-size:10px;letter-spacing:1px;color:#b9a6f0;border:1px solid #34294f;border-radius:6px;padding:3px 7px;">SUPER · ทุกวง</span>
-      <div id="mgLogout" class="k" style="cursor:pointer;font-size:11px;color:#f0a3a8;border:1px solid #5a2227;border-radius:8px;padding:5px 9px;">ออก</div>
+  <div id="mgApp" class="hidden" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+    <!-- header ล็อกบน (สไตล์เหมือนหน้าวง) -->
+    <div style="flex:none;padding:14px 18px;border-bottom:1px solid #1a1e25;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="stripes" style="margin-bottom:6px;"><div style="width:16px;height:4px;background:#EF3E42;"></div><div style="width:16px;height:4px;background:#18A957;"></div><div style="width:16px;height:4px;background:#2D7DF6;"></div></div>
+          <div class="k" style="font-weight:800;font-size:21px;line-height:1;">จัดการ <span style="font-size:10px;letter-spacing:1px;color:#b9a6f0;border:1px solid #34294f;border-radius:6px;padding:2px 7px;vertical-align:middle;margin-left:4px;">SUPER · ทุกวง</span></div>
+        </div>
+        <div id="mgLogout" class="k" style="height:34px;padding:0 11px;border-radius:10px;background:#171b22;border:1px solid #262b33;display:flex;align-items:center;color:var(--mut);font-weight:700;font-size:12px;cursor:pointer;">ออก</div>
+      </div>
     </div>
-    <div style="display:flex;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:5;">
+    <!-- tabs ล็อกบน -->
+    <div style="flex:none;display:flex;border-bottom:1px solid var(--line);background:#0c0e12;">
       <div class="mgtab k" data-mgtab="pools">วง</div>
       <div class="mgtab k" data-mgtab="scores">สกอร์&คนยิง</div>
       <div class="mgtab k" data-mgtab="champ">แชมป์</div>
       <div class="mgtab k" data-mgtab="matches">การแข่งขัน</div>
     </div>
-    <div id="mgContent" style="flex:1;padding:15px 14px 60px;"></div>
+    <!-- scroll -->
+    <div id="mgContent" style="flex:1;overflow-y:auto;padding:15px 14px 40px;min-height:0;"></div>
   </div>
 </div>
 <div id="toast" class="hidden"></div>

@@ -275,9 +275,10 @@ export function renderBoard(){
   const todayChip=t=> t>0
     ? `<div class="k" style="font-weight:700;font-size:12px;padding:3px 9px;border-radius:99px;background:#10301f;color:#5fcf94;white-space:nowrap;">+${t}</div>`
     : `<div class="k" style="font-weight:700;font-size:12px;padding:3px 9px;border-radius:99px;background:#1a1e25;color:#5b626d;white-space:nowrap;">+0</div>`;
-  let html=`<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 14px;">
+  let html=`<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 4px;">
       <h2 class="k" style="margin:0;font-weight:800;font-size:26px;">ตารางคะแนน</h2>
-      <span class="k" style="font-size:11px;color:var(--mut);display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:#1FB85E;animation:pulse 1.6s infinite;"></span>สด</span></div>`;
+      <span class="k" style="font-size:11px;color:var(--mut);display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:#1FB85E;animation:pulse 1.6s infinite;"></span>สด</span></div>
+    <div class="k" style="font-size:11.5px;color:#5b626d;margin:0 4px 14px;">แตะเพื่อดูรายละเอียด</div>`;
   const moveHTML=mv=> mv>0?`<span class="k" style="font-size:11px;color:#1FB85E;">▲</span>`:mv<0?`<span class="k" style="font-size:11px;color:#EF3E42;">▼</span>`:`<span class="k" style="font-size:11px;color:#5b626d;">–</span>`;
   if(rows.length){
     const L=rows[0]; const isMe=L.name===S.me.name;

@@ -83,17 +83,16 @@ const poolLink = code => location.origin+location.pathname.replace(/manage\.html
 function renderPoolsTab(box){
   const poolHTML=p=>{ const code=p.code; const reg=!!(p.tournament&&p.tournament.regLocked);
     const memberRows=mgRoster(p).map(n=>{ const pl=p.playersByName[n], claimed=!!pl; const pe=claimed&&p.emailByUid[pl.uid]; const isAdm=pe&&(p.admins||[]).includes(pe);
-      return `<div style="display:flex;align-items:center;gap:9px;background:#0E1116;border:1px solid #232830;border-radius:11px;padding:9px 6px 9px 11px;margin-bottom:6px;">
+      return `<div data-menu="${code}|${esc(n)}" style="display:flex;align-items:center;gap:9px;background:#0E1116;border:1px solid #232830;border-radius:11px;padding:9px 11px;margin-bottom:6px;cursor:pointer;">
         ${claimed?avatarHTML(pl.photo,32):silhouetteHTML(32)}
         <div style="flex:1;min-width:0;"><div class="k" style="font-weight:700;font-size:14px;">${esc(n)}${isAdm?' <span style="font-size:9px;color:#b9a6f0;border:1px solid #34294f;border-radius:5px;padding:1px 5px;vertical-align:middle;">แอดมิน</span>':""}</div>
-        <div style="font-size:10.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc(pe||"—"):"ยังไม่ล็อกอิน"} · ยกมา ${p.carry[n]||0}</div></div>
-        <div data-menu="${code}|${esc(n)}" class="k" style="cursor:pointer;flex:none;font-size:22px;color:#8A929E;padding:0 9px;line-height:1;">⋮</div></div>`; }).join("")||`<div class="k" style="color:var(--dim);font-size:13px;">— ยังไม่มีสมาชิก (รอคนสมัครเอง) —</div>`;
+        <div style="font-size:10.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc(pe||"—"):"ยังไม่ล็อกอิน"} · ยกมา ${p.carry[n]||0}</div></div></div>`; }).join("")||`<div class="k" style="color:var(--dim);font-size:13px;">— ยังไม่มีสมาชิก (รอคนสมัครเอง) —</div>`;
     return `<div style="background:#161226;border:1px solid #2e2546;border-radius:16px;padding:15px;margin-bottom:14px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><div class="k" style="flex:1;min-width:0;font-weight:800;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${poolName(p)}</div><span class="k" style="font-size:10px;color:#b9a6f0;border:1px solid #34294f;border-radius:6px;padding:2px 7px;flex:none;">${poolTag(p)}</span></div>
       <div class="k" style="font-size:11.5px;color:var(--mut);margin-bottom:11px;">🧑 ${mgRoster(p).length} คน · ${reg?"🔒 ปิดรับสมัคร":"🚪 เปิดรับสมัคร"}</div>
       <div style="display:flex;gap:8px;margin-bottom:11px;"><div data-enterlink="${code}" class="k btnG" style="flex:1;height:40px;font-size:13px;">เข้าวง ▸</div><div data-copylink="${code}" class="k" style="flex:1;height:40px;display:flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid #2A303A;color:#cfc2f5;font-weight:700;font-size:13px;cursor:pointer;">📋 คัดลอกลิงก์</div></div>
       <div data-reg="${code}" class="k" style="height:38px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:${reg?"#5fcf94":"#f0a3a8"};font-weight:700;font-size:12.5px;cursor:pointer;margin-bottom:11px;">${reg?"🔒 ปิดรับสมัครอยู่ — แตะเปิดรับ":"🚪 เปิดรับสมัครอยู่ — แตะปิดรับ"}</div>
-      <div class="k" style="font-weight:700;font-size:13px;color:var(--mut);margin-bottom:7px;">สมาชิก (${mgRoster(p).length}) <span style="font-size:11px;color:#5b626d;">· แตะ ⋮ จัดการ</span></div>${memberRows}
+      <div class="k" style="font-weight:700;font-size:13px;color:var(--mut);margin-bottom:7px;">สมาชิก (${mgRoster(p).length}) <span style="font-size:11px;color:#5b626d;">· แตะเพื่อจัดการ</span></div>${memberRows}
       ${code?`<div data-delpool="${code}" class="k" style="cursor:pointer;color:#EF3E42;font-size:12px;font-weight:700;padding:9px;border:1px solid #5a2227;border-radius:11px;text-align:center;margin-top:11px;">เอาวงออกจากรายการ</div>`
             :`<div class="k" style="color:#5b626d;font-size:12px;padding:9px;border:1px solid #2A303A;border-radius:11px;text-align:center;margin-top:11px;">วงหลัก — ลบไม่ได้</div>`}</div>`; };
   box.innerHTML=`
