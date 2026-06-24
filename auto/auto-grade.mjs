@@ -152,11 +152,12 @@ ${dryText}`;
 }
 // แต่งเฉพาะ "ประโยคเกริ่น + ปิดท้าย" ครอบบล็อกที่ห้ามแตะ — ใช้กับ "เปิดไพ่/ปิดรับ" ซึ่งเป็นบันทึกโปร่งใส แก้ไม่ได้
 // → โพย/สกอร์/ชื่อ คงเดิมเป๊ะ byte-for-byte (LLM ไม่แตะ) แค่ใส่บรรยากาศแซวรอบๆ
-async function spiceFrame(frozen, kind) {
+async function spiceFrame(frozen, kind, hint="") {
   if (!SPICE || !QWEN_TOKEN) return frozen;
   const prompt = `คุณคือบอท "AI กุ้ย-ชิน" ในกลุ่มไลน์เพื่อนสนิทเล่นทายผลบอลโลก 2026
 ขอ "ประโยคเกริ่นกวนๆ" 1 บรรทัด และ "ประโยคปิดท้ายแซวๆ" 1 บรรทัด แบบสุดขีด ตลกร้าย ปากจัด เหมือนเพื่อนซี้แซวกัน (ห้ามหยาบคายรุนแรง/ด่าพ่อแม่/เหยียด)
-ไว้ครอบข้อความข้างล่าง — ❌ ห้ามแตะ/ห้ามอ้างถึงตัวเลขสกอร์หรือชื่อคนในบล็อก ❌ ห้ามสมมุติชื่อใครเพิ่ม — แค่เกริ่นกับปิดท้ายบรรยากาศรวมๆ
+ไว้ครอบข้อความข้างล่าง — บล็อกจะถูกแปะตามเดิมเป๊ะอยู่แล้ว ❌ ห้ามพิมพ์ตัวเลขสกอร์/ชื่อคนในบล็อกซ้ำให้ผิดเพี้ยน ❌ ห้ามสมมุติชื่อใครเพิ่ม
+✅ แต่ "แซวภาพรวม/แนวโน้มโพยรวมๆ" ได้เต็มที่ เช่น ถ้าส่วนใหญ่ทายทางเดียวกัน = เล่นมุก "รถผ้าป่ามาแล้วจ้า เดี๋ยวคว่ำพร้อมกันทั้งคัน" / "ทัวร์ลงทางเดียวกันหมด"${hint?`\nแนวโน้มโพยรอบนี้ (ใช้เป็นวัตถุดิบแซว ยึดตามนี้ ห้ามแต่งตัวเลขเกินนี้): ${hint}`:""}
 รูปแบบ: 2 บรรทัดเท่านั้น บรรทัดแรก=ประโยคเกริ่น บรรทัดสอง=ประโยคปิดท้าย — เขียนประโยคตรงๆ ❌ ห้ามขึ้นต้นด้วยคำว่า "เกริ่น"/"ปิดท้าย" ❌ ห้ามครอบด้วยเครื่องหมายคำพูด
 ประเภท: ${kind}
 
@@ -374,6 +375,21 @@ function formatLockMsg(m, preds) {
     .map(p=>`• ${p.player} ${p.homeScore}-${p.awayScore} · ${fmtScorers(p)}`).join("\n");
   return `🔒 ปิดรับ — ${m.home} 🆚 ${m.away}\n${rows||"(ยังไม่มีใครส่งโพย)"}`;
 }
+// แนวโน้มโพยรวม (คำนวณในโค้ด = แม่น) → ป้อนให้ DeepSeek แซวภาพรวม เช่น "รถผ้าป่ามาแล้ว" ถ้าเทไปทางเดียวกัน
+function lockConsensus(m, preds) {
+  const total = preds.length;
+  if (total < 3) return "";   // คนน้อยไป ไม่สรุปเทรนด์
+  const dir = p => p.homeScore>p.awayScore?"h":p.homeScore<p.awayScore?"a":"d";
+  const c = {h:0,d:0,a:0}; preds.forEach(p=>c[dir(p)]++);
+  const lbl = {h:`${m.home} ชนะ`, d:"เสมอ", a:`${m.away} ชนะ`};
+  const top = Object.keys(c).sort((x,y)=>c[y]-c[x])[0];
+  const sc = {}; preds.forEach(p=>{ const k=`${p.homeScore}-${p.awayScore}`; sc[k]=(sc[k]||0)+1; });
+  const topSc = Object.keys(sc).sort((a,b)=>sc[b]-sc[a])[0];
+  const scNote = (sc[topSc]>=3 && sc[topSc]/total>=0.5) ? ` · สกอร์ฮิตสุด ${topSc} (${sc[topSc]}/${total} คน เหมือนลอกกันมา)` : "";
+  if (c[top]===total) return `ทุกคนทายทางเดียวกันหมด ${total}/${total} เชียร์ "${lbl[top]}" (รถผ้าป่ามาทั้งคัน คว่ำทีเดียวหมดวง)${scNote}`;
+  if (c[top]/total>=0.6) return `โพยเทไปทางเดียวกันเยอะ ${c[top]}/${total} ทาย "${lbl[top]}" (แห่ตามกันมา แซวรถผ้าป่า/ทัวร์ลงพร้อมกันได้)${scNote}`;
+  return `โพยแตกหลายทิศ ต่างคนต่างเชื่อ ไม่มีใครเทตามกันชัด${scNote}`;
+}
 // #1 โพยตอนปิดรับ + #5 เตือนก่อนปิดรับ — รวมเป็น query เดียว/รอบ (window คลุมทั้งคู่) · flag ต่อวง (กันชนถ้า multipool)
 async function lineLockNotify() {
   if (!LINE_TOKEN || !LINE_GROUP) return;   // ยังไม่ตั้ง LINE → ปิดสนิท (ไม่ query/ไม่ log)
@@ -387,7 +403,7 @@ async function lineLockNotify() {
     if (now >= lockTs) {                                   // #1 ปิดรับแล้ว → โพยทั้งวง
       if (m["lockPosted_"+pid] || m.lockPosted) continue;  // โพสต์แล้ว (รองรับ flag เก่า)
       const preds = RD(await col(POOL,"predictions").where("matchId","==",d.id).get()).docs.map(x=>x.data());
-      const text = await spiceFrame(formatLockMsg(m, preds), "ปิดรับโพย เปิดไพ่ทุกคน (โพยล็อกแล้วแก้ไม่ได้)");
+      const text = await spiceFrame(formatLockMsg(m, preds), "ปิดรับโพย เปิดไพ่ทุกคน (โพยล็อกแล้วแก้ไม่ได้)", lockConsensus(m, preds));
       if (DRY) { console.log(`[DRY] LOCK → ${m.home}-${m.away} (${preds.length} โพย)\n${text}\n`); continue; }
       if (await linePush(text)) await d.ref.set({["lockPosted_"+pid]:true},{merge:true});
     } else if (now >= lockTs - PRELOCK_LEAD_MS) {          // #5 ก่อนปิดรับ ≤1ชม → เตือนคนยังไม่ทาย
