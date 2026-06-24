@@ -60,12 +60,14 @@ export function startAuth(){
       if(metaSnap && metaSnap.exists()) S.poolMeta = metaSnap.data();
       S.admins = (adminSnap && adminSnap.exists()) ? (adminSnap.data().emails||[]) : [];
       S.me.name = playerSnap.exists() ? playerSnap.data().name : "";
+      const storedPhoto = playerSnap.exists() && playerSnap.data().photo;
+      if(storedPhoto && storedPhoto.startsWith("data:")) S.me.photo = storedPhoto;   // รูปที่อัปเอง (data URL) ทับรูป Google
       // แอดมินที่ super ติ๊ก "เป็นผู้เล่นด้วย" + ผูกชื่อไว้ (config/bind) → สร้าง player ให้อัตโนมัติตอน login ครั้งแรก
       if(!S.me.name && bindSnap && bindSnap.exists()){
         const boundName = bindSnap.data()[S.me.email];
         if(boundName){ await setDoc(poolDoc("players",S.me.uid),{uid:S.me.uid,name:boundName,photo:S.me.photo,champ1:"",champ2:""},{merge:true}); saveEmail(); S.me.name=boundName; }
       }
-      if(S.me.name){ enterApp(); setDoc(poolDoc("players",S.me.uid),{photo:S.me.photo},{merge:true}).catch(()=>{}); saveEmail(); }  // เข้าก่อน แล้วซิงก์รูป/อีเมลทีหลัง
+      if(S.me.name){ enterApp(); if(S.me.photo && !S.me.photo.startsWith("data:")) setDoc(poolDoc("players",S.me.uid),{photo:S.me.photo},{merge:true}).catch(()=>{}); saveEmail(); }  // ซิงก์รูป Google (ไม่ทับรูปที่อัปเอง) + อีเมล
       else if(isAdmin()){ enterApp(); }                 // แอดมินล้วน — เข้าดูแลได้ ไม่ต้องมีชื่อ
       else { await showIdentity(); }                     // ผู้เล่น: เลือกชื่อที่แอดมินเพิ่มไว้ (ไม่มี → block)
     }catch(e){ show("login"); $("#liMsg").textContent="อ่านข้อมูลไม่ได้: "+(e.code||e.message)+" — ยังไม่ได้ Publish Rules?"; }
@@ -171,12 +173,14 @@ function openProfileMenu(anchor){
 }
 function doChangePhoto(){   // อัปรูปจากคลังรูป → ย่อ/ครอบสี่เหลี่ยม 256px → เก็บเป็น data URL ใน player.photo (เล็ก · ไม่ต้องใช้ Storage)
   const inp=document.createElement("input"); inp.type="file"; inp.accept="image/*";
-  inp.onchange=async()=>{ const f=inp.files&&inp.files[0]; if(!f) return; toast("กำลังอัปรูป…");
+  inp.style.cssText="position:fixed;left:-9999px;opacity:0;"; document.body.appendChild(inp);   // ต้องอยู่ใน DOM ไม่งั้น iOS ไม่ยิง change
+  inp.onchange=async()=>{ const f=inp.files&&inp.files[0]; if(!f){ inp.remove(); return; } toast("กำลังอัปรูป…");
     try{ const dataUrl=await resizeImage(f,256,.82);
       await setDoc(poolDoc("players",S.me.uid),{photo:dataUrl},{merge:true}); S.me.photo=dataUrl;
       const el=$("#mePhoto"); if(el){ const img=document.createElement("img"); img.id="mePhoto"; img.referrerPolicy="no-referrer"; img.style.cssText="width:38px;height:38px;border-radius:50%;box-shadow:0 0 0 1.5px #2a2f38;flex:none;object-fit:cover;"; img.src=dataUrl; el.replaceWith(img); }
       toast("เปลี่ยนรูปแล้ว ✓");
     }catch(e){ toast("เปลี่ยนรูปไม่ได้: "+(e.message||e)); }
+    finally{ inp.remove(); }
   };
   inp.click();
 }
