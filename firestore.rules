@@ -34,13 +34,15 @@ service cloud.firestore {
     match /matches/{id} { allow read: if request.auth != null; allow write: if isSuper(); }
 
     // ===== วงหลัก (top-level) =====
-    // ผู้เล่น: อ่านได้หมด · เขียน = เจ้าของ (doc id = uid) หรือแอดมินวงหลัก (จัดการสมาชิก/ทายแชมป์)
+    // ผู้เล่น: ชื่อ/รูป/ทายแชมป์ = public ในแอปอยู่แล้ว → คน login อ่านได้ (คนใหม่ต้องอ่านรายชื่อตอน self-register)
+    //   email ไม่อยู่ใน doc นี้แล้ว (แยกไป emails/{uid} gated) → เปิดอ่านได้ไม่รั่ว PII
     match /players/{uid} {
-      // อ่าน = เจ้าของ doc (bootstrap login ไม่พัง) · แอดมิน · หรือ "เป็นสมาชิก" (มี player doc ตัวเอง) → คนนอกที่แค่ login Google ดัมพ์อีเมลทุกคนไม่ได้
-      allow read: if request.auth != null
-        && ( request.auth.uid == uid || topAdmin()
-             || exists(/databases/$(database)/documents/players/$(request.auth.uid)) );
+      allow read: if request.auth != null;
       allow write: if request.auth != null && (request.auth.uid == uid || topAdmin());
+    }
+    // อีเมล (PII) = เจ้าของ + แอดมินวงหลักเท่านั้น
+    match /emails/{uid} {
+      allow read, write: if request.auth != null && (request.auth.uid == uid || topAdmin());
     }
     // ตั้งค่า: admins/meta = super (แต่งตั้ง/สร้าง) · ที่เหลือ (carry/tournament/champPicks/...) = แอดมินวงหลัก
     match /config/{id} {
@@ -60,10 +62,11 @@ service cloud.firestore {
 
     // ===== วงอื่น (pools/{pool}) — แอดมินวงนั้นๆ ดูแลของตัวเอง · matches ยังใช้ร่วม top-level =====
     match /pools/{pool}/players/{uid} {
-      allow read: if request.auth != null
-        && ( request.auth.uid == uid || poolAdmin(pool)
-             || exists(/databases/$(database)/documents/pools/$(pool)/players/$(request.auth.uid)) );
+      allow read: if request.auth != null;   // ชื่อ/รูป/แชมป์ public · email แยกไป emails/{uid}
       allow write: if request.auth != null && (request.auth.uid == uid || poolAdmin(pool));
+    }
+    match /pools/{pool}/emails/{uid} {
+      allow read, write: if request.auth != null && (request.auth.uid == uid || poolAdmin(pool));
     }
     match /pools/{pool}/config/{id} {
       allow read: if request.auth != null;
