@@ -68,7 +68,8 @@ async function commitScorers(pool, matchId){   // ติ๊กคนยิงท
 export function renderManage(){
   if(!isSuper()){ const b=$("#mgContent"); if(b) b.innerHTML=`<div class="k" style="color:var(--dim);text-align:center;padding:60px 0;">เฉพาะ super</div>`; return; }
   document.querySelectorAll("[data-mgtab]").forEach(el=>{ const on=el.dataset.mgtab===S.mgTab;
-    el.style.color=on?"#EEF1F4":"#5b626d"; el.style.borderBottom="2px solid "+(on?"#1FB85E":"transparent"); el.style.fontWeight=on?"700":"500"; });
+    const ind=el.querySelector(".mgind"); if(ind) ind.style.background=on?"#1FB85E":"transparent";
+    const sp=el.querySelector("span"); if(sp){ sp.style.color=on?"#EEF1F4":"#5b626d"; sp.style.fontWeight=on?"700":"500"; } });
   const box=$("#mgContent"); if(!box) return;
   if(S.mgTab==="pools") renderPoolsTab(box);
   else if(S.mgTab==="scores") renderScoresTab(box);
