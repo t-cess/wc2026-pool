@@ -7,7 +7,7 @@ import { $, toast, isAdmin, isSuper } from "./utils.js";
 import { renderNav } from "./views.js";
 import { renderAdmin } from "./admin.js";
 import { renderManage } from "./manage.js";
-import { watchData } from "./data.js";
+import { watchData, renderAll } from "./data.js";
 
 export function bindAuthButtons(){
   $("#googleBtn").onclick = async ()=>{
@@ -27,13 +27,16 @@ export function bindAuthButtons(){
     if(!name){ toast(S.pickIsNew?"พิมพ์ชื่อก่อน":"เลือกชื่อก่อน"); return; }
     if(S.pickIsNew){
       if([...name].length>25){ toast("ชื่อยาวเกิน 25 ตัว"); return; }
-      try{   // re-check ชื่อซ้ำสดๆ (กัน race + กันยัดชื่อคนอื่น) — เทียบแบบไม่สนตัวพิมพ์
+      const taken=new Set();   // re-check ชื่อซ้ำสดๆ (กัน race + กันยัดชื่อคนอื่น) — เทียบแบบไม่สนตัวพิมพ์
+      if(MOCK){ Object.entries(S.playersByName||{}).forEach(([nm,p])=>{ if(nm&&p.uid!==S.me.uid) taken.add(nm.trim().toLowerCase()); }); Object.values(S.bind||{}).forEach(nm=>{ if(nm) taken.add(String(nm).trim().toLowerCase()); }); }
+      else try{
         const [pSnap,bSnap] = await Promise.all([ getDocs(poolCol("players")), getDoc(poolDoc("config","bind")) ]);
-        const taken=new Set(); pSnap.forEach(d=>{const p=d.data(); if(p.name&&p.uid!==S.me.uid) taken.add(p.name.trim().toLowerCase());});
+        pSnap.forEach(d=>{const p=d.data(); if(p.name&&p.uid!==S.me.uid) taken.add(p.name.trim().toLowerCase());});
         if(bSnap.exists()) Object.values(bSnap.data()).forEach(nm=>{ if(nm) taken.add(String(nm).trim().toLowerCase()); });
-        if(taken.has(name.toLowerCase())){ toast("ชื่อนี้มีคนใช้แล้ว ลองชื่ออื่น"); return; }
       }catch(e){}
+      if(taken.has(name.toLowerCase())){ toast("ชื่อนี้มีคนใช้แล้ว ลองชื่ออื่น"); return; }
     }
+    if(MOCK){ S.me.name=name; S.playersByName[name]={uid:S.me.uid,photo:""}; if(!(name in S.carry)) S.carry[name]=0; toast("✓ (mock) ตั้งชื่อ "+name+" + เข้าวงแล้ว"); S.tab="board"; enterAppUI(); renderAll(); return; }
     try{ await setDoc(poolDoc("players",S.me.uid),{uid:S.me.uid,email:S.me.email,name,photo:S.me.photo,champ1:"",champ2:""},{merge:true});
       S.me.name=name; enterApp(); }
     catch(e){ toast("บันทึกไม่ได้: "+(e.code||e.message)); }
@@ -84,15 +87,22 @@ function blockScreen(title,msg){
   const b=$("#blkLogout"); if(b) b.onclick=()=>signOut(auth);
 }
 
-async function showIdentity(){
-  // โหลดสมาชิก + carry + bind + tournament(regLocked) "ของวงนี้" (ตอน login ยังไม่ได้ watchData → S ยังว่าง)
-  const [pSnap, cSnap, bSnap, tSnap] = await Promise.all([ getDocs(poolCol("players")), getDoc(poolDoc("config","carry")), getDoc(poolDoc("config","bind")), getDoc(poolDoc("config","tournament")) ]);
-  const taken = new Set(); pSnap.forEach(d=>{const p=d.data(); if(p.name&&p.uid!==S.me.uid) taken.add(p.name);});
-  if(bSnap.exists()) Object.values(bSnap.data()).forEach(nm=>{ if(nm) taken.add(nm); });   // ชื่อที่ผูกอีเมลไว้ = จองให้คนนั้น ไม่ให้คนอื่นเลือก (แม้ยังไม่ login)
-  const carryNames = cSnap.exists() ? Object.keys(cSnap.data()) : [];
+export async function showIdentity(){
+  // โหลดสมาชิก + carry + bind + tournament(regLocked) "ของวงนี้" (ตอน login ยังไม่ได้ watchData → S ยังว่าง · mock = ใช้ S)
+  const taken = new Set(); let carryNames, regLocked;
+  if(MOCK){
+    Object.entries(S.playersByName||{}).forEach(([nm,p])=>{ if(nm&&p.uid!==S.me.uid) taken.add(nm); });
+    Object.values(S.bind||{}).forEach(nm=>{ if(nm) taken.add(nm); });
+    carryNames = Object.keys(S.carry||{}); regLocked = !!(S.tournament&&S.tournament.regLocked);
+  } else {
+    const [pSnap, cSnap, bSnap, tSnap] = await Promise.all([ getDocs(poolCol("players")), getDoc(poolDoc("config","carry")), getDoc(poolDoc("config","bind")), getDoc(poolDoc("config","tournament")) ]);
+    pSnap.forEach(d=>{const p=d.data(); if(p.name&&p.uid!==S.me.uid) taken.add(p.name);});
+    if(bSnap.exists()) Object.values(bSnap.data()).forEach(nm=>{ if(nm) taken.add(nm); });   // ชื่อที่ผูกอีเมลไว้ = จองให้คนนั้น ไม่ให้คนอื่นเลือก (แม้ยังไม่ login)
+    carryNames = cSnap.exists() ? Object.keys(cSnap.data()) : [];
+    regLocked = !!(tSnap.exists() && tSnap.data().regLocked);
+  }
   const base = carryNames.length ? carryNames : (POOL_ID ? [] : ROSTER);   // วงหลัก: fallback ROSTER · วงรอง: ใช้รายชื่อจริง
   const avail = base.filter(n=>!taken.has(n));
-  const regLocked = !!(tSnap.exists() && tSnap.data().regLocked);
   if(!avail.length && regLocked){ blockScreen("ปิดรับสมัครแล้ว","วงนี้ปิดรับสมาชิกใหม่ — บอกแอดมินถ้าจะเข้าร่วม"); return; }
   show("identity");
   $("#identityView h2").textContent = avail.length ? "คุณคือใคร?" : "ตั้งชื่อของคุณ";

@@ -1,14 +1,16 @@
 /* ===== mock mode: ?mock=1 → ข้อมูลปลอม ไม่ต่อ Firestore ไม่ต้อง login (ไว้เทส UX ทุกสถานะ) ===== */
 import { S } from "./state.js";
-import { enterAppUI } from "./auth.js";
+import { enterAppUI, bindAuthButtons, showIdentity } from "./auth.js";
 import { renderAll } from "./data.js";
 
 export function startMock(){
   const now = Date.now(), H = 3600000;
-  // ?as=admin = แอดมินวงธรรมดา (ไม่ใช่ super) · ?as=super = ต้น (default) — ไว้เทส gate แอดมิน
-  const asParam = new URLSearchParams(location.search).get("as");
-  const asAdmin = asParam==="admin";
-  S.me = asAdmin ? { uid:"u_kui", name:"กุ้ย", email:"kui@example.com", photo:"" }
+  // ?as=admin = แอดมินวงธรรมดา · ?as=super = ต้น (default) · ?as=new = คนใหม่ยังไม่ตั้งชื่อ (เทส self-register · +&lock=1 = ปิดรับสมัคร)
+  const params = new URLSearchParams(location.search);
+  const asParam = params.get("as");
+  const asAdmin = asParam==="admin", asNew = asParam==="new";
+  S.me = asNew  ? { uid:"u_new", name:"", email:"newbie@example.com", photo:"" }
+       : asAdmin ? { uid:"u_kui", name:"กุ้ย", email:"kui@example.com", photo:"" }
                  : { uid:"u_ton", name:"ต้น", email:"ton.itthiphon@gmail.com", photo:"" };
   S.admins = asAdmin ? ["kui@example.com","graf@example.com"] : ["graf@example.com"];   // config/admins มีทุกแอดมิน (as=admin: กุ้ย+กราฟ) · super: graf ตัวอย่าง
   if(asParam) S.tab = "admin";                     // เด้งเข้าแท็บแอดมินเลย
@@ -63,6 +65,15 @@ export function startMock(){
   S.poolMeta = { name:"กลุ่มแทงบอลเถื่อนของอาจารย์กุ้ย" };   // ชื่อวงใต้หัวข้อ
   S.bind = { "graf@example.com":"กราฟ" };                      // กราฟ = แอดมิน+ผู้เล่น → โชว์ badge แอดมิน + ลบเฉพาะ super
   S.nowTs = now;
+  if(asNew){   // เทส self-register: คนใหม่ยังไม่มีชื่อ → โชว์หน้า "ตั้งชื่อ" · เพิ่ม "ช่องว่าง" = ชื่อ pre-add ที่ยังไม่มีใคร claim (เลือกได้) · กราฟ/กุ้ย ถูก claim แล้ว
+    S.carry = { ...S.carry, "ช่องว่าง":0 };
+    delete S.playersByName["ต้น"]; delete S.playersByName["BB"]; delete S.playersByName["กอล์ฟ"];   // เหลือ กราฟ/กุ้ย claimed → avail = ช่องว่าง + พิมพ์ใหม่
+    S.tournament = { ...S.tournament, regLocked: params.has("lock") };
+    bindAuthButtons();
+    showIdentity();
+    console.log("🧪 MOCK self-register"+(S.tournament.regLocked?" · 🔒 ปิดรับสมัคร":" · เปิดรับ"));
+    return;
+  }
   enterAppUI();
   renderAll();   // ไม่มี watchData ใน mock → ต้องเรนเดอร์เอง
   console.log("🧪 MOCK mode — ข้อมูลปลอม (ไม่ต่อ Firestore)");
