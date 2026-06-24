@@ -10,7 +10,7 @@ async function commitScorers(matchId){   // เขียนคนยิงที
   for(const p of preds){ const pid=`${p.matchId}__${p.uid}`;
     if(pid in S.scorerStage){ const v=S.scorerStage[pid];
       const s1=v===1, s2=v===2, ok=v!==0, s1played=(v!==2);   // คนสองได้ = คนแรกไม่ได้ลง
-      try{ await setDoc(poolDoc("predictions",pid),{scorerOk:ok,s1hit:s1,s2hit:s2,s1played,scorerManual:true},{merge:true}); }catch(e){ toast("คนยิงบันทึกไม่ได้ (Rules?)"); }   // scorerManual = auto จะไม่ทับ
+      try{ await setDoc(poolDoc("predictions",pid),{scorerOk:ok,s1hit:s1,s2hit:s2,s1played,scorerManual:true,s1unsure:false,s2unsure:false},{merge:true}); }catch(e){ toast("คนยิงบันทึกไม่ได้ (Rules?)"); }   // scorerManual = auto จะไม่ทับ · เคลียร์ unsure = คนตัดสินแล้ว ไม่ต้องโชว์ ? อีก
       delete S.scorerStage[pid]; } }
 }
 const TEAM_LIST = Object.keys(TEAMS).sort((a,b)=>a.localeCompare(b,"th"));
@@ -38,9 +38,13 @@ export function renderAdmin(){
       const s2active=!p.s1hit&&!p.s1played;   // คนสองเกี่ยวเฉพาะตอนคนแรกไม่ยิง+ไม่ได้ลง (ให้ amber ตรงกับ views)
       const scTxt = `${p.scorer1?nm(p.scorer1,stage===1,p.s1unsure):""}${p.scorer1&&p.scorer2?' <span style="color:#3f454e;">/</span> ':""}${p.scorer2?nm(p.scorer2,stage===2,p.s2unsure&&s2active):""}`||"(ไม่ใส่คนยิง)";
       const btn=(n)=>`<div data-pick="${pid}:${n}" class="k" style="cursor:pointer;flex:none;font-weight:800;font-size:13px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:${stage===n?"#10301f":"#23272f"};color:${stage===n?"#5fcf94":"#8A929E"};border:1px solid ${stage===n?"#1f5a39":"#333"};">${n}</div>`;
+      // ✕ = ยืนยัน "ไม่ให้คะแนนคนยิง" — โชว์เฉพาะแถวที่ยังไม่ได้ให้แต้ม (stage 0) + ระบบยังไม่ชัวร์ (amber ?) · กดแล้วเคลียร์ ? (commit เขียน scorerOk:false + s*unsure:false)
+      const amber=stage===0&&(p.s1unsure||(p.s2unsure&&s2active));   // gate stage===0: กัน ✕ ไปลบแต้ม scorer2 ที่ให้ไปแล้วตอน scorer1 amber
+      const rejX=(pid in S.scorerStage)&&S.scorerStage[pid]===0;     // แอดมินกด ✕ ลงทะเบียนแล้ว (จะไฟแดง)
+      const btnX=`<div data-pick="${pid}:0" title="ไม่ให้คะแนนคนยิง (ยืนยันไม่ได้ยิง · เคลียร์ ?)" class="k" style="cursor:pointer;flex:none;font-weight:800;font-size:13px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:${rejX?"#3a1c1f":"#23272f"};color:${rejX?"#ff6b6b":"#8A929E"};border:1px solid ${rejX?"#5a2227":"#333"};">✕</div>`;
       const tick = zero ? `<span class="k" style="font-size:11px;color:#5b626d;flex:none;">0-0</span>`
         : glocked ? `<span class="k" style="flex:none;font-weight:700;font-size:12px;color:${stage?"#5fcf94":"#5b626d"};">${stage===1?"✓ คน1":stage===2?"✓ คน2":"—"}</span>`
-        : `<div style="display:flex;gap:5px;flex:none;">${p.scorer1?btn(1):""}${p.scorer2?btn(2):""}</div>`;
+        : `<div style="display:flex;gap:5px;flex:none;">${p.scorer1?btn(1):""}${p.scorer2?btn(2):""}${amber?btnX:""}</div>`;
       return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #1c2129;"><div class="k" style="width:48px;flex:none;font-weight:600;font-size:13px;">${esc(p.player)}</div><div class="k" style="width:36px;flex:none;font-weight:700;">${p.homeScore}-${p.awayScore}</div><div style="flex:1;min-width:0;font-size:12px;word-break:break-word;line-height:1.3;">${scTxt}</div>${tick}</div>`; }).join(""):`<div class="k" style="color:var(--dim);padding:10px;">ยังไม่มีคนส่งโพยคู่นี้</div>`;
   }
   const stBtn=`width:40px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#283042;color:#EEF1F4;font-size:24px;font-weight:700;cursor:pointer;user-select:none;flex:none;`;
@@ -112,7 +116,8 @@ export function renderAdmin(){
     const cur=(pid in S.scorerStage)?S.scorerStage[pid]:(p&&p.s1hit?1:(p&&p.s2hit?2:(p&&p.scorerOk?1:0)));
     const nv=(cur===n)?0:n; S.scorerStage[pid]=nv;   // กดซ้ำปุ่มที่จม=ยกเลิก · กดอีกปุ่ม=สลับ (ปุ่มเดียว)
     box.querySelectorAll(`[data-pick^="${pid}:"]`).forEach(b=>{ const bn=+b.dataset.pick.split(":")[1]; const on=nv===bn;
-      b.style.background=on?"#10301f":"#23272f"; b.style.color=on?"#5fcf94":"#8A929E"; b.style.border="1px solid "+(on?"#1f5a39":"#333"); }); });
+      const c=bn===0?["#3a1c1f","#ff6b6b","#5a2227"]:["#10301f","#5fcf94","#1f5a39"];   // ✕(0)=แดง · 1/2=เขียว
+      b.style.background=on?c[0]:"#23272f"; b.style.color=on?c[1]:"#8A929E"; b.style.border="1px solid "+(on?c[2]:"#333"); }); });
   box.querySelectorAll("[data-delmem]").forEach(el=>el.onclick=async()=>{ const n=el.dataset.delmem; const admE=adminEmailOf(n);
     if(admE&&!isSuper()){ toast("คนนี้เป็นแอดมิน — เฉพาะ super ลบได้"); return; }   // แอดมินลบกันเองไม่ได้
     if(!confirm(`ลบสมาชิก "${n}"?${admE?" (เป็นแอดมินด้วย — จะถอดแอดมิน + ปลดผูกอีเมล)":""} (ลบคะแนนยกมา + ปลดการจับคู่)`))return;

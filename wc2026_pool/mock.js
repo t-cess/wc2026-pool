@@ -46,7 +46,7 @@ export function startMock(){
     { uid:"u_graf", player:"กราฟ", matchId:"m1", homeScore:1, awayScore:1, scorer1:"", scorer2:"" },
     { uid:"u_graf", player:"กราฟ", matchId:"m2", homeScore:2, awayScore:0, scorer1:"เคน", scorer2:"" },   // m2: ต้น ยังไม่ทาย
     { uid:"u_ton",  player:"ต้น",   matchId:"m3", homeScore:2, awayScore:1, scorer1:"เอ็มบัปเป้", scorer2:"", s1hit:true, s2hit:false, s1played:true, scorerOk:true },  // สด: ผลถูก+คนยิงถูก
-    { uid:"u_graf", player:"กราฟ", matchId:"m3", homeScore:1, awayScore:1, scorer1:"กรีซมันน์", scorer2:"", s1hit:false, s1played:true, scorerOk:false },
+    { uid:"u_graf", player:"กราฟ", matchId:"m3", homeScore:1, awayScore:1, scorer1:"กรีซมันน์", scorer2:"", s1hit:false, s1played:true, scorerOk:false, s1unsure:true },   // amber: ระบบอ่านชื่อไม่ชัวร์ → โชว์ ? + ปุ่ม ✕ ให้แอดมินกดไม่ให้แต้ม
     { uid:"u_ton",  player:"ต้น",   matchId:"m4", homeScore:2, awayScore:0, scorer1:"เมสซี่", scorer2:"", s1hit:true, s2hit:false, s1played:true, scorerOk:true },     // จบ: สกอร์เป๊ะ+คนยิงถูก
     { uid:"u_graf", player:"กราฟ", matchId:"m4", homeScore:0, awayScore:0, scorer1:"", scorer2:"" },
     { uid:"u_ton",  player:"ต้น",   matchId:"m5", homeScore:1, awayScore:1, scorer1:"โรนัลโด้", scorer2:"", s1hit:true, s2hit:false, s1played:true, scorerOk:true },  // จบ: เสมอเป๊ะ+คนยิง = +6
