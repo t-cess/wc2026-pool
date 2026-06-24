@@ -18,6 +18,7 @@ export const S = {
   mgList: null,    // [{code,name,count}] รายการวงจาก registry (null = ยังไม่โหลด)
   mgData: null,    // ข้อมูลวงที่เลือก {code,carry,configChampPicks,champPicks,tournament,admins,meta,bind,playersByName,preds}
   mgCarryEdit: false,
+  mgNextSet: null, // พรีวิวคู่ชุดถัดไป (config/nextSet · auto-grade เขียนจาก ESPN) {key,fixtures:[{home,away,group,kickoff}]}
 };
 
 export function rosterNames(){

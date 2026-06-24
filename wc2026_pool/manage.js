@@ -19,6 +19,7 @@ const stBtn=`width:40px;height:44px;display:flex;align-items:center;justify-cont
 const stInp=`width:48px;height:44px;text-align:center;font-family:'Kanit';font-weight:800;font-size:22px;color:#EEF1F4;background:#0E1116;border:1px solid #2A303A;border-radius:10px;flex:none;`;
 
 const poolLabel = code => code ? esc(code) : "วงหลัก";
+const thTime = ms => { try{ return new Date(ms).toLocaleString("th-TH",{timeZone:"Asia/Bangkok",weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" น."; }catch(e){ return ""; } };
 
 // ===== data layer (ข้ามวง) =====
 function deriveChampPicks(configCP, playersByName){   // = data.js deriveChampPicks: config (legacy) + ผู้เล่นเลือกเอง (champ1/champ2) ทับ
@@ -27,11 +28,13 @@ function deriveChampPicks(configCP, playersByName){   // = data.js deriveChampPi
   return cp;
 }
 async function loadPoolList(){
-  if(MOCK){ S.mgList=[{code:"",name:"วงหลัก (mock)",count:5},{code:"YXL7K",name:"กลุ่มแทงบอลเถื่อนของอาจารย์กุ้ย (mock)",count:2}]; return; }
+  if(MOCK){ S.mgList=[{code:"",name:"วงหลัก (mock)",count:5},{code:"YXL7K",name:"กลุ่มแทงบอลเถื่อนของอาจารย์กุ้ย (mock)",count:2}];
+    S.mgNextSet={ key:"2026-06-25", fixtures:[{home:"ญี่ปุ่น",away:"สวีเดน",group:"กลุ่ม F นัด 3",kickoff:Date.now()+30*3600000},{home:"ตุรกี",away:"สหรัฐฯ",group:"กลุ่ม D นัด 3",kickoff:Date.now()+33*3600000}] }; return; }
   let pools=[{code:"",name:"วงหลัก"}];
   try{ const idx=await getDoc(doc(db,"config","poolsIndex")); if(idx.exists()&&Array.isArray(idx.data().pools)) pools=idx.data().pools; }catch(e){}
   const counts=await Promise.all(pools.map(p=>getDoc(poolDocFor(p.code,"config","carry")).then(s=>s.exists()?Object.keys(s.data()).length:0).catch(()=>0)));
   S.mgList=pools.map((p,i)=>({...p,count:counts[i]}));
+  try{ const ns=await getDoc(doc(db,"config","nextSet")); S.mgNextSet=ns.exists()?ns.data():null; }catch(e){ S.mgNextSet=null; }
 }
 async function fetchPool(code){
   if(MOCK){   // mock ไม่ต่อ DB → ยืมข้อมูลวงปัจจุบันใน S เป็นวงที่เลือก
@@ -99,6 +102,12 @@ function renderPoolList(box){
       <div style="display:flex;gap:8px;margin-bottom:8px;"><select id="amGroup" class="field">${groupOpts}</select><select id="amRound" class="field">${roundOpts}</select></div>
       <input id="amKick" class="field" placeholder="📅 แตะเลือกวัน-เวลาเตะ" readonly style="margin-bottom:12px;cursor:pointer;">
       <div id="amAdd" class="k btnG" style="height:44px;font-size:14px;">เพิ่มคู่</div></div>
+    ${(S.mgNextSet&&S.mgNextSet.fixtures&&S.mgNextSet.fixtures.length)?`
+    <div style="background:#0f1a14;border:1px solid #1e3a2a;border-radius:16px;padding:15px;margin-bottom:13px;">
+      <div class="k" style="font-weight:700;font-size:15px;color:#7fd6a0;margin-bottom:3px;">🔮 คู่ชุดถัดไป <span style="font-size:10px;color:#5b626d;font-weight:600;">· เปิดให้ทายอัตโนมัติเมื่อชุดนี้จบ</span></div>
+      <div class="k" style="font-size:11.5px;color:var(--mut);margin-bottom:9px;">ดึงล่วงหน้าจาก ESPN — ${S.mgNextSet.fixtures.length} คู่ (auto เพิ่มเอง ไม่ต้องกรอกมือ)</div>
+      ${S.mgNextSet.fixtures.map(f=>`<div style="padding:7px 0;border-top:1px solid #15261c;"><div class="k" style="font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${fe(f.home)} ${esc(f.home)} <span style="color:#5b626d;">vs</span> ${esc(f.away)} ${fe(f.away)}</div><div style="font-size:11px;color:var(--mut);margin-top:1px;">${esc(f.group||"")} · ${thTime(f.kickoff)}</div></div>`).join("")}
+    </div>`:""}
     <div style="background:#161226;border:1px solid #2e2546;border-radius:16px;padding:15px;margin-bottom:13px;">
       <div class="k" style="font-weight:700;font-size:15px;color:#b9a6f0;margin-bottom:11px;">🆕 สร้างวงใหม่</div>
       <div style="display:flex;gap:8px;margin-bottom:7px;"><input id="npName" class="field" placeholder="ชื่อวงใหม่ (เช่น วงออฟฟิศ)"><div id="npCreate" class="k btnG" style="width:92px;height:44px;font-size:13px;flex:none;">+ สร้างวง</div></div>
