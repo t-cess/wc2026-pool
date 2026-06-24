@@ -14,11 +14,11 @@ export const S = {
   expanded: {}, editing: {}, scorerStage: {},
   nowTs: Date.now(),
   adminSel: "", carryEdit: false, gameEdit: false, fp: null,
-  // ----- หน้า "จัดการ" ข้ามวง (super) -----
-  mgPool: null,    // code วงที่กำลังจัดการ (null = แสดงรายการวงทั้งหมด)
-  mgList: null,    // [{code,name,count}] รายการวงจาก registry (null = ยังไม่โหลด)
-  mgData: null,    // ข้อมูลวงที่เลือก {code,carry,configChampPicks,champPicks,tournament,admins,meta,bind,playersByName,preds}
-  mgCarryEdit: false,
+  // ----- หน้า "จัดการ" standalone (manage.html · super · ทุกวงพร้อมกัน) -----
+  mgPools: [],     // ทุกวง: [{code,name,carry,admins,champPicks,configChampPicks,tournament,bind,playersByName,emailByUid,preds,meta}]
+  mgTab: "pools",  // แท็บปัจจุบัน: pools | scores | champ | matches
+  mgMatchSel: "",  // คู่ที่เลือกในแท็บสกอร์ (matchId)
+  mgCarryEdit: {}, // {code:true} โหมดแก้คะแนนยกมาของวงนั้น
   mgNextSet: null, // พรีวิวคู่ชุดถัดไป (config/nextSet · auto-grade เขียนจาก ESPN) {key,fixtures:[{home,away,group,kickoff}]}
 };
 

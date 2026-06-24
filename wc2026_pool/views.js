@@ -5,7 +5,6 @@ import { fe, CHAMP_TEAMS, MOCK } from "./config.js";
 import { $, esc, flag, avatarHTML, bindAvatars, toast, countdown, fmtKo, isAdmin, isSuper, ymdNYC, matchNightLabel, matchNightShort } from "./utils.js";
 import { stateOf, lockTs, scoreMatch, computeBoard } from "./scoring.js";
 import { renderAdmin } from "./admin.js";
-import { renderManage } from "./manage.js";
 
 let scrollDayChip=false;   // เลื่อนชิปวันที่เลือกมากลางจอ "เฉพาะ" ตอนเปลี่ยนวัน/เปิดแรก — ไม่ใช่ทุก re-render (กันเด้งตอนกดซ่อน/แสดงโพย)
 
@@ -31,7 +30,7 @@ export function renderHeader(){
       hb.innerHTML = notPred ? banner("linear-gradient(90deg,#E0A800,#caa227)","#1a1400",`ยังไม่ได้ทาย ${notPred} คู่${tapHint}`)
                              : banner("linear-gradient(90deg,#1FB85E,#16a34a)","#04210F",`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#04210F;animation:pulse 1.4s infinite;"></span> กำลังแข่ง ${liveN} คู่`);
       hb.onclick=()=>{   // แตะแถบ → ไปแท็บทายผล + filter คู่ที่เกี่ยว (ยังไม่ทาย→เปิดทาย · สด→กำลังแข่ง)
-        S.tab="fixtures"; ["fixtures","champion","board","admin","manage"].forEach(t=>$("#tab-"+t).classList.toggle("hidden",t!=="fixtures")); renderNav();
+        S.tab="fixtures"; ["fixtures","champion","board","admin"].forEach(t=>$("#tab-"+t).classList.toggle("hidden",t!=="fixtures")); renderNav();
         S.filter = notPred?"open":"locked"; S.filterTouched=true; renderFixtures(); renderHeader();
       };
     } else { hb.innerHTML=""; hb.onclick=null; }
@@ -42,7 +41,6 @@ export function renderHeader(){
 export function renderNav(){
   const tabs=[["fixtures","ทายผล"],["champion","แชมป์"],["board","คะแนน"]];
   if(isAdmin()) tabs.push(["admin","แอดมิน"]);
-  if(isSuper()) tabs.push(["manage","จัดการ"]);
   const nav=$("#bottomNav"); nav.innerHTML="";
   tabs.forEach(([k,label])=>{
     const active=S.tab===k;
@@ -50,9 +48,16 @@ export function renderNav(){
     d.style.cssText="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 0;cursor:pointer;";
     d.innerHTML=`<div style="width:22px;height:3px;border-radius:99px;background:${active?"#1FB85E":"transparent"};"></div>
       <div class="k" style="font-weight:${active?700:500};font-size:12px;color:${active?"#EEF1F4":"#5b626d"};">${label}</div>`;
-    d.onclick=()=>{ S.tab=k; if(!MOCK)try{localStorage.setItem("wc_tab",k)}catch(e){}; ["fixtures","champion","board","admin","manage"].forEach(t=>$("#tab-"+t).classList.toggle("hidden",t!==k)); renderNav(); renderHeader(); if(k==="admin")renderAdmin(); if(k==="manage")renderManage(); };
+    d.onclick=()=>{ S.tab=k; if(!MOCK)try{localStorage.setItem("wc_tab",k)}catch(e){}; ["fixtures","champion","board","admin"].forEach(t=>$("#tab-"+t).classList.toggle("hidden",t!==k)); renderNav(); renderHeader(); if(k==="admin")renderAdmin(); };
     nav.appendChild(d);
   });
+  if(isSuper()){   // super → ลิงก์ไปหน้าจัดการแยก (manage.html)
+    const d=document.createElement("div");
+    d.style.cssText="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 0;cursor:pointer;";
+    d.innerHTML=`<div style="width:22px;height:3px;border-radius:99px;background:transparent;"></div><div class="k" style="font-weight:500;font-size:12px;color:#b9a6f0;">⚙️ จัดการ</div>`;
+    d.onclick=()=>{ location.href="manage.html"; };
+    nav.appendChild(d);
+  }
 }
 
 /* ===== fixtures ===== */
