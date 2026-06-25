@@ -172,11 +172,11 @@ export function renderFixtures(){
           const resG=showPts && sgn(p.homeScore,p.awayScore)===sgn(m.homeScore,m.awayScore);   // ผลทาย (แพ้/ชนะ/เสมอ) ถูก
           const exact=showPts && p.homeScore===m.homeScore && p.awayScore===m.awayScore;        // สกอร์เป๊ะ → มงกุฎ
           // เขียว=ตรงคนยิง · amber+?=ระบบอ่านชื่อไม่ออก ไม่แน่ใจจะได้แต้ม · เทา=ไม่ได้
-          const nm=(t,g,u)=>g?`<span style="color:#1FB85E;font-weight:700;">${esc(t)} ✓</span>`:u?`<span style="color:#E0A33E;font-weight:600;" title="ระบบอ่านชื่อไม่ออก ยังไม่แน่ใจว่าจะได้แต้ม">${esc(t)} ?</span>`:`<span style="color:var(--mut);">${esc(t)}</span>`;
+          const nm=(t,g,u,np,sk)=>g?`<span style="color:#1FB85E;font-weight:700;">${esc(t)} ✓</span>`:u?`<span style="color:#E0A33E;font-weight:600;" title="ระบบอ่านชื่อไม่ออก ยังไม่แน่ใจว่าจะได้แต้ม">${esc(t)} ?</span>`:np?`<span style="color:#EF3E42;">${esc(t)} <b style="font-weight:800;">ไม่ลง</b></span>`:sk?`<span style="color:var(--dim);text-decoration:line-through;">${esc(t)}</span>`:`<span style="color:var(--mut);">${esc(t)}</span>`;
           let scH;
           if(zero) scH=`<span style="color:var(--mut);">ไม่มีคนยิง</span>`;
-          // คนสองขึ้นสถานะ (เขียว/amber) เฉพาะตอนเป็น "ตัวที่ได้แต้มจริง" = คนแรกไม่ยิง+ไม่ได้ลง (กันติ๊กซ้ำ  2 คน)
-          else { const s2active=!p.s1hit&&!p.s1played; const ps=[]; if(p.scorer1)ps.push(nm(p.scorer1, showPts&&p.s1hit, showPts&&p.s1unsure)); if(p.scorer2)ps.push(nm(p.scorer2, showPts&&p.s2hit&&s2active, showPts&&p.s2unsure&&s2active)); scH=ps.join(` <span style="color:#3f454e;">/</span> `)||"—"; }
+          // คนสองขึ้นสถานะ (เขียว/amber) เฉพาะตอนเป็น "ตัวที่ได้แต้มจริง" = คนแรกไม่ยิง+ไม่ได้ลง (กันติ๊กซ้ำ  2 คน) · คนแรกไม่ลง = แดง+"ไม่ลง" · คนแรกลง/ยิง → คนสองขีดฆ่า (ไม่ได้ใช้)
+          else { const s2active=!p.s1hit&&!p.s1played; const ps=[]; if(p.scorer1)ps.push(nm(p.scorer1, showPts&&p.s1hit, showPts&&p.s1unsure, showPts&&p.s1played===false)); if(p.scorer2)ps.push(nm(p.scorer2, showPts&&p.s2hit&&s2active, showPts&&p.s2unsure&&s2active, showPts&&p.s2played===false, showPts&&!s2active)); scH=ps.join(` <span style="color:#3f454e;">/</span> `)||"—"; }
           inner+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;margin-bottom:4px;background:${isMe?"#16241a":"transparent"};border:1px solid ${isMe?"#1f5a39":"transparent"};">
             <div class="k" style="width:46px;flex:none;font-weight:600;font-size:13.5px;">${esc(p.player)}</div>
             <div class="k" style="width:58px;flex:none;font-weight:700;font-size:14px;color:${resG?'#1FB85E':'#cfd4db'};">${p.homeScore}-${p.awayScore}${exact?' 🔥':resG?' ✓':''}</div>
@@ -275,6 +275,12 @@ export function renderBoard(){
   const todayChip=t=> t>0
     ? `<div class="k" style="font-weight:700;font-size:12px;padding:3px 9px;border-radius:99px;background:#10301f;color:#5fcf94;white-space:nowrap;">+${t}</div>`
     : `<div class="k" style="font-weight:700;font-size:12px;padding:3px 9px;border-radius:99px;background:#1a1e25;color:#5b626d;white-space:nowrap;">+0</div>`;
+  const edgeColor=rank=> rank<=3 ? "#3b82f6" : "#EF3E42";   // ขลิบ: น้ำเงิน=เข้าเงิน(Top3) · แดง=ตกชั้น(4-6)
+  const formPill=pts=>{ const gold=pts>=5, green=pts>0&&pts<5;   // 0=แดง · 1-4=เขียว · 5-6=ทองออร่า ฟ้อนต์ใหญ่
+    const col=gold?"#FFD23F":green?"#27d26e":"#EF3E42", bg=gold?"rgba(255,210,63,.16)":green?"#10301f":"rgba(239,62,66,.14)";
+    const sz=gold?20:17, fs=gold?13:11, glow=gold?"box-shadow:0 0 9px rgba(255,210,63,.55);text-shadow:0 0 7px rgba(255,210,63,.7);":"";
+    return `<span class="k" style="display:inline-flex;align-items:center;justify-content:center;flex:none;width:${sz}px;height:${sz}px;border-radius:5px;font-weight:800;font-size:${fs}px;color:${col};background:${bg};${glow}">${pts}</span>`; };
+  const formStrip=form=> form.length?`<div style="display:flex;align-items:center;gap:3px;flex:none;">${form.map(formPill).join("")}</div>`:"";
   let html=`<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 4px;">
       <h2 class="k" style="margin:0;font-weight:800;font-size:26px;">ตารางคะแนน</h2>
       <span class="k" style="font-size:11px;color:var(--mut);display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:#1FB85E;animation:pulse 1.6s infinite;"></span>สด</span></div>
@@ -283,6 +289,7 @@ export function renderBoard(){
   if(rows.length){
     const L=rows[0]; const isMe=L.name===S.me.name;
     html+=`<div data-player="${esc(L.name)}" style="cursor:pointer;position:relative;background:linear-gradient(135deg,#113322 0%,#0f1f17 50%,#14171D 100%);border:1px solid #2a7a4e;border-radius:22px;padding:20px;margin-bottom:18px;overflow:hidden;box-shadow:0 0 0 1px rgba(31,184,94,.12),0 20px 44px -20px rgba(31,184,94,.5);">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:5px;background:#3b82f6;box-shadow:0 0 12px rgba(59,130,246,.7);pointer-events:none;"></div>
         <div style="position:absolute;top:-25px;bottom:-85px;right:-12px;width:200px;background:url('assets/trophy.png') right center/contain no-repeat;opacity:.07;pointer-events:none;"></div>
         <div style="position:absolute;top:0;left:0;width:55%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.16),transparent);animation:shine 4.6s ease-in-out infinite;pointer-events:none;"></div>
         <div style="position:relative;display:flex;align-items:center;gap:9px;">
@@ -297,20 +304,27 @@ export function renderBoard(){
           <div style="flex:1;min-width:0;">
             <div class="k" style="font-weight:800;font-size:32px;color:#fff;line-height:1;">${esc(L.name)}</div>
             <div class="k" style="display:inline-block;margin-top:9px;font-weight:700;font-size:12px;color:#04210F;background:#1FB85E;padding:4px 12px;border-radius:99px;white-space:nowrap;box-shadow:0 0 16px -2px rgba(31,184,94,.85);">+${L.todayPts} วันนี้</div></div>
+          ${L.form.length?`<div style="align-self:flex-end;margin-bottom:15px;">${formStrip(L.form)}</div>`:""}
           <div style="flex:none;text-align:right;line-height:.82;position:relative;">
             <div style="position:absolute;inset:-22px;background:radial-gradient(circle,rgba(31,184,94,.38),transparent 70%);animation:glowPulse 2.6s ease-in-out infinite;pointer-events:none;"></div>
             <div class="k" style="position:relative;font-weight:800;font-size:56px;color:#27d26e;text-shadow:0 0 24px rgba(31,184,94,.65);">${L.total}</div>
             <div class="k" style="position:relative;font-size:11px;color:#5fcf94;letter-spacing:1px;">แต้มรวม</div></div></div></div>`;
     html+=`<div style="display:flex;align-items:center;padding:0 14px 8px;" class="k"><div style="width:30px;font-size:11px;color:#5b626d;">#</div><div style="flex:1;font-size:11px;color:#5b626d;">ผู้เล่น</div><div style="margin-right:10px;font-size:11px;color:#5b626d;">วันนี้</div><div style="width:42px;text-align:right;font-size:11px;color:#5b626d;">รวม</div></div>`;
     rows.slice(1).forEach(r=>{ const m_=r.name===S.me.name;
-      html+=`<div data-player="${esc(r.name)}" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:13px 14px;border-radius:14px;margin-bottom:8px;background:${m_?"#16241a":"#14171D"};border:1px solid ${m_?"#1f5a39":"#232830"};">
+      html+=`<div data-player="${esc(r.name)}" style="cursor:pointer;position:relative;overflow:hidden;display:flex;align-items:center;gap:8px;padding:13px 14px;border-radius:14px;margin-bottom:8px;background:${m_?"#16241a":"#14171D"};border:1px solid ${m_?"#1f5a39":"#232830"};">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:${edgeColor(r.rank)};pointer-events:none;"></div>
           <div class="k" style="width:24px;font-weight:800;font-size:18px;color:#5b626d;">${String(r.rank).padStart(2,"0")}</div>
           ${avatarHTML(r.photo,34)}
           <div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px;"><span class="k" style="font-weight:700;font-size:16px;">${esc(r.name)}</span>${moveHTML(r.move)}${m_?`<span class="k" style="font-weight:700;font-size:10px;color:#5fcf94;background:#10301f;padding:2px 8px;border-radius:99px;">คุณ</span>`:""}</div>
+          ${formStrip(r.form)}
           ${todayChip(r.todayPts)}
           <div class="k" style="width:42px;text-align:right;font-weight:800;font-size:24px;">${r.total}</div></div>`; });
   }
-  html+=`<div style="text-align:center;margin-top:8px;font-size:11px;color:#3f454e;">${champion?("แชมป์: "+esc(champion)+" · "):""}ชนะ +1 · เสมอ +2 · สกอร์เป๊ะ +3 · คนยิง +1 · แชมป์ +10</div>`;
+  html+=`<div style="display:flex;align-items:center;justify-content:center;gap:18px;margin-top:14px;font-size:11.5px;color:#7a828d;" class="k">
+      <span style="display:flex;align-items:center;gap:6px;"><span style="width:11px;height:4px;border-radius:2px;background:#3b82f6;"></span>เข้าเงินรางวัล (3 อันดับแรก)</span>
+      <span style="display:flex;align-items:center;gap:6px;"><span style="width:11px;height:4px;border-radius:2px;background:#EF3E42;"></span>ตกชั้น (3 อันดับท้าย)</span></div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:9px;font-size:11px;color:#7a828d;" class="k">ฟอร์ม 5 นัดล่าสุด: ${formPill(0)}<span style="color:#EF3E42;">0</span> ${formPill(3)}<span style="color:#27d26e;">1-4</span> ${formPill(6)}<span style="color:#FFD23F;">5-6</span> แต้ม/นัด</div>
+    <div style="text-align:center;margin-top:9px;font-size:11px;color:#3f454e;">${champion?("แชมป์: "+esc(champion)+" · "):""}ชนะ +1 · เสมอ +2 · สกอร์เป๊ะ +3 · คนยิง +1 · แชมป์ +10</div>`;
   box.innerHTML=html; bindAvatars(box);
   box.querySelectorAll("[data-player]").forEach(el=>el.onclick=()=>openPlayerSheet(el.dataset.player));   // แตะชื่อ → หน้าแต้มรายคู่
 }

@@ -23,17 +23,23 @@ export function isToday(ts){ if(!ts) return false; return ymdNYC(ts)===ymdNYC(S.
 export function computeBoard(){
   const champion = norm(S.tournament.champion||"");
   const mById = Object.fromEntries(S.matches.map(m=>[m.id,m]));
-  const mp={}, tp={};   // แต้มรายคู่รวม / แต้มวันนี้
+  const mp={}, tp={}, byP={};   // แต้มรายคู่รวม / แต้มวันนี้ / โพยแยกตามคน
   S.allPreds.forEach(p=>{ const m=mById[p.matchId]; const pts=scoreMatch(p,m);
     mp[p.player]=(mp[p.player]||0)+pts;
+    (byP[p.player]||(byP[p.player]=[])).push(p);
     if(m && (m.status==="finished"||m.live) && isToday(m.kickoff)) tp[p.player]=(tp[p.player]||0)+pts; });
+  const formOf = name => (byP[name]||[])
+    .map(p=>({m:mById[p.matchId],p}))
+    .filter(x=>x.m && (x.m.status==="finished"||x.m.live))
+    .sort((a,b)=>(a.m.kickoff||0)-(b.m.kickoff||0))
+    .slice(-5).map(x=>scoreMatch(x.p,x.m));   // 5 นัดล่าสุด เก่า→ใหม่ (แต้มต่อนัด 0-6)
   const names = new Set([...rosterNames(),...Object.keys(S.champPicks)]);
   const cur={};
   const rows=[...names].map(name=>{
     let champPts=0; if(champion) champPts=(S.champPicks[name]||[]).map(norm).filter(t=>t===champion).length*10;
     const total=(S.carry[name]||0)+(mp[name]||0)+champPts;
     cur[name]=total;
-    return {name,carryPts:S.carry[name]||0,matchPts:mp[name]||0,todayPts:tp[name]||0,champPts,total,photo:(S.playersByName[name]||{}).photo||""};
+    return {name,carryPts:S.carry[name]||0,matchPts:mp[name]||0,todayPts:tp[name]||0,champPts,total,form:formOf(name),photo:(S.playersByName[name]||{}).photo||""};
   });
   const prevTot={}; rows.forEach(r=>prevTot[r.name]=r.total-r.todayPts);
   const curRank=rankMap(cur), prevRank=rankMap(prevTot);
