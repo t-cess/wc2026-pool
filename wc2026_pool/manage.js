@@ -59,8 +59,8 @@ export async function loadNextSet(){
 }
 async function commitScorers(pool, matchId){   // ติ๊กคนยิงที่ค้างของวงนี้ · stage key = code|pid (กัน uid ซ้ำข้ามวง)
   for(const p of pool.preds.filter(x=>x.matchId===matchId)){ const pid=`${p.matchId}__${p.uid}`, key=`${pool.code}|${pid}`;
-    if(key in S.scorerStage){ const v=S.scorerStage[key]; const s1=v===1,s2=v===2,ok=v!==0,s1played=(v!==2);
-      try{ await setDoc(poolDocFor(pool.code,"predictions",pid),{scorerOk:ok,s1hit:s1,s2hit:s2,s1played,scorerManual:true,s1unsure:false,s2unsure:false},{merge:true}); }catch(e){ toast("คนยิงบันทึกไม่ได้"); }
+    if(key in S.scorerStage){ const st=S.scorerStage[key]; const s1=st[0]==="g",s2=st[1]==="g",ok=s1||s2,s1played=st[0]!=="x",s2played=st[1]!=="x";
+      try{ await setDoc(poolDocFor(pool.code,"predictions",pid),{scorerOk:ok,s1hit:s1,s2hit:s2,s1played,s2played,scorerManual:true,s1unsure:false,s2unsure:false},{merge:true}); }catch(e){ toast("คนยิงบันทึกไม่ได้"); }
       delete S.scorerStage[key]; } }
 }
 
@@ -155,20 +155,22 @@ function renderScoresTab(box){
   const glocked=selM.status==="finished"&&!S.gameEdit;
   const selIdx=gradeable.findIndex(m=>m.id===selM.id);
   const navBtn=(d,g)=>{ const tgt=gradeable[selIdx+d], off=!tgt; return `<div ${off?"":`data-nav="${tgt.id}"`} class="k" style="flex:none;display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:11px;background:#283042;border:1px solid #2A303A;color:#EEF1F4;font-size:15px;${off?"opacity:.3;":"cursor:pointer;"}">${g}</div>`; };
+  // แตะชื่อ = วนสถานะ (ตรวจคนยิง+คนลงสนามด้วยมือ ได้ทุกสถานะ) · state = 2 ตัวอักษร [คนแรก][คนสอง]
+  //   คนแรก n=ปกติ g=ยิง x=ไม่ลง · คนสอง n=ปกติ g=ยิง d=ขีดฆ่า(ไม่ได้ใช้)
+  //   แตะคนแรก: nn→gd→xn→nn · แตะคนสอง: nn→xg→nd→nn · ยิงได้คนเดียว (อีกคนเป็น g อยู่ → เตือน)
+  const SC={g:"#5fcf94",x:"#ff6b6b",am:"#E0A33E"};
+  const defSt=pr=> pr.s1hit?"gd" : (pr.s2hit||(pr.scorerOk&&pr.scorer2))?"xg" : (pr.s1played===false?(pr.s2played===false?"xx":"xn"):"nd");
+  const nameSpan=(pr,key,st,w)=>{ const name=w===1?pr.scorer1:pr.scorer2; if(!name) return "";
+    const c=w===1?st[0]:st[1], staged=key in S.scorerStage; let col="var(--mut)",deco="",suf="";
+    if(w===1){ if(c==="g"){col=SC.g;} else if(c==="x"){col=SC.x;} else if(!staged&&pr.s1unsure){col=SC.am;suf=" ?";} }
+    else { if(c==="g"){col=SC.g;} else if(c==="x"){col=SC.x;} else if(c==="d"){col="var(--dim)";deco="text-decoration:line-through;";} else if(!staged&&pr.s2unsure&&st[0]==="x"){col=SC.am;suf=" ?";} }
+    return `<span data-tap="${key}" class="k" style="cursor:pointer;color:${col};font-weight:600;${deco}">${esc(name)}${suf}</span>`; };
+  const rowHTML=(pr,code)=>{ const pid=`${pr.matchId}__${pr.uid}`, key=`${code}|${pid}`;
+    const scored=scoreMatch(pr,selM)>0, st=(key in S.scorerStage)?S.scorerStage[key]:defSt(pr);
+    const names=(pr.scorer1||pr.scorer2)?`${nameSpan(pr,key,st,1)}${pr.scorer1&&pr.scorer2?'<span style="color:#3f454e;"> / </span>':""}${nameSpan(pr,key,st,2)}`:`<span style="color:var(--dim);">(ไม่ใส่คนยิง)</span>`;
+    return `<div data-row="${key}" style="display:flex;align-items:center;gap:7px;padding:8px 9px;border-bottom:1px solid #1c2129;"><div class="k" style="width:46px;flex:none;font-weight:600;font-size:12.5px;">${esc(pr.player)}</div><div class="k" style="width:34px;flex:none;font-weight:700;color:${scored?'#5fcf94':'#EEF1F4'};">${pr.homeScore}-${pr.awayScore}</div><div style="flex:1;min-width:0;font-size:13px;word-break:break-word;line-height:1.45;">${names}</div></div>`; };
   const poolGrade=p=>{ const preds=p.preds.filter(x=>x.matchId===selM.id);
-    const rows=preds.length?preds.map(pr=>{ const pid=`${pr.matchId}__${pr.uid}`, key=`${p.code}|${pid}`;
-      const scored=scoreMatch(pr,selM)>0;
-      const stage=(key in S.scorerStage)?S.scorerStage[key]:(pr.scorerOk?(pr.s1hit?1:2):0);
-      const nm=(t,on,u)=>`<span style="color:${on?'#5fcf94':u?'#E0A33E':'var(--mut)'};${on?'font-weight:700;':u?'font-weight:600;':''}">${esc(t)}${u&&!on?' ?':''}</span>`;
-      const s2active=!pr.s1hit&&!pr.s1played;
-      const scTxt=`${pr.scorer1?nm(pr.scorer1,stage===1,pr.s1unsure):""}${pr.scorer1&&pr.scorer2?' <span style="color:#3f454e;">/</span> ':""}${pr.scorer2?nm(pr.scorer2,stage===2,pr.s2unsure&&s2active):""}`||"(ไม่ใส่คนยิง)";
-      // เลย์เอาต์ล็อก 3 ปุ่ม [1][2][✕] · ไม่ทายคนยิง = ปุ่มเทา disable · ✕ = เคลียร์ amber/ยกเลิกยิง
-      const cell=(label,nn,enabled)=>{ const on=enabled&&stage===nn; const base="flex:none;font-weight:800;font-size:13px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;";
-        if(!enabled) return `<div class="k" style="${base}background:#16191f;color:#3a3f48;border:1px solid #23262d;">${label}</div>`;
-        const c=nn===0?["#3a1c1f","#ff6b6b","#5a2227"]:["#10301f","#5fcf94","#1f5a39"];
-        return `<div ${glocked?"":`data-pick="${p.code}|${pid}|${nn}"`} class="k" style="${glocked?"":"cursor:pointer;"}${base}background:${on?c[0]:"#23272f"};color:${on?c[1]:"#8A929E"};border:1px solid ${on?c[2]:"#333"};${glocked&&!on?"opacity:.45;":""}">${label}</div>`; };
-      const tick=`<div style="display:flex;gap:5px;flex:none;">${cell("1",1,!!pr.scorer1)}${cell("2",2,!!pr.scorer2)}${cell("✕",0,true)}</div>`;   // ✕ active เสมอได้ (= ไม่ให้คะแนน) → มี 1 ปุ่ม active ตลอด
-      return `<div style="display:flex;align-items:center;gap:7px;padding:7px 9px;border-bottom:1px solid #1c2129;"><div class="k" style="width:46px;flex:none;font-weight:600;font-size:12.5px;">${esc(pr.player)}</div><div class="k" style="width:34px;flex:none;font-weight:700;color:${scored?'#5fcf94':'#EEF1F4'};">${pr.homeScore}-${pr.awayScore}</div><div style="flex:1;min-width:0;font-size:11.5px;word-break:break-word;line-height:1.3;">${scTxt}</div>${tick}</div>`; }).join(""):`<div class="k" style="color:var(--dim);padding:8px;font-size:12px;">ไม่มีโพยคู่นี้</div>`;
+    const rows=preds.length?preds.map(pr=>rowHTML(pr,p.code)).join(""):`<div class="k" style="color:var(--dim);padding:8px;font-size:12px;">ไม่มีโพยคู่นี้</div>`;
     return `<div style="margin-bottom:11px;"><div class="k" style="font-weight:700;font-size:13px;color:#b9a6f0;margin-bottom:5px;">${poolName(p)} <span style="font-size:10px;color:#5b626d;">${poolTag(p)}</span></div><div style="background:#0E1116;border:1px solid #232830;border-radius:11px;overflow:hidden;">${rows}</div></div>`; };
   box.innerHTML=`
     ${card(`<div class="k" style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;margin-bottom:10px;">✅ กรอกผล (ใช้ร่วมทุกวง)${glocked?'<span style="font-size:11px;color:#9cc3f3;">🔒 จบแล้ว</span>':''}</div>
@@ -179,14 +181,31 @@ function renderScoresTab(box){
       ${((selM.goals&&selM.goals.length)||(selM.scorers&&selM.scorers.length))?`<div class="k" style="font-size:11.5px;color:#9cc3f3;background:#11202e;border:1px solid #1c3347;border-radius:9px;padding:7px 10px;margin-bottom:10px;line-height:1.5;">⚽ คนยิงจริง: ${selM.goals&&selM.goals.length?selM.goals.map(g=>esc(g.name)+(g.time?` <span style="color:#5b8db5;">${esc(g.time)}</span>`:"")).join(" · "):selM.scorers.map(s=>esc(s)).join(" · ")}</div>`:""}
       ${glocked?`<div id="mgGameEdit" class="k" style="height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;border:1px solid #2A303A;color:#9cc3f3;font-weight:700;font-size:13px;cursor:pointer;">🔓 แก้ไขผล (จบแล้ว)</div>`:`<div style="display:flex;gap:8px;"><div id="mgLive" class="k" style="flex:1;height:40px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:11px;background:#10301f;color:#5fcf94;border:1px solid #1f5a39;font-weight:700;font-size:12.5px;cursor:pointer;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1FB85E;animation:pulse 1.4s infinite;"></span>อัพเดตสด</div><div id="mgResult" class="k" style="flex:1;height:40px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:#2D7DF6;color:#fff;font-weight:700;font-size:13px;cursor:pointer;">จบเกม</div></div>`}
       <div class="k" style="font-size:11px;color:var(--mut);margin-top:9px;">สกอร์ (สด/จบเกม) กับ คนยิง แยกกัน · ติ๊กคนยิงแต่ละวงด้านล่าง → กดปุ่ม "บันทึกคนยิง" ท้ายสุด · ได้แต้ม = เขียว</div>`)}
-    <div class="k" style="font-weight:700;font-size:14px;margin:0 2px 9px;">โพย & คนยิง — ทุกวง</div>
+    <div class="k" style="font-weight:700;font-size:14px;margin:0 2px 4px;">โพย & คนยิง — ทุกวง</div>
+    <div style="background:#0E1116;border:1px solid #232830;border-radius:11px;padding:9px 9px;margin:0 2px 11px;">
+      <div class="k" style="font-size:11px;color:var(--mut);margin-bottom:7px;padding:0 2px;">วนสถานะ — แตะชื่อในแถว → ถัดไป · <span style="color:#7fa8d8;">ไฮไลท์</span> = สถานะล่าสุดที่แตะ</div>
+      <div class="k" style="display:flex;align-items:center;gap:8px;padding:0 7px 3px;font-size:9.5px;color:var(--dim);"><div style="width:13px;flex:none;"></div><div style="flex:1;">คนแรก</div><div style="flex:1;">คนสอง</div><div style="width:20px;flex:none;text-align:center;">แต้ม</div></div>
+      <div class="k" style="font-size:11.5px;line-height:1.25;">${[
+        {st:"gd",n:"1",at:"ยิง",ac:"#5fcf94",ad:0,bt:"ขีดฆ่า",bc:"var(--dim)",bd:1,pt:1},
+        {st:"nd",n:"2",at:"ลงไม่ยิง",ac:"var(--mut)",ad:0,bt:"ขีดฆ่า",bc:"var(--dim)",bd:1,pt:0},
+        {st:"xn",n:"3",at:"ไม่ลง",ac:"#ff6b6b",ad:0,bt:"ลงไม่ยิง",bc:"var(--mut)",bd:0,pt:0},
+        {st:"xg",n:"4",at:"ไม่ลง",ac:"#ff6b6b",ad:0,bt:"ยิง",bc:"#5fcf94",bd:0,pt:1},
+        {st:"xx",n:"5",at:"ไม่ลง",ac:"#ff6b6b",ad:0,bt:"ไม่ลง",bc:"#ff6b6b",bd:0,pt:0},
+      ].map(r=>`<div data-cyc="${r.st}" style="display:flex;align-items:center;gap:8px;padding:3px 7px;border-radius:6px;${S.mgCycHi===r.st?"background:#16202e;box-shadow:inset 2px 0 0 #2D7DF6;":""}"><div style="width:13px;flex:none;color:var(--dim);">${r.n}</div><div style="flex:1;color:${r.ac};${r.ad?"text-decoration:line-through;":""}">${r.at}</div><div style="flex:1;color:${r.bc};${r.bd?"text-decoration:line-through;":""}">${r.bt}</div><div style="width:20px;flex:none;text-align:center;color:${r.pt?"#5fcf94":"#5b626d"};font-weight:${r.pt?"700":"400"};">${r.pt?"✓":"—"}</div></div>`).join("")}</div>
+    </div>
     ${S.mgPools.map(poolGrade).join("")}
-    ${glocked?"":`<div id="mgSaveScorers" class="k btnG" style="height:48px;font-size:15px;margin-top:8px;">💾 บันทึกคนยิงที่ติ๊ก (ทุกวง)</div>`}`;
+    <div id="mgSaveScorers" class="k btnG" style="height:48px;font-size:15px;margin-top:8px;">💾 บันทึกคนยิงที่ติ๊ก (ทุกวง)</div>`;
 
-  box.querySelectorAll("[data-pick]").forEach(el=>el.onclick=()=>{ const parts=el.dataset.pick.split("|"); const n=+parts.pop(); const key=parts.join("|");
-    S.scorerStage[key]=n;   // radio: เลือกแล้วติดเสมอ มี 1 ปุ่ม active ตลอด (ไม่มีสถานะว่าง)
-    box.querySelectorAll(`[data-pick^="${key}|"]`).forEach(b=>{ const bn=+b.dataset.pick.split("|").pop(); const on=n===bn; const c=bn===0?["#3a1c1f","#ff6b6b","#5a2227"]:["#10301f","#5fcf94","#1f5a39"];
-      b.style.background=on?c[0]:"#23272f"; b.style.color=on?c[1]:"#8A929E"; b.style.border="1px solid "+(on?c[2]:"#333"); }); });
+  const findByKey=key=>{ const ci=key.indexOf("|"); const code=key.slice(0,ci), pid=key.slice(ci+1); const p=S.mgPools.find(x=>x.code===code); const pr=p&&p.preds.find(x=>`${x.matchId}__${x.uid}`===pid); return {p,pr}; };
+  const CYCLE=["gd","nd","xn","xg","xx"];   // แตะชื่อไหนก็ได้ = วน 5 สถานะนี้ (valid ทั้งหมด ไม่ต้อง lock)
+  const bindTaps=scope=>{ if(!scope) return; scope.querySelectorAll("[data-tap]").forEach(el=>el.onclick=()=>{
+    const key=el.dataset.tap; const {p,pr}=findByKey(key); if(!pr) return;
+    const cur=(key in S.scorerStage)?S.scorerStage[key]:defSt(pr); const next=CYCLE[(CYCLE.indexOf(cur)+1)%CYCLE.length];
+    S.scorerStage[key]=next; S.mgCycHi=next;   // ไฮไลท์ตารางตามสถานะที่เพิ่งแตะ
+    const row=box.querySelector(`[data-row="${key}"]`); if(row){ row.outerHTML=rowHTML(pr,p.code); bindTaps(box.querySelector(`[data-row="${key}"]`)); }
+    box.querySelectorAll("[data-cyc]").forEach(c=>{ const on=c.dataset.cyc===next; c.style.background=on?"#16202e":""; c.style.boxShadow=on?"inset 2px 0 0 #2D7DF6":""; });
+  }); };
+  bindTaps(box);
   $("#mgSel").onchange=e=>{ S.mgMatchSel=e.target.value; S.gameEdit=false; renderManage(); };
   box.querySelectorAll("[data-nav]").forEach(el=>el.onclick=()=>{ S.mgMatchSel=el.dataset.nav; S.gameEdit=false; renderManage(); });
   if($("#mgGameEdit")) $("#mgGameEdit").onclick=()=>{ S.gameEdit=true; renderManage(); };
