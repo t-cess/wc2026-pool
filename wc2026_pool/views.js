@@ -336,7 +336,7 @@ export function openPlayerSheet(name){
     .filter(m => m.status==="finished" || m.live)
     .map(m => { const pr=S.allPreds.find(p=>p.player===name && p.matchId===m.id); return {m, pr, pts: pr?scoreMatch(pr,m):0}; })
     .filter(x => x.pr)
-    .sort((a,b) => (b.m.kickoff||0)-(a.m.kickoff||0) || String(a.m.id).localeCompare(String(b.m.id)));   // ใหม่→เก่า · tie คู่เตะพร้อมกันด้วย id (asc) ให้ลำดับตรงกับฟอร์ม
+    .sort((a,b) => (b.m.kickoff||0)-(a.m.kickoff||0) || String(b.m.id).localeCompare(String(a.m.id)));   // ใหม่→เก่า · tie คู่เตะพร้อมกัน id (desc) = reverse ของฟอร์มเป๊ะ (บนสุด=พิลล์ขวาสุด)
   const liveBadge=` <span class="k" style="font-size:9px;font-weight:700;color:#5fcf94;background:#10301f;border-radius:99px;padding:1px 6px 1px 5px;vertical-align:middle;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#1FB85E;animation:pulse 1.4s infinite;vertical-align:middle;margin-right:3px;"></span>สด</span>`;
   const rowsHtml = list.length ? list.map(({m,pr,pts})=>{
     const exact = pr.homeScore===m.homeScore && pr.awayScore===m.awayScore;
