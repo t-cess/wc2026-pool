@@ -31,8 +31,8 @@ export function computeBoard(){
   const formOf = name => (byP[name]||[])
     .map(p=>({m:mById[p.matchId],p}))
     .filter(x=>x.m && (x.m.status==="finished"||x.m.live))
-    .sort((a,b)=>(a.m.kickoff||0)-(b.m.kickoff||0))
-    .slice(-5).map(x=>scoreMatch(x.p,x.m));   // 5 นัดล่าสุด เก่า→ใหม่ (แต้มต่อนัด 0-6)
+    .sort((a,b)=>(a.m.kickoff||0)-(b.m.kickoff||0) || String(a.m.id).localeCompare(String(b.m.id)))   // เก่า→ใหม่ · tie คู่เตะพร้อมกันด้วย id ให้ลำดับคงที่ทุกที่
+    .slice(-5).map(x=>scoreMatch(x.p,x.m));   // 5 นัดล่าสุด (แต้มต่อนัด 0-6)
   const names = new Set([...rosterNames(),...Object.keys(S.champPicks)]);
   const cur={};
   const rows=[...names].map(name=>{

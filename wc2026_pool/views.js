@@ -278,8 +278,8 @@ export function renderBoard(){
   const edgeColor=rank=> rank<=3 ? "#3b82f6" : "#EF3E42";   // ขลิบ: น้ำเงิน=เข้าเงิน(Top3) · แดง=ตกชั้น(4-6)
   const formPill=pts=>{ const gold=pts>=5, green=pts>0&&pts<5;   // 0=แดง · 1-4=เขียว · 5-6=ทองออร่า ฟ้อนต์ใหญ่
     const col=gold?"#FFD23F":green?"#27d26e":"#EF3E42", bg=gold?"rgba(255,210,63,.16)":green?"#10301f":"rgba(239,62,66,.14)";
-    const sz=gold?20:17, fs=gold?13:11, glow=gold?"box-shadow:0 0 9px rgba(255,210,63,.55);text-shadow:0 0 7px rgba(255,210,63,.7);":"";
-    return `<span class="k" style="display:inline-flex;align-items:center;justify-content:center;flex:none;width:${sz}px;height:${sz}px;border-radius:5px;font-weight:800;font-size:${fs}px;color:${col};background:${bg};${glow}">${pts}</span>`; };
+    const fs=gold?14:11.5, glow=gold?"box-shadow:0 0 9px rgba(255,210,63,.55);text-shadow:0 0 7px rgba(255,210,63,.7);":"";
+    return `<span class="k" style="display:inline-flex;align-items:center;justify-content:center;flex:none;width:19px;height:19px;border-radius:5px;font-weight:800;font-size:${fs}px;color:${col};background:${bg};${glow}">${pts}</span>`; };
   const formStrip=form=> form.length?`<div style="display:flex;align-items:center;gap:3px;flex:none;">${form.map(formPill).join("")}</div>`:"";
   let html=`<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 4px;">
       <h2 class="k" style="margin:0;font-weight:800;font-size:26px;">ตารางคะแนน</h2>
@@ -336,16 +336,18 @@ export function openPlayerSheet(name){
     .filter(m => m.status==="finished" || m.live)
     .map(m => { const pr=S.allPreds.find(p=>p.player===name && p.matchId===m.id); return {m, pr, pts: pr?scoreMatch(pr,m):0}; })
     .filter(x => x.pr)
-    .sort((a,b) => (b.m.kickoff||0)-(a.m.kickoff||0));
+    .sort((a,b) => (b.m.kickoff||0)-(a.m.kickoff||0) || String(a.m.id).localeCompare(String(b.m.id)));   // ใหม่→เก่า · tie คู่เตะพร้อมกันด้วย id (asc) ให้ลำดับตรงกับฟอร์ม
   const liveBadge=` <span class="k" style="font-size:9px;font-weight:700;color:#5fcf94;background:#10301f;border-radius:99px;padding:1px 6px 1px 5px;vertical-align:middle;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#1FB85E;animation:pulse 1.4s infinite;vertical-align:middle;margin-right:3px;"></span>สด</span>`;
   const rowsHtml = list.length ? list.map(({m,pr,pts})=>{
     const exact = pr.homeScore===m.homeScore && pr.awayScore===m.awayScore;
+    const gold=pts>=5;   // สีเดียวกับฟอร์ม: 0=แดง · 1-4=เขียว · 5-6=ทองออร่าใหญ่
+    const col=gold?'#FFD23F':pts>0?'#27d26e':'#EF3E42', glow=gold?'text-shadow:0 0 8px rgba(255,210,63,.7);':'';
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1c2129;">
         <div style="flex:1;min-width:0;">
           <div class="k" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(m.home)}-${esc(m.away)}${m.live?liveBadge:''}</div>
           <div style="font-size:10px;color:var(--mut);">${esc(m.group||"")} · ผล ${m.homeScore}-${m.awayScore} · ทาย ${pr.homeScore}-${pr.awayScore}${exact?' 🔥':''}</div>
         </div>
-        <div class="k" style="flex:none;width:34px;text-align:right;font-weight:800;font-size:15px;color:${pts>0?'#1FB85E':'#5b626d'};">${pts>0?'+'+pts:pts}</div>
+        <div class="k" style="flex:none;width:34px;text-align:right;font-weight:800;font-size:${gold?17:15}px;color:${col};${glow}">${pts>0?'+'+pts:pts}</div>
       </div>`;
   }).join("") : `<div class="k" style="color:var(--dim);padding:14px 0;text-align:center;">ยังไม่มีคู่ที่คิดแต้ม</div>`;
   const sheet=document.createElement("div"); sheet.id="pSheet";
