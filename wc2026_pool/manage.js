@@ -264,7 +264,7 @@ function renderChampTab(box){
     await setDoc(poolDocFor(p.code,"config","tournament"),{champion:c,championLocked:!!c},{merge:true}); toast("ตั้งแชมป์แล้ว 🏆"); refetchOne(p.code); };
   if($("#mgCpSaveBtn")) $("#mgCpSaveBtn").onclick=async()=>{ const t0=$("#mgCp0").value,t1=$("#mgCp1").value; if(t0&&t1&&t0===t1){toast("เลือกทีมซ้ำ");return;}
     const uid=(p.playersByName[name]||{}).uid;   // login → เขียน player doc (deriveChampPicks ให้ player ทับ config → ทะลุ self-pick จริง · admin/super bypass champ-lock ได้) · carry-only → config
-    if(uid) await setDoc(poolDocFor(p.code,"players",uid),{champ1:t0,champ2:t1},{merge:true});
+    if(uid) await setDoc(poolDocFor(p.code,"players",uid),{name,champ1:t0,champ2:t1},{merge:true});   // ใส่ name ด้วย — กัน junk doc ถ้า player ถูกลบระหว่าง fetch→save (merge จะสร้าง doc ไร้ name → หายจาก roster)
     else await setDoc(poolDocFor(p.code,"config","champPicks"),{[name]:[t0,t1].filter(Boolean)},{merge:true});
     toast("บันทึกแชมป์ให้ "+name+" ✓"); refetchOne(p.code); };
 }
