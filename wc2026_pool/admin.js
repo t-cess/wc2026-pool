@@ -50,7 +50,8 @@ function adminMemberMenu(anchor, n){
     {label:"เตะออกจากวง", danger:true, onClick:async()=>{ if(admE&&!isSuper()){ toast("คนนี้เป็นแอดมิน — เฉพาะ super เตะได้"); return; }
       if(!await confirmModal(`เตะ "${n}" ออกจากวง?${admE?"\n(เป็นแอดมินด้วย — จะถอดแอดมินด้วย)":""}\nลบคะแนนยกมา + ปลดการจับคู่`))return;
       const c2={...S.carry}; delete c2[n]; await setDoc(poolDoc("config","carry"),c2);
-      if(uid){ try{ await deleteDoc(poolDoc("players",uid)); }catch(e){} }
+      if(n in (S.configChampPicks||{})){ const cp2={...S.configChampPicks}; delete cp2[n]; await setDoc(poolDoc("config","champPicks"),cp2); delete S.configChampPicks[n]; }   // กันผี: ทายแชมป์ (config) ยังโผล่บอร์ด +10 หลังเตะ
+      if(uid){ try{ await deleteDoc(poolDoc("players",uid)); }catch(e){} try{ await deleteDoc(poolDoc("emails",uid)); }catch(e){} }   // ลบ player + PII email
       if(admE){ const emails=(S.admins||[]).filter(e=>e!==admE); await setDoc(poolDoc("config","admins"),{emails}); S.admins=emails; const b2={...(S.bind||{})}; delete b2[admE]; await setDoc(poolDoc("config","bind"),b2); S.bind=b2; }
       delete S.carry[n]; delete S.playersByName[n]; toast("เตะแล้ว"); renderAdmin(); }},
   ], n);

@@ -36,7 +36,7 @@ export function computeBoard(){
   const names = new Set([...rosterNames(),...Object.keys(S.champPicks)]);
   const cur={};
   const rows=[...names].map(name=>{
-    let champPts=0; if(champion) champPts=(S.champPicks[name]||[]).map(norm).filter(t=>t===champion).length*10;
+    let champPts=0; if(champion) champPts=[...new Set((S.champPicks[name]||[]).map(norm))].filter(t=>t===champion).length*10;   // dedup กันทาย "ทีมเดียวกัน 2 ช่อง" → +20 (ยิง Firestore ตรงเลี่ยง UI guard ได้)
     const total=(S.carry[name]||0)+(mp[name]||0)+champPts;
     cur[name]=total;
     return {name,carryPts:S.carry[name]||0,matchPts:mp[name]||0,todayPts:tp[name]||0,champPts,total,form:formOf(name),photo:(S.playersByName[name]||{}).photo||""};

@@ -28,7 +28,7 @@ function deriveChampPicks(configCP, playersByName){ const cp={...configCP}; Obje
 function poolTotals(p){ const champ=norm((p.tournament&&p.tournament.champion)||""); const t={};
   mgRoster(p).forEach(n=>{
     let mp=0; p.preds.filter(x=>x.player===n).forEach(pr=>{ const m=S.allMatches.find(x=>x.id===pr.matchId); if(m) mp+=scoreMatch(pr,m); });
-    const cp=champ?(p.champPicks[n]||[]).map(norm).filter(x=>x===champ).length*10:0;
+    const cp=champ?[...new Set((p.champPicks[n]||[]).map(norm))].filter(x=>x===champ).length*10:0;   // dedup กันทาย "ทีมเดียวกัน 2 ช่อง" → +20
     t[n]=(p.carry[n]||0)+mp+cp; });
   return t; }
 
@@ -140,19 +140,20 @@ function renderPoolsTab(box){
 function memberMenu(anchor, code, name){
   const p=pool(code); const pl=p.playersByName[name]; const uid=pl&&pl.uid; const pe=uid&&p.emailByUid[uid]; const isAdm=pe&&(p.admins||[]).includes(pe);
   openMenu(anchor, [
-    {label:"เปลี่ยนชื่อ", onClick:async()=>{ const nn=await promptModal(`เปลี่ยนชื่อ "${name}"`,{value:name}); if(nn&&nn.trim()&&nn.trim()!==name){ await renameMember(code,name,nn.trim(),uid); toast("เปลี่ยนชื่อแล้ว ✓"); refetchOne(code); } }},
+    {label:"เปลี่ยนชื่อ", onClick:async()=>{ const nn=await promptModal(`เปลี่ยนชื่อ "${name}"`,{value:name}); if(nn&&nn.trim()&&nn.trim()!==name){ try{ await renameMember(code,name,nn.trim(),uid); toast("เปลี่ยนชื่อแล้ว ✓"); refetchOne(code); }catch(e){ toast(e.message||"เปลี่ยนชื่อไม่ได้"); } } }},
     {label:"แก้คะแนนยกมา", onClick:async()=>{ const v=await promptModal(`คะแนนยกมาของ "${name}"`,{value:String(p.carry[name]||0),numeric:true}); if(v!==null){ await setDoc(poolDocFor(code,"config","carry"),{[name]:parseInt(v)||0},{merge:true}); toast("บันทึกแล้ว ✓"); refetchOne(code); } }},
     {label:"ย้ายวง", onClick:async()=>{ const others=S.mgPools.filter(x=>x.code!==code).map(x=>({label:poolName(x),value:x.code})); if(!others.length){ toast("ไม่มีวงอื่น"); return; }
       const to=await pickModal(`ย้าย "${name}" ไปวงไหน?`,others); if(to===null)return;
       if(!await confirmModal(`ย้าย "${name}" ไป ${poolName(pool(to))}?\nยกคะแนนยกมา + โพยเก่าไปด้วย (โพยในวงเดิมจะถูกซ่อน)`))return;
-      await moveMember(code,to,name,uid); toast("ย้ายวงแล้ว ✓"); await refetchOne0(code); await refetchOne0(to); renderManage(); }},
+      try{ await moveMember(code,to,name,uid); toast("ย้ายวงแล้ว ✓"); await refetchOne0(code); await refetchOne0(to); renderManage(); }catch(e){ toast(e.message||"ย้ายวงไม่ได้"); } }},
     {label:isAdm?"ปลดแอดมิน":"แต่งตั้งเป็นแอดมิน", onClick:async()=>{ if(!pe){ toast("สมาชิกต้อง login ก่อนถึงตั้งแอดมินได้"); return; }
       if(!await confirmModal(isAdm?`ปลดแอดมิน "${name}"?`:`แต่งตั้ง "${name}" เป็นแอดมินวงนี้?`))return;
       const emails=isAdm?(p.admins||[]).filter(e=>e!==pe):[...new Set([...(p.admins||[]),pe])];
       await setDoc(poolDocFor(code,"config","admins"),{emails}); toast(isAdm?"ปลดแอดมินแล้ว":"แต่งตั้งแล้ว ✓"); refetchOne(code); }},
     {label:"เตะออกจากวง", danger:true, onClick:async()=>{ if(!await confirmModal(`เตะ "${name}" ออกจาก ${poolName(p)}?\nลบคะแนนยกมา + ปลดการจับคู่`))return;
       const c2={...p.carry}; delete c2[name]; await setDoc(poolDocFor(code,"config","carry"),c2);
-      if(uid){ try{ await deleteDoc(poolDocFor(code,"players",uid)); }catch(e){} }
+      if(name in (p.configChampPicks||{})){ const cp2={...p.configChampPicks}; delete cp2[name]; await setDoc(poolDocFor(code,"config","champPicks"),cp2); }   // กันผี: ทายแชมป์ที่ super ตั้งให้ (config) ยังโผล่บอร์ด +10 หลังเตะ
+      if(uid){ try{ await deleteDoc(poolDocFor(code,"players",uid)); }catch(e){} try{ await deleteDoc(poolDocFor(code,"emails",uid)); }catch(e){} }   // ลบ player + PII email
       if(pe&&(p.admins||[]).includes(pe)){ await setDoc(poolDocFor(code,"config","admins"),{emails:(p.admins||[]).filter(e=>e!==pe)}); const b2={...(p.bind||{})}; delete b2[pe]; await setDoc(poolDocFor(code,"config","bind"),b2); }
       toast("เตะแล้ว"); refetchOne(code); }},
   ], name);
