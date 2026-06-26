@@ -343,6 +343,7 @@ async function gradeScorers(p, matchId, actualScorers, lineup) {
   let changed = 0;
   for (const d of preds) {
     const pr=d.data();
+    if (!pr.revealed && !DRY) await d.ref.set({ revealed:true }, {merge:true});   // คู่เริ่มเตะแล้ว → เปิดเผยโพย (rule ให้คนอื่นอ่านได้) · ครอบทุกใบรวม 0-0/manual (ก่อน continue)
     if (pr.homeScore===0 && pr.awayScore===0) continue;   // 0-0 แอปคิดเอง
     if (pr.scorerManual) continue;                        // แอดมินติ๊กมือ → auto ไม่ทับ
     const s1 = scorerHitOne(pr.scorer1, actualScorers, qwenMap);   // คนแรกยิงไหม (ดิก + DeepSeek)

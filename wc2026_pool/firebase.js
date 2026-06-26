@@ -2,7 +2,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy }
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, where }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { firebaseConfig, POOL_ID } from "./config.js";
 
@@ -20,5 +20,5 @@ export const poolDoc = (...p) => POOL_ID ? doc(db,"pools",POOL_ID,...p) : doc(db
 export const poolColFor = (code,name) => code ? collection(db,"pools",code,name) : collection(db,name);
 export const poolDocFor = (code,...p) => code ? doc(db,"pools",code,...p) : doc(db,...p);
 
-export { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy,
+export { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, where,
   signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged };

@@ -1,6 +1,6 @@
 /* ===== data: realtime onSnapshot + renderAll ===== */
 import { S } from "./state.js";
-import { db, collection, query, orderBy, onSnapshot, poolCol } from "./firebase.js";
+import { db, collection, query, orderBy, where, onSnapshot, poolCol } from "./firebase.js";
 import { renderHeader, renderFixtures, renderChampion, renderBoard } from "./views.js";
 import { renderAdmin } from "./admin.js";
 import { isAdmin } from "./utils.js";
@@ -14,13 +14,33 @@ function deriveChampPicks(){   // ฐานจาก config (legacy) + ผู้
   Object.entries(S.playersByName).forEach(([name,p])=>{ const a=[p.champ1,p.champ2].filter(Boolean); if(a.length) cp[name]=a; });
   S.champPicks = cp;
 }
+
+// ----- โพย: รวม "ของตัวเอง" + "ของคนอื่นที่เปิดเผยแล้ว (revealed)" เป็น S.allPreds -----
+let ownPreds=[], otherPreds=[];
+function mergePreds(){
+  const byId={};   // dedup ด้วย matchId__uid (own ทับ other)
+  otherPreds.forEach(p=>byId[p.matchId+"__"+p.uid]=p);
+  ownPreds.forEach(p=>byId[p.matchId+"__"+p.uid]=p);
+  S.allPreds=Object.values(byId);
+  S.myPreds={}; ownPreds.forEach(p=>{ if(p.uid===S.me.uid) S.myPreds[p.matchId]=p; });
+  renderAll();
+}
 export function watchData(){
   onSnapshot(query(collection(db,"matches"),orderBy("kickoff")), snap=>{   // ⭐ matches ใช้ร่วม top-level
     S.allMatches = snap.docs.map(d=>({id:d.id,...d.data()})); applyVisibility(); renderAll();
   });
-  onSnapshot(poolCol("predictions"), snap=>{
-    S.allPreds = snap.docs.map(d=>d.data()); S.myPreds={};
-    S.allPreds.forEach(p=>{ if(p.uid===S.me.uid) S.myPreds[p.matchId]=p; }); renderAll();
+  // โพย: gate ที่ rule (คนอื่นอ่านได้เฉพาะ revealed) → onSnapshot ทั้ง collection ไม่ได้ (เจอ doc ที่ยังไม่ revealed = reject ทั้งก้อน)
+  //   แยก 2 ทาง · ทั้งคู่เป็น equality query (rule authorize ได้ชัวร์) · realtime → โพยคนอื่นโผล่เองตอน auto-grade พลิก revealed (ไม่ต้อง re-subscribe)
+  onSnapshot(query(poolCol("predictions"), where("uid","==",S.me.uid)), snap=>{   // (ก) โพยตัวเอง — owner อ่านได้เสมอ
+    ownPreds=snap.docs.map(d=>d.data()); mergePreds();
+  });
+  onSnapshot(query(poolCol("predictions"), where("revealed","==",true)), snap=>{   // (ข) โพยคนอื่นที่เปิดเผยแล้ว (เริ่มเตะ)
+    otherPreds=snap.docs.map(d=>d.data()).filter(p=>p.uid!==S.me.uid); mergePreds();
+  });
+  // (ค) marker "ใครส่งแล้ว" — สาธารณะ (ไม่มีสกอร์) → โชว์ subLine ก่อน kickoff โดยไม่รั่วโพย
+  onSnapshot(poolCol("submitted"), snap=>{
+    const m={}; snap.forEach(d=>{ const x=d.data(); const a=(m[x.matchId]=m[x.matchId]||[]); if(!a.includes(x.player)) a.push(x.player); });
+    S.submittedByMatch=m; renderAll();
   });
   onSnapshot(poolCol("config"), snap=>{
     snap.forEach(d=>{ if(d.id==="carry")S.carry=d.data(); if(d.id==="champPicks")S.configChampPicks=d.data(); if(d.id==="tournament")S.tournament=d.data(); if(d.id==="prev")S.prev=d.data();

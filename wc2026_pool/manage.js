@@ -4,8 +4,9 @@
 import { S } from "./state.js";
 import { db, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, poolColFor, poolDocFor } from "./firebase.js";
 import { TEAMS, fe, CHAMP_TEAMS, genCode, MOCK } from "./config.js";
-import { $, esc, flag, toast, isSuper, avatarHTML, silhouetteHTML, bindAvatars, confirmModal, promptModal, pickModal, openMenu } from "./utils.js";
+import { $, esc, flag, toast, isSuper, avatarHTML, silhouetteHTML, bindAvatars, confirmModal, promptModal, pickModal, alertModal, openMenu, norm } from "./utils.js";
 import { stateOf, scoreMatch } from "./scoring.js";
+import { predRowHTML, effPredFromState } from "./predrow.js";
 import { renameMember, moveMember } from "./member-ops.js";
 
 const TEAM_LIST = Object.keys(TEAMS).sort((a,b)=>a.localeCompare(b,"th"));
@@ -23,6 +24,13 @@ const poolTag  = p => p.code?esc(p.code):"หลัก";
 const thTime = ms => { try{ return new Date(ms).toLocaleString("th-TH",{timeZone:"Asia/Bangkok",weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" น."; }catch(e){ return ""; } };
 const mgRoster = p => { const s=[...Object.keys(p.carry||{})]; Object.keys(p.playersByName||{}).forEach(n=>{ if(!s.includes(n)) s.push(n); }); return s; };
 function deriveChampPicks(configCP, playersByName){ const cp={...configCP}; Object.entries(playersByName).forEach(([name,pl])=>{ const a=[pl.champ1,pl.champ2].filter(Boolean); if(a.length) cp[name]=a; }); return cp; }
+// แต้มรวมรายคนของวงนี้ (ยกมา + รายคู่ + แชมป์) — ใช้เรียงอันดับในแท็บวง
+function poolTotals(p){ const champ=norm((p.tournament&&p.tournament.champion)||""); const t={};
+  mgRoster(p).forEach(n=>{
+    let mp=0; p.preds.filter(x=>x.player===n).forEach(pr=>{ const m=S.allMatches.find(x=>x.id===pr.matchId); if(m) mp+=scoreMatch(pr,m); });
+    const cp=champ?(p.champPicks[n]||[]).map(norm).filter(x=>x===champ).length*10:0;
+    t[n]=(p.carry[n]||0)+mp+cp; });
+  return t; }
 
 // ===== data layer (ทุกวงพร้อมกัน) =====
 async function fetchPoolData(code,name){
@@ -91,11 +99,15 @@ const card = (inner,accent) => `<div style="background:#14171D;border:1px solid 
 const poolLink = code => location.origin+location.pathname.replace(/manage\.html$/,"index.html")+(code?"?pool="+code:"");
 function renderPoolsTab(box){
   const poolHTML=p=>{ const code=p.code; const reg=!!(p.tournament&&p.tournament.regLocked);
-    const memberRows=mgRoster(p).map(n=>{ const pl=p.playersByName[n], claimed=!!pl; const pe=claimed&&p.emailByUid[pl.uid]; const isAdm=pe&&(p.admins||[]).includes(pe);
+    const tot=poolTotals(p); const roster=mgRoster(p).slice().sort((a,b)=>(tot[b]||0)-(tot[a]||0) || a.localeCompare(b,"th"));   // เรียงคนนำ (แต้มมาก→น้อย · เท่ากันเรียงตัวอักษร)
+    const memberRows=roster.map((n,i)=>{ const pl=p.playersByName[n], claimed=!!pl; const pe=claimed&&p.emailByUid[pl.uid]; const isAdm=pe&&(p.admins||[]).includes(pe);
+      const rankCol=i===0?"#FFD23F":i<3?"#9cc3f3":"#5b626d";
       return `<div data-menu="${code}|${esc(n)}" style="display:flex;align-items:center;gap:9px;background:#0E1116;border:1px solid #232830;border-radius:11px;padding:9px 11px;margin-bottom:6px;cursor:pointer;">
+        <div class="k" style="width:18px;flex:none;text-align:center;font-weight:800;font-size:13px;color:${rankCol};">${i+1}</div>
         ${claimed?avatarHTML(pl.photo,32):silhouetteHTML(32)}
         <div style="flex:1;min-width:0;"><div class="k" style="font-weight:700;font-size:14px;">${esc(n)}${isAdm?' <span style="font-size:9px;color:#b9a6f0;border:1px solid #34294f;border-radius:5px;padding:1px 5px;vertical-align:middle;">แอดมิน</span>':""}</div>
-        <div style="font-size:10.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc(pe||"—"):"ยังไม่ล็อกอิน"} · ยกมา ${p.carry[n]||0}</div></div></div>`; }).join("")||`<div class="k" style="color:var(--dim);font-size:13px;">— ยังไม่มีสมาชิก (รอคนสมัครเอง) —</div>`;
+        <div style="font-size:10.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${claimed?esc(pe||"—"):"ยังไม่ล็อกอิน"} · ยกมา ${p.carry[n]||0}</div></div>
+        <div class="k" style="flex:none;text-align:right;"><div style="font-weight:800;font-size:18px;color:#EEF1F4;line-height:1;">${tot[n]||0}</div><div style="font-size:9px;color:#5b626d;font-weight:600;">แต้ม</div></div></div>`; }).join("")||`<div class="k" style="color:var(--dim);font-size:13px;">— ยังไม่มีสมาชิก (รอคนสมัครเอง) —</div>`;
     return `<div style="background:#161226;border:1px solid #2e2546;border-radius:16px;padding:15px;margin-bottom:14px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><div class="k" style="flex:1;min-width:0;font-weight:800;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${poolName(p)}</div><span class="k" style="font-size:10px;color:#b9a6f0;border:1px solid #34294f;border-radius:6px;padding:2px 7px;flex:none;">${poolTag(p)}</span></div>
       <div class="k" style="font-size:11.5px;color:var(--mut);margin-bottom:11px;">🧑 ${mgRoster(p).length} คน · ${reg?"🔒 ปิดรับสมัคร":"🚪 เปิดรับสมัคร"}</div>
@@ -158,20 +170,15 @@ function renderScoresTab(box){
   // แตะชื่อ = วนสถานะ (ตรวจคนยิง+คนลงสนามด้วยมือ ได้ทุกสถานะ) · state = 2 ตัวอักษร [คนแรก][คนสอง]
   //   คนแรก n=ปกติ g=ยิง x=ไม่ลง · คนสอง n=ปกติ g=ยิง d=ขีดฆ่า(ไม่ได้ใช้)
   //   แตะคนแรก: nn→gd→xn→nn · แตะคนสอง: nn→xg→nd→nn · ยิงได้คนเดียว (อีกคนเป็น g อยู่ → เตือน)
-  const SC={g:"#5fcf94",x:"#ff6b6b",am:"#E0A33E"};
-  const defSt=pr=> pr.s1hit?"gd" : (pr.s2hit||(pr.scorerOk&&pr.scorer2))?"xg" : (pr.s1played===false?(pr.s2played===false?"xx":"xn"):"nd");
-  const nameSpan=(pr,key,st,w)=>{ const name=w===1?pr.scorer1:pr.scorer2; if(!name) return "";
-    const c=w===1?st[0]:st[1], staged=key in S.scorerStage; let col="var(--mut)",deco="",suf="";
-    if(w===1){ if(c==="g"){col=SC.g;} else if(c==="x"){col=SC.x;} else if(!staged&&pr.s1unsure){col=SC.am;suf=" ?";} }
-    else { if(c==="g"){col=SC.g;} else if(c==="x"){col=SC.x;} else if(c==="d"){col="var(--dim)";deco="text-decoration:line-through;";} else if(!staged&&pr.s2unsure&&st[0]==="x"){col=SC.am;suf=" ?";} }
-    return `<span data-tap="${key}" class="k" style="cursor:pointer;color:${col};font-weight:600;${deco}">${esc(name)}${suf}</span>`; };
-  const rowHTML=(pr,code)=>{ const pid=`${pr.matchId}__${pr.uid}`, key=`${code}|${pid}`;
-    const scored=scoreMatch(pr,selM)>0, st=(key in S.scorerStage)?S.scorerStage[key]:defSt(pr);
-    const names=(pr.scorer1||pr.scorer2)?`${nameSpan(pr,key,st,1)}${pr.scorer1&&pr.scorer2?'<span style="color:#3f454e;"> / </span>':""}${nameSpan(pr,key,st,2)}`:`<span style="color:var(--dim);">(ไม่ใส่คนยิง)</span>`;
-    return `<div data-row="${key}" style="display:flex;align-items:center;gap:7px;padding:8px 9px;border-bottom:1px solid #1c2129;"><div class="k" style="width:46px;flex:none;font-weight:600;font-size:12.5px;">${esc(pr.player)}</div><div class="k" style="width:34px;flex:none;font-weight:700;color:${scored?'#5fcf94':'#EEF1F4'};">${pr.homeScore}-${pr.awayScore}</div><div style="flex:1;min-width:0;font-size:13px;word-break:break-word;line-height:1.45;">${names}</div></div>`; };
+  const showPts = selM.status==="finished" || selM.live;   // มีผล/สด = โชว์แต้ม+สถานะคนยิง (เป๊ะเท่าหน้าวง)
+  const defSt=pr=> pr.s1hit?"gd" : (pr.s2hit||(pr.scorerOk&&pr.scorer2))?"xg" : (pr.s1played===false?(pr.s2played===false?"xx":"xn"):"nd");   // สถานะตั้งต้นของวงล้อ (จาก flag ที่บันทึกไว้)
+  // แถว = หน้าวงเป๊ะ (predRowHTML) · ยังไม่แตะ = แสดง pred จริง (รวม amber "?") · แตะแล้ว = effective ตามสถานะที่เลือก
+  const rowHTML=(pr,code)=>{ const key=`${code}|${pr.matchId}__${pr.uid}`;
+    const pred=(key in S.scorerStage)?effPredFromState(pr,S.scorerStage[key]):pr;
+    return predRowHTML(pred, selM, {showPts, tapKey:key}); };
   const poolGrade=p=>{ const preds=p.preds.filter(x=>x.matchId===selM.id);
     const rows=preds.length?preds.map(pr=>rowHTML(pr,p.code)).join(""):`<div class="k" style="color:var(--dim);padding:8px;font-size:12px;">ไม่มีโพยคู่นี้</div>`;
-    return `<div style="margin-bottom:11px;"><div class="k" style="font-weight:700;font-size:13px;color:#b9a6f0;margin-bottom:5px;">${poolName(p)} <span style="font-size:10px;color:#5b626d;">${poolTag(p)}</span></div><div style="background:#0E1116;border:1px solid #232830;border-radius:11px;overflow:hidden;">${rows}</div></div>`; };
+    return `<div style="margin-bottom:11px;"><div class="k" style="font-weight:700;font-size:13px;color:#b9a6f0;margin-bottom:5px;">${poolName(p)} <span style="font-size:10px;color:#5b626d;">${poolTag(p)}</span></div><div style="background:#0E1116;border:1px solid #232830;border-radius:11px;padding:5px 7px;">${rows}</div></div>`; };
   box.innerHTML=`
     ${card(`<div class="k" style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;margin-bottom:10px;">✅ กรอกผล (ใช้ร่วมทุกวง)${glocked?'<span style="font-size:11px;color:#9cc3f3;">🔒 จบแล้ว</span>':''}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">${navBtn(-1,"◀︎")}<select id="mgSel" class="field" style="flex:1;margin:0;">${opts}</select>${navBtn(1,"▶︎")}</div>
@@ -202,7 +209,7 @@ function renderScoresTab(box){
     const key=el.dataset.tap; const {p,pr}=findByKey(key); if(!pr) return;
     const cur=(key in S.scorerStage)?S.scorerStage[key]:defSt(pr); const next=CYCLE[(CYCLE.indexOf(cur)+1)%CYCLE.length];
     S.scorerStage[key]=next; S.mgCycHi=next;   // ไฮไลท์ตารางตามสถานะที่เพิ่งแตะ
-    const row=box.querySelector(`[data-row="${key}"]`); if(row){ row.outerHTML=rowHTML(pr,p.code); bindTaps(box.querySelector(`[data-row="${key}"]`)); }
+    const row=box.querySelector(`[data-prow="${key}"]`); if(row){ row.outerHTML=rowHTML(pr,p.code); bindTaps(box.querySelector(`[data-prow="${key}"]`)); }
     box.querySelectorAll("[data-cyc]").forEach(c=>{ const on=c.dataset.cyc===next; c.style.background=on?"#16202e":""; c.style.boxShadow=on?"inset 2px 0 0 #2D7DF6":""; });
   }); };
   bindTaps(box);
@@ -210,6 +217,14 @@ function renderScoresTab(box){
   box.querySelectorAll("[data-nav]").forEach(el=>el.onclick=()=>{ S.mgMatchSel=el.dataset.nav; S.gameEdit=false; renderManage(); });
   if($("#mgGameEdit")) $("#mgGameEdit").onclick=()=>{ S.gameEdit=true; renderManage(); };
   box.querySelectorAll("[data-step]").forEach(el=>el.onclick=()=>{ const [f,d]=el.dataset.step.split(":"); const inp=$("#mg"+f); let v=(parseInt(inp.value)||0)+parseInt(d); inp.value=Math.max(0,Math.min(99,v)); });
+  // snapshot แต้มรายคน (ทุกวง) ของคู่นี้ → diff ก่อน/หลังบันทึก → popup เมื่อมีแต้มเปลี่ยน
+  const multi=S.mgPools.length>1;
+  const snapPts=()=>{ const o={}; const m=S.allMatches.find(x=>x.id===selM.id);
+    for(const p of S.mgPools) for(const pr of p.preds.filter(x=>x.matchId===selM.id)) o[`${p.code}|${pr.player}`]=scoreMatch(pr,m); return o; };
+  const fmtPt=v=>v>0?"+"+v:String(v);
+  const diffLines=(before,after)=>Object.keys({...before,...after}).filter(k=>(before[k]||0)!==(after[k]||0)).map(k=>{
+    const ci=k.indexOf("|"), code=k.slice(0,ci), name=k.slice(ci+1), pl=S.mgPools.find(x=>x.code===code), from=before[k]||0, to=after[k]||0;
+    return {name:multi?`${name} · ${poolTag(pl||{})}`:name, from:fmtPt(from), to:fmtPt(to), up:to>from, down:to<from}; });
   const writeScore=async fin=>{ const hs=parseInt($("#mgHs").value),as=parseInt($("#mgAs").value); if(isNaN(hs)||isNaN(as)){toast("ใส่สกอร์ครบ");return;}
     if(fin&&!(await confirmModal(`จบเกม ${selM.home} ${hs}-${as} ${selM.away}?\nคิดแต้มถาวร ทุกวง`)))return;
     await updateDoc(doc(db,"matches",selM.id), fin?{homeScore:hs,awayScore:as,status:"finished",autoGraded:true,live:false}:{homeScore:hs,awayScore:as,live:true});
@@ -217,7 +232,13 @@ function renderScoresTab(box){
     if(fin)S.gameEdit=false; toast(fin?"จบเกม ✓ (สกอร์)":"อัพเดตสด 🔴 (สกอร์)"); if(!MOCK){ for(const p of S.mgPools) await refetchOne0(p.code); } renderManage(); };
   if($("#mgLive")) $("#mgLive").onclick=()=>writeScore(false);
   if($("#mgResult")) $("#mgResult").onclick=()=>writeScore(true);
-  if($("#mgSaveScorers")) $("#mgSaveScorers").onclick=async()=>{ for(const p of S.mgPools) await commitScorers(p,selM.id); toast("บันทึกคนยิงแล้ว ✓"); if(!MOCK){ for(const p of S.mgPools) await refetchOne0(p.code); } renderManage(); };
+  if($("#mgSaveScorers")) $("#mgSaveScorers").onclick=async()=>{
+    const before=snapPts();
+    for(const p of S.mgPools) await commitScorers(p,selM.id);
+    if(!MOCK){ for(const p of S.mgPools) await refetchOne0(p.code); }
+    const lines=diffLines(before,snapPts()); renderManage();
+    if(lines.length) await alertModal("บันทึกคนยิง ✓ — แต้มที่เปลี่ยน", lines);
+    else toast("บันทึกคนยิงแล้ว ✓"); };
 }
 async function refetchOne0(code){ if(MOCK)return; const cur=S.mgPools.find(p=>p.code===code); const fresh=await fetchPoolData(code,cur&&cur.name); const i=S.mgPools.findIndex(p=>p.code===code); if(i>=0)S.mgPools[i]=fresh; }
 

@@ -58,6 +58,7 @@ export function startMock(){
     { uid:"u_ton",  player:"ต้น",   matchId:"m8", homeScore:1, awayScore:0, scorer1:"", scorer2:"", s1hit:false, scorerOk:false },
   ];
   S.myPreds = {}; S.allPreds.forEach(p=>{ if(p.uid===S.me.uid) S.myPreds[p.matchId]=p; });
+  S.submittedByMatch = {}; S.allPreds.forEach(p=>{ const a=(S.submittedByMatch[p.matchId]=S.submittedByMatch[p.matchId]||[]); if(!a.includes(p.player)) a.push(p.player); });   // mock: derive จาก allPreds (ไม่มี gate)
   S.expanded = { m4:true, m5:true };   // เปิดโพยคู่จบไว้เลย เห็นออร่า +5/+6 ทันที (เทส)
   S.playersByName = { "ต้น":{photo:"",uid:"u_ton"}, "กราฟ":{photo:"",uid:"u_graf"}, "กุ้ย":{photo:"",uid:"u_kui"}, "BB":{photo:"",uid:"u_bb"}, "กอล์ฟ":{photo:"",uid:"u_golf"} };
   S.champPicks = { "ต้น":["บราซิล","อาร์เจนตินา"], "กราฟ":["ฝรั่งเศส","สเปน"] };

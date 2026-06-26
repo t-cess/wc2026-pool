@@ -48,6 +48,18 @@ async function tryRead(idToken, path) {
   return r.status;
 }
 
+// ยิง LIST query (:runQuery) — field=null = ทั้ง collection (ไม่มี where) · เทส "rules not filters" จริง (get เทสไม่ได้)
+async function tryQuery(idToken, collectionId, field, value) {
+  const sq = { from: [{ collectionId }] };
+  if (field !== null) sq.where = { fieldFilter: { field:{ fieldPath:field }, op:"EQUAL",
+    value: typeof value==="boolean" ? { booleanValue:value } : { stringValue:String(value) } } };
+  const r = await fetch(`${REST}:runQuery`, {
+    method:"POST", headers:{ "authorization":"Bearer "+idToken, "content-type":"application/json" },
+    body: JSON.stringify({ structuredQuery: sq }),
+  });
+  return r.status;   // 200 = allow · 403 = deny
+}
+
 async function main() {
   const now = Date.now();
   // ---- setup: test data ใต้ _rt* ----
@@ -57,6 +69,11 @@ async function main() {
   await db.doc("config/_rt_pii").set({ secret: "email@x.com" });   // เทส PII: คนนอกอ่านไม่ได้
   await db.doc("players/u_rt_owner").set({ uid:"u_rt_owner", name:"owner" });   // ชื่อที่ลงทะเบียน → rule เช็ก player ต้องตรงนี้
   await db.doc("emails/u_rt_owner").set({ uid:"u_rt_owner", email:"owner@test.com" });   // PII แยก gated — เทสอ่านได้เฉพาะเจ้าของ+แอดมิน
+  // โพย gate read: ของคนอื่น ยังไม่เปิดเผย/เปิดเผยแล้ว (seed ผ่าน Admin SDK = ข้าม rule) → เทสคนแปลกหน้าอ่านได้/ไม่ได้
+  await db.doc("predictions/_rt_hidden__other").set({ uid:"u_other", matchId:"_rt_future", player:"other", homeScore:1, awayScore:0 });                   // ยังไม่ revealed (ก่อนเตะ)
+  await db.doc("predictions/_rt_shown__other").set({  uid:"u_other", matchId:"_rt_past",   player:"other", homeScore:1, awayScore:0, revealed:true });     // revealed แล้ว (เตะแล้ว)
+  await db.doc("predictions/_rt_ownhid__u_rt_owner").set({ uid:"u_rt_owner", matchId:"_rt_future", player:"owner", homeScore:1, awayScore:0 });            // โพย owner เอง ยังไม่ revealed → อ่านของตัวเองได้
+  await db.doc("submitted/_rt_sm__other").set({ uid:"u_other", matchId:"_rt_future", player:"other" });   // marker คนอื่น (สาธารณะ)
 
   // ---- tokens ----
   const sup = await signIn("u_rt_super",   SUPER_EMAIL);
@@ -75,12 +92,27 @@ async function main() {
     ["แอดมินวง เขียน pools/_rt/config/admins",    () => tryWrite(pad, "pools/_rt/config/admins", { emails_x:"hack" }),                      "deny"],
     ["เจ้าของทายปกติ (id ถูก matchId__uid)",      () => tryWrite(own, "predictions/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner", homeScore:1, awayScore:0, scorer1:"x", scorer2:"" }), "allow"],
     ["เจ้าของทายหลังเตะแล้ว (_rt_past)",          () => tryWrite(own, "predictions/_rt_past__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_past",   player:"owner", homeScore:1, awayScore:0 }), "deny"],
+    ["🔴 เจ้าของแอบใส่ revealed เอง (เปิดโพยตัวเองก่อนเตะ)", () => tryWrite(own, "predictions/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner", homeScore:1, awayScore:0, scorer1:"x", scorer2:"", revealed:true }), "deny"],
     ["คนแปลกหน้าแอบเขียนโพยคนอื่น",               () => tryWrite(str, "predictions/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", homeScore:1, awayScore:0 }), "deny"],
     ["เจ้าของแอบใส่ scorerOk เอง (ปั๊มแต้ม)",      () => tryWrite(own, "predictions/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", homeScore:1, awayScore:0, scorerOk:true }), "deny"],
     ["เจ้าของแอบใส่ scorerManual (กัน grader ทับ)", () => tryWrite(own, "predictions/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", homeScore:1, awayScore:0, scorerManual:true }), "deny"],
     ["🔴 เจ้าของสร้างโพยใบที่ 2 id มั่ว (โกงปั๊มแต้ม)", () => tryWrite(own, "predictions/_rt_evil_extra", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner", homeScore:2, awayScore:1, scorer1:"y", scorer2:"" }), "deny"],
     ["🔴 เจ้าของยัดโพย id เป็นของคนอื่น",          () => tryWrite(own, "predictions/_rt_future__someone_else", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner", homeScore:0, awayScore:0 }), "deny"],
     ["🔴 เจ้าของยัดชื่อคนอื่น (id ตัวเอง · player=คนอื่น = ปั๊มแต้ม/alt)", () => tryWrite(own, "predictions/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", player:"someone_else", homeScore:0, awayScore:0 }), "deny"],
+    // ---- gate read โพย: คนอื่นอ่านสกอร์ที่ยังไม่ revealed ไม่ได้ · revealed แล้วได้ · เจ้าของอ่านของตัวเองได้ ----
+    ["🔒 คนแปลกหน้าอ่านโพยคนอื่น ยังไม่ revealed (ห้ามแอบดู)", () => tryRead(str, "predictions/_rt_hidden__other"), "deny"],
+    ["คนแปลกหน้าอ่านโพยคนอื่น revealed แล้วได้",            () => tryRead(str, "predictions/_rt_shown__other"), "allow"],
+    ["เจ้าของอ่านโพยตัวเอง (ยังไม่ revealed) ได้",          () => tryRead(own, "predictions/_rt_ownhid__u_rt_owner"), "allow"],
+    ["🔒 เจ้าของอ่านโพยคนอื่น ยังไม่ revealed ไม่ได้",        () => tryRead(own, "predictions/_rt_hidden__other"), "deny"],
+    ["แอดมิน(super) อ่านโพยคนอื่น ยังไม่ revealed ได้ (ตรวจ/ติ๊กคนยิง)", () => tryRead(sup, "predictions/_rt_hidden__other"), "allow"],
+    // ---- 🎯 LIST query (linchpin): equality where(revealed==true) ต้อง authorize ได้ · where ทั้ง collection ต้องโดน deny ----
+    ["🎯 LIST where(revealed==true) — คนแปลกหน้า query ได้ (โหลดโพยคนอื่นหลังเตะ)", () => tryQuery(str, "predictions", "revealed", true),  "allow"],
+    ["🔒 LIST ทั้ง collection (ไม่มี where) — ต้องโดน deny (rules not filters)",      () => tryQuery(str, "predictions", null, null),         "deny"],
+    // ---- marker "ใครส่งแล้ว" (สาธารณะ ไม่มีสกอร์) ----
+    ["สมาชิกอ่าน marker ส่งแล้ว ได้ (subLine)",            () => tryRead(str, "submitted/_rt_sm__other"), "allow"],
+    ["เจ้าของเขียน marker ตัวเอง",                          () => tryWrite(own, "submitted/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner" }), "allow"],
+    ["🔴 เจ้าของเขียน marker ยัดชื่อคนอื่น",                () => tryWrite(own, "submitted/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", player:"someone_else" }), "deny"],
+    ["🔴 คนแปลกหน้าเขียน marker แทนคนอื่น",                 () => tryWrite(str, "submitted/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner" }), "deny"],
     ["🔒 คนนอก(ไม่ login) อ่าน config (PII อีเมล)", () => tryRead(null, "config/_rt_pii"), "deny"],
     ["🔒 คนนอก(ไม่ login) อ่าน players",            () => tryRead(null, "players"),         "deny"],
     ["สมาชิก(login) อ่าน config ได้ (regression)", () => tryRead(str,  "config/_rt_pii"), "allow"],
@@ -107,6 +139,7 @@ async function main() {
   // ---- cleanup ----
   const dels = ["matches/_rt_future","matches/_rt_past","matches/_rt_x","config/_rt_carry","config/_rt_pii","players/u_rt_owner","emails/u_rt_owner",
     "predictions/_rt_future__u_rt_owner","predictions/_rt_past__u_rt_owner","predictions/_rt_evil_extra","predictions/_rt_future__someone_else",
+    "predictions/_rt_hidden__other","predictions/_rt_shown__other","predictions/_rt_ownhid__u_rt_owner","submitted/_rt_sm__other","submitted/_rt_future__u_rt_owner",
     "pools/_rt/predictions/p1","pools/_rt/predictions/p2","pools/_rt/config/admins"];
   for (const p of dels) { try { await db.doc(p).delete(); } catch(e){} }
   console.log("🧹 เก็บกวาด test data แล้ว (" + dels.length + " docs)");

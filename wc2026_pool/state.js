@@ -5,7 +5,7 @@ import { ROSTER, POOL_ID } from "./config.js";
 
 export const S = {
   me: null,                                   // {uid,email,name,photo}
-  matches: [], allMatches: [], allPreds: [], myPreds: {},
+  matches: [], allMatches: [], allPreds: [], myPreds: {}, submittedByMatch: {},   // submittedByMatch: matchId→[ชื่อคนส่งโพย] (จาก marker สาธารณะ · โชว์ "ใครส่งแล้ว" ก่อน kickoff โดยไม่เห็นสกอร์)
   visibility: { startFrom:0, hidden:[] },     // ต่อวง: เริ่มจากวันที่ + ซ่อนคู่ (matches=allMatches กรองแล้ว)
   carry: {}, champPicks: {}, configChampPicks: {}, tournament: {}, playersByName: {}, prev: {},
   emailByUid: {},                              // uid→email (PII · โหลดเฉพาะแอดมิน จาก emails/{uid} · non-admin ว่าง)

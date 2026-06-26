@@ -12,7 +12,10 @@ export async function renameMember(code, oldName, newName, uid){
   if(uid){
     await setDoc(poolDocFor(code,"players",uid),{name:newName},{merge:true});
     const preds=await getDocs(poolColFor(code,"predictions"));
-    for(const d of preds.docs){ if(d.data().uid===uid && d.data().player!==newName) await setDoc(d.ref,{player:newName},{merge:true}); }   // แต้มผูกชื่อ → อัปเดตโพยทุกใบ
+    for(const d of preds.docs){ if(d.data().uid===uid && d.data().player!==newName){
+      await setDoc(d.ref,{player:newName},{merge:true});                                    // แต้มผูกชื่อ → อัปเดตโพยทุกใบ
+      await setDoc(poolDocFor(code,"submitted",d.id),{player:newName},{merge:true});         // marker "ส่งแล้ว" ก็ผูกชื่อ → อัปเดตด้วย
+    } }
   }
 }
 
@@ -27,6 +30,10 @@ export async function moveMember(fromCode, toCode, name, uid){
     const ps=await getDoc(poolDocFor(fromCode,"players",uid));
     if(ps.exists()){ await setDoc(poolDocFor(toCode,"players",uid),ps.data(),{merge:true}); await deleteDoc(poolDocFor(fromCode,"players",uid)); }
     const preds=await getDocs(poolColFor(fromCode,"predictions"));
-    for(const d of preds.docs){ if(d.data().uid===uid) await setDoc(poolDocFor(toCode,"predictions",d.id),d.data(),{merge:true}); }   // copy (ลบต้นทางไม่ได้)
+    for(const d of preds.docs){ if(d.data().uid===uid){
+      const p=d.data();
+      await setDoc(poolDocFor(toCode,"predictions",d.id),p,{merge:true});                          // copy โพย (ลบต้นทางไม่ได้)
+      await setDoc(poolDocFor(toCode,"submitted",d.id),{uid,matchId:p.matchId,player:p.player},{merge:true});   // + marker "ส่งแล้ว" ในวงใหม่
+    } }
   }
 }

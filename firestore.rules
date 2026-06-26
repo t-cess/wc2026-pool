@@ -22,12 +22,19 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/pools/$(pool)/config/admins)
           && request.auth.token.email in get(/databases/$(database)/documents/pools/$(pool)/config/admins).data.emails );
     }
-    // โพยแก้ได้ถ้า = เจ้าของ (doc มี uid ตรง) · เขียนได้เฉพาะฟิลด์โพย (ห้ามแตะฟิลด์ให้คะแนน scorerOk/scorerManual/s1hit/...) · ยังก่อนเตะเกิน 10 นาที
+    // โพยแก้ได้ถ้า = เจ้าของ (doc มี uid ตรง) · เขียนได้เฉพาะฟิลด์โพย (ห้ามแตะ scorerOk/s1hit/... รวมถึง revealed → กันแอบเปิดเผยโพยตัวเองก่อนเตะ) · ยังก่อนเตะเกิน 10 นาที
     function ownerBeforeKickoff() {
       return request.auth.uid == request.resource.data.uid
         && request.resource.data.keys().hasOnly(['uid','matchId','player','homeScore','awayScore','scorer1','scorer2'])
         && request.time.toMillis()
            < get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.kickoff - 600000;
+    }
+    // marker "ใครส่งโพยแล้ว" (สาธารณะ · ไม่มีสกอร์) — id = "{matchId}__{uid}" · เจ้าของเขียนของตัวเอง (player ต้องตรงชื่อลงทะเบียน) หรือแอดมิน
+    function ownsMarker(pid, nameDoc) {
+      return request.auth.uid == request.resource.data.uid
+        && request.resource.data.keys().hasOnly(['uid','matchId','player'])
+        && pid == request.resource.data.matchId + '__' + request.auth.uid
+        && request.resource.data.player == get(nameDoc).data.name;
     }
 
     // ===== คู่แข่งขัน: ใช้ร่วมทุกวง — อ่านได้หมด · เพิ่ม/แก้/ลบ = super เท่านั้น =====
@@ -49,14 +56,24 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if (id == 'admins' || id == 'meta') ? isSuper() : topAdmin();
     }
-    // โพย: อ่านได้หมด · แก้ = แอดมินวงหลัก (ติ๊กคนยิง) หรือ เจ้าของก่อนเตะ 10 นาที
+    // โพย: อ่านได้เฉพาะ เจ้าของ / โพยที่เปิดเผยแล้ว (revealed=true · auto-grade พลิกตอนคู่เริ่มเตะ) / แอดมิน — กันคนแอบดูสกอร์คนอื่นก่อนเตะ (UI ซ่อนไม่พอ ต้องกันที่ rule)
+    //   revealed (ไม่ใช่ kickoff<now) เพราะ list query authorize จาก "ข้อจำกัด query" ที่ต้อง match แบบ equality — where("revealed","==",true) ใช้ได้ชัวร์
     match /predictions/{pid} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && ( resource.data.uid == request.auth.uid
+        || resource.data.revealed == true
+        || topAdmin() );
       // doc id = "{matchId}__{uid}" (1 ใบ/คน/คู่) + player ต้องตรงชื่อที่ลงทะเบียนของ uid → กันปั๊มแต้ม/ยัดชื่อคนอื่นแม้สมัคร alt · แอดมินเขียนอิสระ
       allow create, update: if request.auth != null && ( topAdmin()
         || ( ownerBeforeKickoff()
              && pid == request.resource.data.matchId + '__' + request.auth.uid
              && request.resource.data.player == get(/databases/$(database)/documents/players/$(request.auth.uid)).data.name ) );
+      allow delete: if false;
+    }
+    // marker "ใครส่งแล้ว" (สาธารณะ ไม่มีสกอร์) — คน login อ่านได้หมด · เขียน = เจ้าของ/แอดมิน
+    match /submitted/{pid} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && ( topAdmin()
+        || ownsMarker(pid, /databases/$(database)/documents/players/$(request.auth.uid)) );
       allow delete: if false;
     }
 
@@ -73,11 +90,19 @@ service cloud.firestore {
       allow write: if (id == 'admins' || id == 'meta') ? isSuper() : poolAdmin(pool);
     }
     match /pools/{pool}/predictions/{pid} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && ( resource.data.uid == request.auth.uid
+        || resource.data.revealed == true
+        || poolAdmin(pool) );
       allow create, update: if request.auth != null && ( poolAdmin(pool)
         || ( ownerBeforeKickoff()
              && pid == request.resource.data.matchId + '__' + request.auth.uid
              && request.resource.data.player == get(/databases/$(database)/documents/pools/$(pool)/players/$(request.auth.uid)).data.name ) );
+      allow delete: if false;
+    }
+    match /pools/{pool}/submitted/{pid} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && ( poolAdmin(pool)
+        || ownsMarker(pid, /databases/$(database)/documents/pools/$(pool)/players/$(request.auth.uid)) );
       allow delete: if false;
     }
   }

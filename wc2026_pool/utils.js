@@ -39,6 +39,23 @@ export function confirmModal(message, opts={}){
     ov.onclick=e=>{ if(e.target===ov) done(false); };
   });
 }
+// แจ้งเตือนปุ่มเดียว (popup ของเว็บเอง · ใช้ตอนแต้มเปลี่ยนหลังบันทึก) — รับ title + รายการบรรทัด
+export function alertModal(title, lines=[], opts={}){
+  const { okText="รับทราบ" } = opts;
+  return new Promise(resolve=>{
+    const ov=document.createElement("div");
+    ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;z-index:300;padding:28px;";
+    const body=lines.length?`<div class="k" style="max-height:46vh;overflow-y:auto;margin-bottom:18px;">${lines.map(l=>`<div style="display:flex;align-items:center;gap:8px;font-size:14px;padding:5px 0;border-bottom:1px solid #1c2129;"><span style="flex:1;min-width:0;color:#cfd4db;">${esc(l.name)}</span><span style="flex:none;font-weight:700;color:#8A929E;">${esc(String(l.from))}</span><span style="flex:none;color:#5b626d;">→</span><span style="flex:none;font-weight:800;color:${l.up?'#1FB85E':l.down?'#EF3E42':'#EEF1F4'};">${esc(String(l.to))}</span></div>`).join("")}</div>`:"";
+    ov.innerHTML=`<div style="background:#14171D;border:1px solid #2A303A;border-radius:18px;padding:22px 20px;max-width:360px;width:100%;">
+      <div class="k" style="font-size:15px;font-weight:800;line-height:1.5;color:#EEF1F4;margin-bottom:${lines.length?14:20}px;white-space:pre-line;">${esc(title)}</div>
+      ${body}
+      <div data-c="1" class="k btnG" style="height:46px;font-size:14px;">${esc(okText)}</div></div>`;
+    document.body.appendChild(ov); ov.animate([{opacity:0},{opacity:1}],{duration:130});
+    const done=()=>{ ov.remove(); resolve(true); };
+    ov.querySelector('[data-c="1"]').onclick=done;
+    ov.onclick=e=>{ if(e.target===ov) done(); };
+  });
+}
 // prompt อินพุต (เปลี่ยนชื่อ/แก้ยกมา) → resolve(ค่า) หรือ null (ยกเลิก)
 export function promptModal(message, opts={}){
   const { value="", placeholder="", okText="บันทึก", numeric=false } = opts;

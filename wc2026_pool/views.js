@@ -4,6 +4,7 @@ import { poolDoc, setDoc } from "./firebase.js";
 import { fe, CHAMP_TEAMS, MOCK } from "./config.js";
 import { $, esc, flag, avatarHTML, bindAvatars, toast, countdown, fmtKo, isAdmin, isSuper, ymdNYC, matchNightLabel, matchNightShort } from "./utils.js";
 import { stateOf, lockTs, scoreMatch, computeBoard } from "./scoring.js";
+import { predRowHTML } from "./predrow.js";
 import { renderAdmin } from "./admin.js";
 
 let scrollDayChip=false;   // เลื่อนชิปวันที่เลือกมากลางจอ "เฉพาะ" ตอนเปลี่ยนวัน/เปิดแรก — ไม่ใช่ทุก re-render (กันเด้งตอนกดซ่อน/แสดงโพย)
@@ -122,7 +123,7 @@ export function renderFixtures(){
     if(st==="open"){
       const saved=S.myPreds[m.id];
       const editMode=!saved||S.editing[m.id];
-      const subs=S.allPreds.filter(x=>x.matchId===m.id).map(x=>x.player);
+      const subs=S.submittedByMatch[m.id]||[];   // จาก marker สาธารณะ (โพยคนอื่นถูก gate ไม่อยู่ใน allPreds ก่อน kickoff แล้ว)
       const subLine=`<div class="k" style="margin-top:10px;font-size:11.5px;color:#8A929E;">📨 ${subs.length}/${rosterNames().length} ส่งแล้ว${subs.length?` <span style="color:#5fcf94;">(${subs.map(esc).join(", ")})</span>`:""}</div>`;
       const cdRow=lbl=>`<div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;"><span class="k" id="cd_${m.id}" style="font-size:11.5px;color:#5b626d;">⏱ ${countdown(lockTs(m)-S.nowTs)}</span>${lbl}</div>`;
       if(editMode){
@@ -155,6 +156,11 @@ export function renderFixtures(){
         const items=Object.values(byp).map(s=>`<span style="color:${s.side==='h'?'#9fe0b6':'#cdd6e0'};font-weight:600;">${esc(s.name)} <span style="color:#5b626d;font-weight:500;">${s.times.join(", ")}</span></span>`).join(` <span style="color:#3f454e;">·</span> `);
         inner+=`<div class="k" style="margin-top:7px;font-size:12px;line-height:1.55;display:flex;gap:6px;"><span>⚽</span><span style="flex:1;">${items}</span></div>`;
       }
+      const revealed = done || m.live;   // เปิดเผยโพยคนอื่นเมื่อ "เริ่มเตะจริง" (cron พลิก m.live + pred.revealed พร้อมกัน → UI ตรงกับ data) · ไม่ใช่ตอนปิดรับ −10น.
+      if(!revealed){   // ปิดรับแล้วแต่ยังไม่เตะ → โชว์แค่จำนวนคนส่ง (จาก marker) ยังไม่เปิดโพย
+        const subN=(S.submittedByMatch[m.id]||[]).length;
+        inner+=`<div class="k" style="margin-top:13px;border-top:1px solid #232830;padding-top:12px;font-size:12.5px;color:var(--mut);">ปิดรับแล้ว · ${subN} คนส่งโพย · ดูโพยได้เมื่อเริ่มเตะ</div>`;
+      } else {
       const showPts = done || m.live;   // สด = คิดแต้ม real-time ด้วย
       const raw=S.allPreds.filter(x=>x.matchId===m.id).map(p=>({...p,pts:showPts?scoreMatch(p,m):null}));
       if(done) raw.sort((a,b)=>b.pts-a.pts);   // live ไม่เรียง (กันแถวกระโดด)
@@ -167,22 +173,9 @@ export function renderFixtures(){
           <div data-toggle="${m.id}" class="k" style="font-weight:600;font-size:12.5px;color:#2D7DF6;cursor:pointer;">${exp?"ซ่อนโพย ▴":"ดูโพยทั้งหมด ("+raw.length+") ▾"}</div></div>`;
       if(exp){ inner+=`<div style="margin-top:10px;">`;
         if(!raw.length) inner+=`<div class="k" style="color:var(--dim);padding:8px 10px;">ไม่มีคนส่งโพย</div>`;
-        raw.forEach(p=>{ const isMe=p.uid===S.me.uid; const zero=p.homeScore===0&&p.awayScore===0;
-          const sgn=(a,b)=>(a>b)-(a<b);
-          const resG=showPts && sgn(p.homeScore,p.awayScore)===sgn(m.homeScore,m.awayScore);   // ผลทาย (แพ้/ชนะ/เสมอ) ถูก
-          const exact=showPts && p.homeScore===m.homeScore && p.awayScore===m.awayScore;        // สกอร์เป๊ะ → มงกุฎ
-          // เขียว=ตรงคนยิง · amber+?=ระบบอ่านชื่อไม่ออก ไม่แน่ใจจะได้แต้ม · เทา=ไม่ได้
-          const nm=(t,g,u,np,sk)=>g?`<span style="color:#1FB85E;font-weight:700;">${esc(t)} ✓</span>`:u?`<span style="color:#E0A33E;font-weight:600;" title="ระบบอ่านชื่อไม่ออก ยังไม่แน่ใจว่าจะได้แต้ม">${esc(t)} ?</span>`:np?`<span style="color:#EF3E42;">${esc(t)} <b style="font-weight:800;">ไม่ลง</b></span>`:sk?`<span style="color:var(--dim);text-decoration:line-through;">${esc(t)}</span>`:`<span style="color:var(--mut);">${esc(t)}</span>`;
-          let scH;
-          if(zero) scH=`<span style="color:var(--mut);">ไม่มีคนยิง</span>`;
-          // คนสองขึ้นสถานะ (เขียว/amber) เฉพาะตอนเป็น "ตัวที่ได้แต้มจริง" = คนแรกไม่ยิง+ไม่ได้ลง (กันติ๊กซ้ำ  2 คน) · คนแรกไม่ลง = แดง+"ไม่ลง" · คนแรกลง/ยิง → คนสองขีดฆ่า (ไม่ได้ใช้)
-          else { const s2active=!p.s1hit&&!p.s1played; const ps=[]; if(p.scorer1)ps.push(nm(p.scorer1, showPts&&p.s1hit, showPts&&p.s1unsure, showPts&&p.s1played===false)); if(p.scorer2)ps.push(nm(p.scorer2, showPts&&p.s2hit&&s2active, showPts&&p.s2unsure&&s2active, showPts&&p.s2played===false, showPts&&!s2active)); scH=ps.join(` <span style="color:#3f454e;">/</span> `)||"—"; }
-          inner+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;margin-bottom:4px;background:${isMe?"#16241a":"transparent"};border:1px solid ${isMe?"#1f5a39":"transparent"};">
-            <div class="k" style="width:46px;flex:none;font-weight:600;font-size:13.5px;">${esc(p.player)}</div>
-            <div class="k" style="width:58px;flex:none;font-weight:700;font-size:14px;color:${resG?'#1FB85E':'#cfd4db'};">${p.homeScore}-${p.awayScore}${exact?' 🔥':resG?' ✓':''}</div>
-            <div style="flex:1;min-width:0;font-size:12px;word-break:break-word;line-height:1.3;">${scH}</div>
-            <div class="k" style="flex:none;text-align:right;font-weight:800;${(showPts&&p.pts>=5)?`min-width:40px;font-size:23px;color:#FFD24A;animation:auraGlow 1.6s ease-in-out infinite;`:`width:30px;font-size:15px;color:${showPts?(p.pts>0?"#1FB85E":"#5b626d"):"transparent"};`}">${showPts?(p.pts>0?"+"+p.pts:p.pts):""}</div></div>`; });
+        raw.forEach(p=>{ inner+=predRowHTML(p, m, {showPts, isMe:p.uid===S.me.uid}); });
         inner+=`</div>`; }
+      }
     }
     html+=`<div style="background:#14171D;border:1px solid #232830;border-radius:18px;padding:15px;margin-bottom:13px;">${inner}</div>`;
   });
@@ -218,8 +211,13 @@ async function savePred(m){
   const s1v=zero?"":$("#s1_"+m.id).value.trim(), s2v=zero?"":$("#s2_"+m.id).value.trim();
   if(!zero && !s1v){ toast("ใส่ชื่อคนยิงคนแรก (บังคับ)"); return; }   // คนแรกบังคับ · คนสอง optional
   const pred={uid:S.me.uid,player:S.me.name,matchId:m.id,homeScore:hs,awayScore:as,
-    scorer1:s1v, scorer2:s2v};
-  try{ await setDoc(poolDoc("predictions",`${m.id}__${S.me.uid}`),pred); S.editing[m.id]=false; toast("บันทึกโพยแล้ว ✓"); renderFixtures(); }
+    scorer1:s1v, scorer2:s2v};   // revealed ไม่เขียนจาก client (rule ห้าม) — auto-grade พลิกตอนเริ่มเตะ
+  const pid=`${m.id}__${S.me.uid}`;
+  try{
+    await setDoc(poolDoc("predictions",pid),pred);
+    await setDoc(poolDoc("submitted",pid),{uid:S.me.uid,player:S.me.name,matchId:m.id});   // marker สาธารณะ "ส่งแล้ว" (ไม่มีสกอร์)
+    S.editing[m.id]=false; toast("บันทึกโพยแล้ว ✓"); renderFixtures();
+  }
   catch(e){ toast("บันทึกไม่ได้ (อาจปิดรับ)"); }
 }
 
