@@ -518,7 +518,7 @@ async function computeBoardNode(POOL) {   // = computeBoard · ลำดับ +
     if (todayIds.has(p.matchId)) td[p.player]=(td[p.player]||0)+pts; });
   const names = new Set([...Object.keys(carry), ...players.map(p=>p.name).filter(Boolean), ...Object.keys(champPicks)]);
   const rows=[...names].map(name=>{
-    const champPts = champion ? (champPicks[name]||[]).map(normTxt).filter(t=>t===champion).length*10 : 0;
+    const champPts = champion ? [...new Set((champPicks[name]||[]).map(normTxt))].filter(t=>t===champion).length*10 : 0;   // dedup กันทาย "ทีมเดียวกัน 2 ช่อง" → +20 (ยิง Firestore ตรงเลี่ยง UI guard ได้)
     return { name, total:(carry[name]||0)+(mp[name]||0)+champPts };
   });
   rows.sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,"th"));   // คะแนนเท่า → ตัวอักษร (ตรงกับแอป)
@@ -626,13 +626,18 @@ async function run() {
       if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, goals:ev.goals, status:"finished", live:false, clock:"จบ" }, {merge:true});
       continue;
     }
-    if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, goals:ev.goals, status:"finished", autoGraded:true, finishedAt:Date.now(), live:false, clock:"จบ" }, {merge:true});
+    if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, goals:ev.goals, status:"finished", live:false, clock:"จบ" }, {merge:true});   // เขียนผล/สกอร์ก่อน — ยัง"ไม่"ปิด (autoGraded) จนตรวจคนยิงครบ
     // 2) ตรวจคนยิงเต็มทุกวง (ดิก + Qwen กวาดชื่อใหม่ + กฎคนแรกลงเล่น)
     const luFin = await fetchLineup(ev.id);
     for (const p of pools) {
       const n = await gradeScorers(p, mdoc.id, ev.scorers, luFin);
       console.log(`[${p.id}]   ตรวจคนยิง (จบ) เปลี่ยน ${n} โพย`);
     }
+    // 3) ปิด (autoGraded) "หลัง" ตรวจคนยิงครบทุกวง — กัน throw กลางคัน (quota/lineup) ค้าง grade ไม่สมบูรณ์ถาวร (บรรทัด 606 ข้าม) ·
+    //    ต้องมี lineup จริง (หรือ 0-0 ไม่ต้องมี) ก่อนปิด — luFin ว่าง → composeGrade เดา s1played=true ผิด → ยังไม่ปิด รอ tick หน้า ESPN ส่ง lineup มา
+    const luOk = luFin.length>0 || (ev.hs===0 && ev.as===0);
+    if (!DRY && luOk) await mdoc.ref.set({ autoGraded:true, finishedAt:Date.now() }, {merge:true});
+    else if (!luOk) console.log(`   ⏳ ${m.home}-${m.away}: lineup ว่าง — ยังไม่ปิด (autoGraded) รอ tick หน้า`);
   }
   }   // ปิด else (live)
   // 🔓 เปิดเผยโพยตอน "ปิดรับ" (kickoff-10min ≤ now < kickoff) — ทุกวง · นอก live-gate (ต้องรันแม้ยังไม่มีคู่ live ให้ตรงกับ LINE lock-post) · cheat-safe เพราะปิดรับแล้วแก้ไม่ได้ · live/finished → gradeScorers ดูแล revealed ต่อ
