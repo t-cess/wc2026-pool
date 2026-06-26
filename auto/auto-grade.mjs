@@ -636,15 +636,19 @@ async function run() {
   }
   }   // ปิด else (live)
   // 🔓 เปิดเผยโพยตอน "ปิดรับ" (kickoff-10min ≤ now < kickoff) — ทุกวง · นอก live-gate (ต้องรันแม้ยังไม่มีคู่ live ให้ตรงกับ LINE lock-post) · cheat-safe เพราะปิดรับแล้วแก้ไม่ได้ · live/finished → gradeScorers ดูแล revealed ต่อ
-  if (!lowPower) {
+  if (!lowPower) try {
     const lockNow = Date.now();
     const lockMs = RD(await matchesCol().where("kickoff",">", lockNow).where("kickoff","<=", lockNow+LOCK_BEFORE_MS).get());   // คู่ที่ปิดรับแล้วแต่ยังไม่เตะ
-    let rv = 0;
-    for (const md of lockMs.docs) for (const p of pools)
-      for (const d of RD(await col(p,"predictions").where("matchId","==",md.id).get()).docs)
-        if (!d.data().revealed) { if (!DRY) await d.ref.set({ revealed:true }, {merge:true}); rv++; }
-    if (rv) console.log(`${DRY?"[DRY] ":""}🔓 เปิดเผยโพยคู่ปิดรับ ${lockMs.size} คู่ · ${rv} โพย`);
-  }
+    let rv = 0, done = 0;
+    for (const md of lockMs.docs) {
+      if (md.data().revealDone) continue;   // เปิดเผยครบแล้ว (ปิดรับแล้วไม่มีโพยใหม่) → ไม่อ่าน preds ซ้ำทุก tick · flag เหมือน lockPosted
+      for (const p of pools)
+        for (const d of RD(await col(p,"predictions").where("matchId","==",md.id).get()).docs)
+          if (!d.data().revealed) { if (!DRY) await d.ref.set({ revealed:true }, {merge:true}); rv++; }
+      if (!DRY) await md.ref.set({ revealDone:true }, {merge:true}); done++;   // มาร์กคู่นี้ "เปิดครบ" → tick หน้าข้าม
+    }
+    if (rv || done) console.log(`${DRY?"[DRY] ":""}🔓 เปิดเผยโพย ${done} คู่ · ${rv} โพย`);
+  } catch(e){ console.log("⚠️ reveal ล้มเหลว:", e.message); }   // ไม่ให้ล้มแล้วทุบ autoAdd/LINE/usage ข้างล่าง (เหมือน try รอบ lineLockNotify)
   // autoAdd + digest อ่านคู่ 48ชม. = ตัวกิน read หลัก → อ่าน "ครั้งเดียว" แชร์กัน · ทุก ~5 นาที · ข้ามถ้า low-power
   if (!lowPower && (FORCE || DRY || new Date().getMinutes() % 5 === 0)) {
     const ms48 = RD(await matchesCol().where("kickoff",">=", Date.now()-48*60*60*1000).get()).docs.map(d=>({id:d.id,...d.data()})).filter(m=>m.kickoff);
