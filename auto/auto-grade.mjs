@@ -582,6 +582,8 @@ async function run() {
   const usage = await usageRead();
   const lowPower = !FORCE && !REGRADE && usage.prior >= READ_CAP;
   if (lowPower) console.log(`🟡 LOW-POWER: read วันนี้ ${usage.prior} ≥ ${READ_CAP} — เขียนเฉพาะสกอร์ ข้ามตรวจคนยิง/autoAdd (regrade เก็บตกทีหลัง)`);
+  const pools = await listPools();
+  console.log("วงที่ตรวจ:", pools.map(p=>p.id).join(", "));
   const live = FORCE || await hasLiveWindow();
   if (!live) {                                 // ไม่มีบอลเตะ → ข้าม grade (แต่ auto-add ยังเช็กต่อ)
     console.log("⏸️ ไม่มีคู่อยู่ในเวลาเตะ — ข้าม grade", new Date().toLocaleString("th-TH"));
@@ -597,21 +599,6 @@ async function run() {
   const espn = (await Promise.all(ds.map(fetchEspn))).flat();   // เอาทั้ง จบ + สด
   console.log("ESPN จบ:", espn.filter(e=>e.final).map(e=>`${e.home} ${e.hs}-${e.as} ${e.away}`).join(" | ")||"-",
     "· สด:", espn.filter(e=>e.live).map(e=>`${e.home} ${e.hs}-${e.as} ${e.away} ${e.clock}`).join(" | ")||"-");
-
-  const pools = await listPools();
-  console.log("วงที่ตรวจ:", pools.map(p=>p.id).join(", "));
-
-  // 🔓 เปิดเผยโพยตอน "ปิดรับ" (now >= kickoff-10min, ก่อน kickoff) — ทุกวง · ตรงกับ LINE/แอปที่เปิดตอนปิดรับ
-  //   cheat-safe: ปิดรับแล้วแก้โพยไม่ได้ (ownerBeforeKickoff time<kickoff-10min) · พอ live แล้ว gradeScorers ดูแล revealed ต่อ
-  {
-    const lockNow = Date.now();
-    const lockMs = RD(await matchesCol().where("kickoff",">", lockNow).where("kickoff","<=", lockNow+LOCK_BEFORE_MS).get());   // คู่ที่ปิดรับแล้วแต่ยังไม่เตะ
-    let rv = 0;
-    for (const md of lockMs.docs) for (const p of pools)
-      for (const d of RD(await col(p,"predictions").where("matchId","==",md.id).get()).docs)
-        if (!d.data().revealed) { if (!DRY) await d.ref.set({ revealed:true }, {merge:true}); rv++; }
-    if (rv) console.log(`${DRY?"[DRY] ":""}🔓 เปิดเผยโพยคู่ปิดรับ ${lockMs.size} คู่ · ${rv} โพย`);
-  }
 
   const ms = REGRADE ? RD(await matchesCol().get()) : RD(await matchesInWindow(W_GRADE));   // ปกติอ่านเฉพาะคู่ช่วง 8 ชม. (regrade=ทั้งหมด)
   for (const mdoc of ms.docs) {
@@ -648,6 +635,16 @@ async function run() {
     }
   }
   }   // ปิด else (live)
+  // 🔓 เปิดเผยโพยตอน "ปิดรับ" (kickoff-10min ≤ now < kickoff) — ทุกวง · นอก live-gate (ต้องรันแม้ยังไม่มีคู่ live ให้ตรงกับ LINE lock-post) · cheat-safe เพราะปิดรับแล้วแก้ไม่ได้ · live/finished → gradeScorers ดูแล revealed ต่อ
+  if (!lowPower) {
+    const lockNow = Date.now();
+    const lockMs = RD(await matchesCol().where("kickoff",">", lockNow).where("kickoff","<=", lockNow+LOCK_BEFORE_MS).get());   // คู่ที่ปิดรับแล้วแต่ยังไม่เตะ
+    let rv = 0;
+    for (const md of lockMs.docs) for (const p of pools)
+      for (const d of RD(await col(p,"predictions").where("matchId","==",md.id).get()).docs)
+        if (!d.data().revealed) { if (!DRY) await d.ref.set({ revealed:true }, {merge:true}); rv++; }
+    if (rv) console.log(`${DRY?"[DRY] ":""}🔓 เปิดเผยโพยคู่ปิดรับ ${lockMs.size} คู่ · ${rv} โพย`);
+  }
   // autoAdd + digest อ่านคู่ 48ชม. = ตัวกิน read หลัก → อ่าน "ครั้งเดียว" แชร์กัน · ทุก ~5 นาที · ข้ามถ้า low-power
   if (!lowPower && (FORCE || DRY || new Date().getMinutes() % 5 === 0)) {
     const ms48 = RD(await matchesCol().where("kickoff",">=", Date.now()-48*60*60*1000).get()).docs.map(d=>({id:d.id,...d.data()})).filter(m=>m.kickoff);
