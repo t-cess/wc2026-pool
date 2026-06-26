@@ -208,12 +208,11 @@ async function savePred(m){
   const pred={uid:S.me.uid,player:S.me.name,matchId:m.id,homeScore:hs,awayScore:as,
     scorer1:s1v, scorer2:s2v};   // revealed ไม่เขียนจาก client (rule ห้าม) — auto-grade พลิกตอนปิดรับ
   const pid=`${m.id}__${S.me.uid}`;
-  try{
-    await setDoc(poolDoc("predictions",pid),pred);
-    await setDoc(poolDoc("submitted",pid),{uid:S.me.uid,player:S.me.name,matchId:m.id});   // marker สาธารณะ "ส่งแล้ว" (ไม่มีสกอร์)
-    S.editing[m.id]=false; toast("บันทึกโพยแล้ว ✓"); renderFixtures();
-  }
-  catch(e){ toast("บันทึกไม่ได้ (อาจปิดรับ)"); }
+  try{ await setDoc(poolDoc("predictions",pid),pred); }              // โพย = สำคัญ · ล้ม = แจ้ง error แล้วจบ
+  catch(e){ toast("บันทึกไม่ได้ (อาจปิดรับ)"); return; }
+  // marker "ส่งแล้ว" (ไม่มีสกอร์) = best-effort · ล้มไม่บดบังว่าโพยบันทึกสำเร็จแล้ว (อย่างมากคือ subLine ขาดชื่อจนแก้โพยรอบหน้า)
+  setDoc(poolDoc("submitted",pid),{uid:S.me.uid,player:S.me.name,matchId:m.id}).catch(()=>{});
+  S.editing[m.id]=false; toast("บันทึกโพยแล้ว ✓"); renderFixtures();
 }
 
 /* ===== champion ===== */
