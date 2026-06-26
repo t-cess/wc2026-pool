@@ -12,9 +12,9 @@ export async function renameMember(code, oldName, newName, uid){
   if(uid){
     await setDoc(poolDocFor(code,"players",uid),{name:newName},{merge:true});
     const preds=await getDocs(poolColFor(code,"predictions"));
-    for(const d of preds.docs){ if(d.data().uid===uid && d.data().player!==newName){
-      await setDoc(d.ref,{player:newName},{merge:true});                                    // แต้มผูกชื่อ → อัปเดตโพยทุกใบ
-      await setDoc(poolDocFor(code,"submitted",d.id),{player:newName},{merge:true});         // marker "ส่งแล้ว" ก็ผูกชื่อ → อัปเดตด้วย
+    for(const d of preds.docs){ const p=d.data(); if(p.uid===uid && p.player!==newName){
+      await setDoc(d.ref,{player:newName},{merge:true});                                                 // แต้มผูกชื่อ → อัปเดตโพยทุกใบ
+      await setDoc(poolDocFor(code,"submitted",d.id),{uid,matchId:p.matchId,player:newName},{merge:true}); // marker ผูกชื่อด้วย · เขียนครบฟิลด์ (กัน junk ถ้า marker ยังไม่มี)
     } }
   }
 }
