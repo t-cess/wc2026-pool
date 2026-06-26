@@ -156,17 +156,13 @@ export function renderFixtures(){
         const items=Object.values(byp).map(s=>`<span style="color:${s.side==='h'?'#9fe0b6':'#cdd6e0'};font-weight:600;">${esc(s.name)} <span style="color:#5b626d;font-weight:500;">${s.times.join(", ")}</span></span>`).join(` <span style="color:#3f454e;">·</span> `);
         inner+=`<div class="k" style="margin-top:7px;font-size:12px;line-height:1.55;display:flex;gap:6px;"><span>⚽</span><span style="flex:1;">${items}</span></div>`;
       }
-      const revealed = done || m.live;   // เปิดเผยโพยคนอื่นเมื่อ "เริ่มเตะจริง" (cron พลิก m.live + pred.revealed พร้อมกัน → UI ตรงกับ data) · ไม่ใช่ตอนปิดรับ −10น.
-      if(!revealed){   // ปิดรับแล้วแต่ยังไม่เตะ → โชว์แค่จำนวนคนส่ง (จาก marker) ยังไม่เปิดโพย
-        const subN=(S.submittedByMatch[m.id]||[]).length;
-        inner+=`<div class="k" style="margin-top:13px;border-top:1px solid #232830;padding-top:12px;font-size:12.5px;color:var(--mut);">ปิดรับแล้ว · ${subN} คนส่งโพย · ดูโพยได้เมื่อเริ่มเตะ</div>`;
-      } else {
+      // ปิดรับแล้ว (locked) หรือจบ = เปิดเผยโพยทุกคน (ตรงกับ LINE/cron ที่เปิดตอนปิดรับ · ปิดรับแล้วแก้ไม่ได้ = ไม่โกง) · โพยคนอื่นโผล่ใน allPreds เมื่อ cron พลิก revealed (~1 นาทีหลังปิดรับ)
       const showPts = done || m.live;   // สด = คิดแต้ม real-time ด้วย
       const raw=S.allPreds.filter(x=>x.matchId===m.id).map(p=>({...p,pts:showPts?scoreMatch(p,m):null}));
       if(done) raw.sort((a,b)=>b.pts-a.pts);   // live ไม่เรียง (กันแถวกระโดด)
       const mine=raw.find(r=>r.uid===S.me.uid);
       const note=done?("คุณได้ "+(mine?mine.pts:0)+" แต้มจากคู่นี้")
-        :(m.live?(`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1FB85E;animation:pulse 1.4s infinite;vertical-align:middle;margin-right:5px;"></span>ตอนนี้คุณได้ `+(mine?mine.pts:0)+" แต้ม (สด)"):("ปิดรับแล้ว · "+raw.length+" คนส่งโพย"));
+        :(m.live?(`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1FB85E;animation:pulse 1.4s infinite;vertical-align:middle;margin-right:5px;"></span>ตอนนี้คุณได้ `+(mine?mine.pts:0)+" แต้ม (สด)"):("ปิดรับแล้ว · "+(S.submittedByMatch[m.id]||[]).length+" คนส่งโพย"));   // ปิดรับ: นับจาก marker (แม่นทันที ไม่รอ revealed)
       const exp=!!S.expanded[m.id];
       inner+=`<div style="margin-top:13px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #232830;padding-top:12px;">
           <span class="k" style="font-size:12.5px;color:var(--mut);">${note}</span>
@@ -175,7 +171,6 @@ export function renderFixtures(){
         if(!raw.length) inner+=`<div class="k" style="color:var(--dim);padding:8px 10px;">ไม่มีคนส่งโพย</div>`;
         raw.forEach(p=>{ inner+=predRowHTML(p, m, {showPts, isMe:p.uid===S.me.uid}); });
         inner+=`</div>`; }
-      }
     }
     html+=`<div style="background:#14171D;border:1px solid #232830;border-radius:18px;padding:15px;margin-bottom:13px;">${inner}</div>`;
   });
@@ -211,7 +206,7 @@ async function savePred(m){
   const s1v=zero?"":$("#s1_"+m.id).value.trim(), s2v=zero?"":$("#s2_"+m.id).value.trim();
   if(!zero && !s1v){ toast("ใส่ชื่อคนยิงคนแรก (บังคับ)"); return; }   // คนแรกบังคับ · คนสอง optional
   const pred={uid:S.me.uid,player:S.me.name,matchId:m.id,homeScore:hs,awayScore:as,
-    scorer1:s1v, scorer2:s2v};   // revealed ไม่เขียนจาก client (rule ห้าม) — auto-grade พลิกตอนเริ่มเตะ
+    scorer1:s1v, scorer2:s2v};   // revealed ไม่เขียนจาก client (rule ห้าม) — auto-grade พลิกตอนปิดรับ
   const pid=`${m.id}__${S.me.uid}`;
   try{
     await setDoc(poolDoc("predictions",pid),pred);

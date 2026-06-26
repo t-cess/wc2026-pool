@@ -600,6 +600,19 @@ async function run() {
 
   const pools = await listPools();
   console.log("วงที่ตรวจ:", pools.map(p=>p.id).join(", "));
+
+  // 🔓 เปิดเผยโพยตอน "ปิดรับ" (now >= kickoff-10min, ก่อน kickoff) — ทุกวง · ตรงกับ LINE/แอปที่เปิดตอนปิดรับ
+  //   cheat-safe: ปิดรับแล้วแก้โพยไม่ได้ (ownerBeforeKickoff time<kickoff-10min) · พอ live แล้ว gradeScorers ดูแล revealed ต่อ
+  {
+    const lockNow = Date.now();
+    const lockMs = RD(await matchesCol().where("kickoff",">", lockNow).where("kickoff","<=", lockNow+LOCK_BEFORE_MS).get());   // คู่ที่ปิดรับแล้วแต่ยังไม่เตะ
+    let rv = 0;
+    for (const md of lockMs.docs) for (const p of pools)
+      for (const d of RD(await col(p,"predictions").where("matchId","==",md.id).get()).docs)
+        if (!d.data().revealed) { if (!DRY) await d.ref.set({ revealed:true }, {merge:true}); rv++; }
+    if (rv) console.log(`${DRY?"[DRY] ":""}🔓 เปิดเผยโพยคู่ปิดรับ ${lockMs.size} คู่ · ${rv} โพย`);
+  }
+
   const ms = REGRADE ? RD(await matchesCol().get()) : RD(await matchesInWindow(W_GRADE));   // ปกติอ่านเฉพาะคู่ช่วง 8 ชม. (regrade=ทั้งหมด)
   for (const mdoc of ms.docs) {
     const m = mdoc.data();
