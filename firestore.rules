@@ -36,6 +36,15 @@ service cloud.firestore {
         && pid == request.resource.data.matchId + '__' + request.auth.uid
         && request.resource.data.player == get(nameDoc).data.name;
     }
+    // ทายแชมป์ (champ1/champ2 = +10/ทีม) ห้ามแก้เมื่อล็อกแล้ว — บังคับที่ rule (UI canPick กันได้แค่ฝั่งจอ · ยิง Firestore ตรงได้ +10)
+    function champLocked(tDoc) {
+      return exists(tDoc) && (get(tDoc).data.get('picksLocked', false) || get(tDoc).data.get('championLocked', false));
+    }
+    // champ ต้องไม่เปลี่ยนจากค่าเดิม (create: resource==null → ต้องว่าง · ให้แก้ name/photo ได้ตามปกติ)
+    function champUnchanged() {
+      return request.resource.data.get('champ1','') == (resource == null ? '' : resource.data.get('champ1',''))
+        && request.resource.data.get('champ2','') == (resource == null ? '' : resource.data.get('champ2',''));
+    }
 
     // ===== คู่แข่งขัน: ใช้ร่วมทุกวง — อ่านได้หมด · เพิ่ม/แก้/ลบ = super เท่านั้น =====
     match /matches/{id} { allow read: if request.auth != null; allow write: if isSuper(); }
@@ -45,7 +54,9 @@ service cloud.firestore {
     //   email ไม่อยู่ใน doc นี้แล้ว (แยกไป emails/{uid} gated) → เปิดอ่านได้ไม่รั่ว PII
     match /players/{uid} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && (request.auth.uid == uid || topAdmin());
+      allow write: if request.auth != null && ( topAdmin()
+        || ( request.auth.uid == uid
+             && ( !champLocked(/databases/$(database)/documents/config/tournament) || champUnchanged() ) ) );
     }
     // อีเมล (PII) = เจ้าของ + แอดมินวงหลักเท่านั้น
     match /emails/{uid} {
@@ -80,7 +91,9 @@ service cloud.firestore {
     // ===== วงอื่น (pools/{pool}) — แอดมินวงนั้นๆ ดูแลของตัวเอง · matches ยังใช้ร่วม top-level =====
     match /pools/{pool}/players/{uid} {
       allow read: if request.auth != null;   // ชื่อ/รูป/แชมป์ public · email แยกไป emails/{uid}
-      allow write: if request.auth != null && (request.auth.uid == uid || poolAdmin(pool));
+      allow write: if request.auth != null && ( poolAdmin(pool)
+        || ( request.auth.uid == uid
+             && ( !champLocked(/databases/$(database)/documents/pools/$(pool)/config/tournament) || champUnchanged() ) ) );
     }
     match /pools/{pool}/emails/{uid} {
       allow read, write: if request.auth != null && (request.auth.uid == uid || poolAdmin(pool));

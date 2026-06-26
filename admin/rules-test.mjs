@@ -74,12 +74,16 @@ async function main() {
   await db.doc("predictions/_rt_shown__other").set({  uid:"u_other", matchId:"_rt_past",   player:"other", homeScore:1, awayScore:0, revealed:true });     // revealed แล้ว (เตะแล้ว)
   await db.doc("predictions/_rt_ownhid__u_rt_owner").set({ uid:"u_rt_owner", matchId:"_rt_future", player:"owner", homeScore:1, awayScore:0 });            // โพย owner เอง ยังไม่ revealed → อ่านของตัวเองได้
   await db.doc("submitted/_rt_sm__other").set({ uid:"u_other", matchId:"_rt_future", player:"other" });   // marker คนอื่น (สาธารณะ)
+  // champ-lock: เทสใน pool _rt (ห้ามแตะ config/tournament จริง!) · ล็อกแล้ว → เจ้าของแก้ champ ไม่ได้
+  await db.doc("pools/_rt/config/tournament").set({ picksLocked: true });
+  await db.doc("pools/_rt/players/u_rt_owner").set({ uid:"u_rt_owner", name:"owner", champ1:"บราซิล", champ2:"" });
 
   // ---- tokens ----
   const sup = await signIn("u_rt_super",   SUPER_EMAIL);
   const pad = await signIn("u_rt_padmin",  "pooladmin@test.com");
   const str = await signIn("u_rt_stranger","stranger@test.com");
   const own = await signIn("u_rt_owner",   "owner@test.com");
+  const nwb = await signIn("u_rt_newbie",  "newbie@test.com");   // คนใหม่ (เทส self-register ตอนล็อก)
 
   // ---- cases ----
   const cases = [
@@ -113,6 +117,11 @@ async function main() {
     ["เจ้าของเขียน marker ตัวเอง",                          () => tryWrite(own, "submitted/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner" }), "allow"],
     ["🔴 เจ้าของเขียน marker ยัดชื่อคนอื่น",                () => tryWrite(own, "submitted/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", player:"someone_else" }), "deny"],
     ["🔴 คนแปลกหน้าเขียน marker แทนคนอื่น",                 () => tryWrite(str, "submitted/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner" }), "deny"],
+    // ---- champ-lock: ล็อกแล้ว เจ้าของแก้ทายแชมป์ไม่ได้ (กัน +10 ฟรี) · ลำดับสำคัญ: owner ก่อน · admin (เปลี่ยน champ) ท้ายสุด ----
+    ["🔴 เจ้าของแก้ทายแชมป์ตอนล็อก (กัน +10 ฟรี)",         () => tryWrite(own, "pools/_rt/players/u_rt_owner", { uid:"u_rt_owner", name:"owner", champ1:"ฝรั่งเศส", champ2:"" }), "deny"],
+    ["เจ้าของแก้ชื่อ/รูปตอนล็อก (champ เท่าเดิม) ได้",      () => tryWrite(own, "pools/_rt/players/u_rt_owner", { uid:"u_rt_owner", name:"owner2", champ1:"บราซิล", champ2:"" }), "allow"],
+    ["คนใหม่ self-register ตอนล็อก (champ ว่าง) ได้",       () => tryWrite(nwb, "pools/_rt/players/u_rt_newbie", { uid:"u_rt_newbie", name:"newbie", champ1:"", champ2:"" }), "allow"],
+    ["แอดมินวงแก้ทายแชมป์ตอนล็อกได้ (แก้ให้สมาชิก)",        () => tryWrite(pad, "pools/_rt/players/u_rt_owner", { uid:"u_rt_owner", name:"owner", champ1:"เยอรมนี", champ2:"" }), "allow"],
     ["🔒 คนนอก(ไม่ login) อ่าน config (PII อีเมล)", () => tryRead(null, "config/_rt_pii"), "deny"],
     ["🔒 คนนอก(ไม่ login) อ่าน players",            () => tryRead(null, "players"),         "deny"],
     ["สมาชิก(login) อ่าน config ได้ (regression)", () => tryRead(str,  "config/_rt_pii"), "allow"],
@@ -140,7 +149,8 @@ async function main() {
   const dels = ["matches/_rt_future","matches/_rt_past","matches/_rt_x","config/_rt_carry","config/_rt_pii","players/u_rt_owner","emails/u_rt_owner",
     "predictions/_rt_future__u_rt_owner","predictions/_rt_past__u_rt_owner","predictions/_rt_evil_extra","predictions/_rt_future__someone_else",
     "predictions/_rt_hidden__other","predictions/_rt_shown__other","predictions/_rt_ownhid__u_rt_owner","submitted/_rt_sm__other","submitted/_rt_future__u_rt_owner",
-    "pools/_rt/predictions/p1","pools/_rt/predictions/p2","pools/_rt/config/admins"];
+    "pools/_rt/predictions/p1","pools/_rt/predictions/p2","pools/_rt/config/admins",
+    "pools/_rt/config/tournament","pools/_rt/players/u_rt_owner","pools/_rt/players/u_rt_newbie"];
   for (const p of dels) { try { await db.doc(p).delete(); } catch(e){} }
   console.log("🧹 เก็บกวาด test data แล้ว (" + dels.length + " docs)");
   return fail;
