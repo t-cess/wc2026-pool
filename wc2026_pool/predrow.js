@@ -14,7 +14,8 @@ export function predRowHTML(p, m, opts={}){
   // เขียว=ตรงคนยิง · amber+?=ระบบอ่านชื่อไม่ออก ไม่แน่ใจจะได้แต้ม · แดง=ไม่ลง · ขีดฆ่า=ไม่ได้ใช้ · เทา=ปกติ
   const nm=(t,g,u,np,sk)=>g?`<span style="color:#1FB85E;font-weight:700;">${esc(t)} ✓</span>`:u?`<span style="color:#E0A33E;font-weight:600;" title="ระบบอ่านชื่อไม่ออก ยังไม่แน่ใจว่าจะได้แต้ม">${esc(t)} ?</span>`:np?`<span style="color:#EF3E42;">${esc(t)} <b style="font-weight:800;">ไม่ลง</b></span>`:sk?`<span style="color:var(--dim);text-decoration:line-through;">${esc(t)}</span>`:`<span style="color:var(--mut);">${esc(t)}</span>`;
   let scH, hasName=false;
-  if(zero) scH=`<span style="color:var(--mut);">ไม่มีคนยิง</span>`;
+  if(zero){ const noScHit = showPts && m && m.homeScore===0 && m.awayScore===0;   // ทาย 0-0 "ไม่มีคนยิง" ถูก (แมตช์จบ 0-0 = +1 ตาม scoring) → เขียว ✓ เหมือนคนยิงถูก
+    scH=noScHit?`<span style="color:#1FB85E;font-weight:700;">ไม่มีคนยิง ✓</span>`:`<span style="color:var(--mut);">ไม่มีคนยิง</span>`; }
   else { const s2active=!p.s1hit&&!p.s1played; const ps=[];
     if(p.scorer1){ hasName=true; ps.push(nm(p.scorer1, showPts&&p.s1hit, showPts&&p.s1unsure, showPts&&p.s1played===false)); }
     if(p.scorer2){ hasName=true; ps.push(nm(p.scorer2, showPts&&p.s2hit&&s2active, showPts&&p.s2unsure&&s2active, showPts&&p.s2played===false, showPts&&!s2active)); }
