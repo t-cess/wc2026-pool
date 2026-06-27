@@ -29,6 +29,16 @@ export function predRowHTML(p, m, opts={}){
     <div class="k" style="flex:none;text-align:right;font-weight:800;${(showPts&&pts>=5)?`min-width:40px;font-size:23px;color:#FFD24A;animation:auraGlow 1.6s ease-in-out infinite;`:`width:30px;font-size:15px;color:${showPts?(pts>0?"#1FB85E":"#5b626d"):"transparent"};`}">${showPts?(pts>0?"+"+pts:pts):""}</div></div>`;
 }
 
+// ⚽ คนยิงจริงในแมตช์ — รวมตามคน+ฝั่ง (เหย้าเขียว/เยือนเทา) + นาที + OG/จุดโทษ · ใช้ร่วมหน้าวง+หน้าตรวจ ให้เป๊ะกัน (กัน drift)
+export function matchScorersHTML(m){
+  const sep=` <span style="color:#3f454e;">·</span> `;
+  if((m.goals||[]).length){
+    const byp={}; m.goals.forEach(g=>{ const k=g.name+"|"+g.side; (byp[k]=byp[k]||{name:g.name,side:g.side,times:[]}); byp[k].times.push((g.time||"")+(g.og?" OG":g.pen?" (จุดโทษ)":"")); });
+    return Object.values(byp).map(s=>`<span style="color:${s.side==='h'?'#9fe0b6':'#cdd6e0'};font-weight:600;">${esc(s.name)} <span style="color:#5b626d;font-weight:500;">${s.times.join(", ")}</span></span>`).join(sep);
+  }
+  return (m.scorers||[]).map(s=>`<span style="color:#cdd6e0;font-weight:600;">${esc(s)}</span>`).join(sep);   // fallback: มีแค่ array ชื่อ (ไม่มี goals) → เทากลางๆ
+}
+
 // แปลงสถานะที่แตะ (2 ตัวอักษร [คนแรก][คนสอง]) → effective pred ที่ใช้แสดง/คิดแต้ม (= ตรงกับที่ commitScorers จะบันทึก)
 //   g=ยิง · x=ไม่ลง · อื่นๆ=ลงไม่ยิง · แตะแล้ว = แน่ใจ → ล้าง unsure
 export function effPredFromState(pr, st){
