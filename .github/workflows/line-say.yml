@@ -1,0 +1,37 @@
+name: line-say
+
+# ยิงข้อความ custom เข้ากลุ่ม LINE วง1 (ใช้ secrets เดียวกับ auto-grade)
+# กดเอง: Actions → line-say → Run workflow → วางข้อความ
+# หรือ CLI: gh workflow run line-say.yml -f text="ข้อความ..."
+on:
+  workflow_dispatch:
+    inputs:
+      text:
+        description: "ข้อความที่จะยิงเข้ากลุ่ม LINE (ขึ้นบรรทัดใหม่ใช้ \\n หรือวางหลายบรรทัดได้)"
+        required: true
+        type: string
+
+concurrency:
+  group: line-say
+  cancel-in-progress: false
+
+jobs:
+  say:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: install deps
+        working-directory: auto
+        run: npm install --no-audit --no-fund
+      - name: ยิงข้อความเข้า LINE
+        working-directory: auto
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
+          LINE_GROUP: ${{ secrets.LINE_GROUP }}
+          LINE_SAY: ${{ inputs.text }}
+        run: node auto-grade.mjs --line-say

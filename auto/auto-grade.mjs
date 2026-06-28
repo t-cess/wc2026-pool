@@ -220,6 +220,8 @@ const FORCE = process.argv.includes("--force");   // ข้าม live-window ga
 const REGRADE = process.argv.includes("--regrade");   // ตรวจซ้ำคู่ที่ autoGraded แล้ว (backfill s1hit/s2hit)
 const BACKFILL = process.argv.includes("--backfill-group");   // one-shot: เติม "กลุ่ม X" ให้ field group ของคู่เดิม (--dry-run = พรีวิว)
 const LINETEST = process.argv.includes("--line-test");        // one-shot: ยิงข้อความทดสอบไป LINE_GROUP (เทส token+push)
+const LINESAY = process.argv.includes("--line-say");          // one-shot: ยิงข้อความ custom (env LINE_SAY) เข้ากลุ่ม — ไว้เสริม/แก้มือ digest
+const SHOWBOARD = process.argv.includes("--show-board");      // read-only: พิมพ์ตาราง + แต้มวันนี้ + คะแนนเมื่อวาน (total-วันนี้) — ไว้อ่านก่อนแต่งข้อความ
 let anyLive = false;                               // มีคู่กำลังเตะรอบนี้ไหม (ให้ workflow loop วนต่อ)
 
 // อ่านเฉพาะคู่ที่ kickoff อยู่ใน [now-afterMs, now+5นาที] (range query — ไม่อ่านทั้ง collection)
@@ -586,6 +588,17 @@ async function poolRoster(POOL) {   // ชื่อสมาชิกวง = ca
 async function run() {
   if (BACKFILL) { await backfillGroup(); return; }   // โหมด one-shot — ข้าม grader ปกติ
   if (LINETEST) { console.log("LINE test →", await linePush("🤖 สวัสดีครับ ผมคือ AI ที่มาแทนกุ้ย-ชิน\nหน้าที่ผม:\n• โพสต์โพยทั้งวงตอนปิดรับ (โปร่งใส แก้ไม่ได้)\n• เตือนก่อนปิดรับ + ใครยังไม่ทาย\n• แจ้งเปิดทายชุดใหม่\n• สรุปผล + ตารางคะแนนทุกวัน") ? "ส่งสำเร็จ ✅" : "ส่งไม่ได้ (เช็ก token/group)"); return; }
+  if (SHOWBOARD) {   // อ่านอย่างเดียว — ตาราง + แต้มวันนี้ + คะแนนเมื่อวาน (= total − ได้วันนี้) ไว้ให้ AI อ่านก่อนแต่งข้อความ
+    const board = await computeBoardNode(TOP); const td = board.today || {};
+    console.log(`📊 ตารางวง1 (อันดับ. ชื่อ รวม (+วันนี้) [เมื่อวาน=รวม−วันนี้])`);
+    board.forEach(r=>{ const d=td[r.name]||0; console.log(`${r.rank}. ${r.name} ${r.total} (+${d}) [เมื่อวาน ${r.total-d}]`); });
+    return;
+  }
+  if (LINESAY) {   // ยิงข้อความ custom (env LINE_SAY) — ไม่แตะ DB/grader · ใช้ผ่าน workflow line-say (กดยิงเอง)
+    const msg = (process.env.LINE_SAY || "").trim();
+    if (!msg) { console.log("⚠️ LINE_SAY ว่าง — ไม่มีอะไรให้ยิง"); return; }
+    console.log("LINE say →", await linePush(msg) ? "ส่งสำเร็จ ✅" : "ส่งไม่ได้ (เช็ก token/group)"); return;
+  }
   if (DRY) console.log("🧪 DRY-RUN: อ่าน + เรียก Qwen ได้ แต่จะไม่เขียน Firestore\n");
   // safeguard: ใกล้เพดาน read วันนี้ไหม → low-power (เขียนสกอร์อย่างเดียว กันแอปล่มทั้งวง) · FORCE/REGRADE (สั่งมือ) ไม่โดน
   const usage = await usageRead();
