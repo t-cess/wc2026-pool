@@ -106,8 +106,10 @@ const QWEN_MODEL = process.env.QWEN_MODEL || "qwen3.6-35b-a3b";
 // ===== LINE Messaging API — โพสต์โพยทั้งวงเข้ากลุ่มตอน "ปิดรับ" (โปร่งใส) =====
 const LINE_TOKEN = process.env.LINE_TOKEN || "";   // channel access token (OA)
 const LINE_GROUP = process.env.LINE_GROUP || "";   // group id (กลุ่มเดิม · ได้จาก webhook)
-// LINE push เข้ากลุ่มคิดเงิน "ต่อผู้รับ" (1 push × N คน) → ประหยัดโควตา: ปิด #5 เตือนก่อนปิดเป็น default (เปิดด้วย LINE_PRELOCK=1)
-const PRELOCK_ON = process.env.LINE_PRELOCK === "1";
+// LINE push เข้ากลุ่มคิดเงิน "ต่อผู้รับ" (1 push × N คน) → งบฟรี 300/ด ÷ ~7 คน = ~42 โพสต์/ด เท่านั้น
+// ประหยัดโควตา (default): เหลือแค่ #3 สรุปวัน (~1/วัน) · ปิด #1 ปิดรับ + #5 เตือน (โปร่งใส = ดูในแอป "เปิดไพ่" ตอนปิดรับ)
+const LOCKPOST_ON = process.env.LINE_LOCKPOST === "1";   // #1 โพสต์โพยทั้งวงตอนปิดรับ
+const PRELOCK_ON  = process.env.LINE_PRELOCK  === "1";   // #5 เตือนคนยังไม่ทาย
 async function linePush(text) {
   if (!LINE_TOKEN || !LINE_GROUP) { console.log("  ⚠️ ไม่มี LINE_TOKEN/LINE_GROUP — ข้ามส่ง LINE"); return false; }
   try {
@@ -467,8 +469,8 @@ async function lineLockNotify() {
       put(preGroups, slot, {d, m, lockTs});
     }
   }
-  // #1 ปิดรับ — รวบทุกคู่ที่เตะเวลาเดียวกันเป็นข้อความเดียว
-  for (const grp of lockGroups.values()) {
+  // #1 ปิดรับ — รวบทุกคู่ที่เตะเวลาเดียวกันเป็นข้อความเดียว · ปิด default (เปลือง quota ต่อคน · โปร่งใสดูในแอป "เปิดไพ่" ได้) เปิดด้วย LINE_LOCKPOST=1
+  if (LOCKPOST_ON) for (const grp of lockGroups.values()) {
     const blocks = [], cons = [];
     for (const {d, m} of grp) {
       const preds = RD(await col(POOL,"predictions").where("matchId","==",d.id).get()).docs.map(x=>x.data());
