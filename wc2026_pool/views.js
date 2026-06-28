@@ -3,7 +3,7 @@ import { S, rosterNames } from "./state.js";
 import { poolDoc, setDoc } from "./firebase.js";
 import { fe, CHAMP_TEAMS, MOCK } from "./config.js";
 import { $, esc, flag, avatarHTML, bindAvatars, toast, countdown, fmtKo, isAdmin, isSuper, ymdNYC, matchNightLabel, matchNightShort } from "./utils.js";
-import { stateOf, lockTs, scoreMatch, computeBoard } from "./scoring.js";
+import { stateOf, lockTs, scoreMatch, computeBoard, isKo, koActual, eliminatedTeams } from "./scoring.js";
 import { predRowHTML, matchScorersHTML } from "./predrow.js";
 import { renderAdmin } from "./admin.js";
 
@@ -128,10 +128,15 @@ export function renderFixtures(){
       const cdRow=lbl=>`<div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;"><span class="k" id="cd_${m.id}" style="font-size:11.5px;color:#5b626d;">⏱ ${countdown(lockTs(m)-S.nowTs)}</span>${lbl}</div>`;
       if(editMode){
         const p=saved||{};
+        const ko=isKo(m);
+        if(ko && S.advPick[m.id]===undefined) S.advPick[m.id]=p.advancePick||null;   // init จาก saved (transient)
         const sBox=`width:52px;height:46px;text-align:center;font-family:'Kanit';font-weight:700;font-size:25px;color:#EEF1F4;background:#0E1116;border:1px solid #2A303A;border-radius:11px;`;
-        inner+=`<div style="${rowBase}">${flag(m.home)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.home)} ${fe(m.home)}</div><input id="hs_${m.id}" inputmode="numeric" maxlength="2" value="${p.homeScore??""}" placeholder="0" style="${sBox}"></div>
-          <div style="${rowBase}">${flag(m.away)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.away)} ${fe(m.away)}</div><input id="as_${m.id}" inputmode="numeric" maxlength="2" value="${p.awayScore??""}" placeholder="0" style="${sBox}"></div>
-          <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;"><input id="s1_${m.id}" class="field" value="${esc(p.scorer1||"")}" placeholder="คนยิง ตัวจบสกอร์ (บังคับ)"><input id="s2_${m.id}" class="field" value="${esc(p.scorer2||"")}" placeholder="คนยิง สำรอง (ไม่บังคับ)"></div>
+        // KO: แถวทีมแตะเลือก "ผู้ชนะ/ทีมเข้ารอบ" ได้ (กรอบเขียว + ป้าย "ผู้ชนะ") · รอบกลุ่ม = แถวเดิม
+        const teamRow=(side)=>{ const nm=side==="h"?m.home:m.away, sid=side==="h"?"hs":"as", val=side==="h"?(p.homeScore??""):(p.awayScore??"");
+          return `<div ${ko?`data-adv="${side}" `:""}id="row_${side}_${m.id}" style="${rowBase}${ko?"cursor:pointer;border:2px solid transparent;border-radius:12px;padding-left:8px;padding-right:8px;":""}">${flag(nm)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(nm)} ${fe(nm)}<span id="advlbl_${side}_${m.id}" class="k" style="display:none;margin-left:8px;font-size:11px;font-weight:800;color:#1FB85E;">✓ ผู้ชนะ</span></div><input id="${sid}_${m.id}" inputmode="numeric" maxlength="2" value="${val}" placeholder="0" style="${sBox}"></div>`; };
+        inner+=teamRow("h")+teamRow("a")
+          + (ko?`<div id="advhint_${m.id}" class="k" style="display:none;margin-top:9px;font-size:12px;font-weight:700;color:#E0A33E;">⚠️ เสมอใน 90 นาที — แตะเลือกทีมที่จะเข้ารอบ (ต่อเวลา/ลูกโทษ)</div>`:"")
+          + `<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;"><input id="s1_${m.id}" class="field" value="${esc(p.scorer1||"")}" placeholder="คนยิง ตัวจบสกอร์ (บังคับ)"><input id="s2_${m.id}" class="field" value="${esc(p.scorer2||"")}" placeholder="คนยิง สำรอง (ไม่บังคับ)"></div>
           ${subLine}${cdRow(`<div id="save_${m.id}" class="k btnG" style="font-weight:700;font-size:14px;padding:9px 18px;">บันทึกโพย</div>`)}`;
       } else {
         const sc=w=>`font-family:'Kanit';font-weight:800;font-size:26px;width:52px;text-align:center;color:${w?"#1FB85E":"#EEF1F4"};`;
@@ -141,16 +146,23 @@ export function renderFixtures(){
           <div style="${rowBase}">${flag(m.home)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.home)} ${fe(m.home)}</div><div style="${sc(saved.homeScore>saved.awayScore)}">${saved.homeScore}</div></div>
           <div style="${rowBase}">${flag(m.away)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.away)} ${fe(m.away)}</div><div style="${sc(saved.awayScore>saved.homeScore)}">${saved.awayScore}</div></div>
           <div class="k" style="margin-top:8px;font-size:12.5px;color:var(--mut);">คนยิง: <span style="color:#cfd4db;">${sclist}</span></div>
+          ${isKo(m)?`<div class="k" style="margin-top:5px;font-size:12.5px;color:var(--mut);">ทีมเข้ารอบ: <span style="color:#5fcf94;font-weight:700;">${esc((saved.homeScore>saved.awayScore?m.home:saved.awayScore>saved.homeScore?m.away:(saved.advancePick==="h"?m.home:saved.advancePick==="a"?m.away:"—")))}</span></div>`:""}
           ${subLine}${cdRow(`<div id="edit_${m.id}" class="k" style="font-weight:700;font-size:14px;padding:9px 18px;border-radius:12px;background:#283042;color:#EEF1F4;cursor:pointer;">แก้โพย</div>`)}`;
       }
     } else {
       const done=st==="done";
       const showScore = done || m.live;
+      const ko=isKo(m), a=koActual(m);   // KO โชว์สกอร์ 90' เป็นผลตัดสิน (สกอร์จริง/ET อยู่ในหมายเหตุ)
       const scStyle=w=>`font-family:'Kanit';font-weight:800;font-size:26px;width:52px;text-align:center;color:${w?"#1FB85E":"#EEF1F4"};`;
       inner+=`<div style="${rowBase}">${flag(m.home)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.home)} ${fe(m.home)}</div>
-          <div style="${scStyle(showScore&&m.homeScore>m.awayScore)}">${showScore?m.homeScore:"–"}</div></div>
+          <div style="${scStyle(showScore&&a.h>a.a)}">${showScore?a.h:"–"}</div></div>
         <div style="${rowBase}">${flag(m.away)}<div class="k" style="flex:1;font-weight:600;font-size:18px;">${esc(m.away)} ${fe(m.away)}</div>
-          <div style="${scStyle(showScore&&m.awayScore>m.homeScore)}">${showScore?m.awayScore:"–"}</div></div>`;
+          <div style="${scStyle(showScore&&a.a>a.h)}">${showScore?a.a:"–"}</div></div>`;
+      if(ko && showScore){   // หมายเหตุ KO: ตัดสินที่ 90' + จบจริง(ET/โทษ) + ทีมเข้ารอบ
+        const realDiff = (m.homeScore!==a.h||m.awayScore!==a.a);
+        const advTeam = m.advancer ? (m.advancer==="h"?m.home:m.away) : null;
+        inner+=`<div class="k" style="margin-top:6px;font-size:11.5px;color:#8A929E;">⚖️ ตัดสินที่ 90 นาที${realDiff?` · จบจริง ${m.homeScore}-${m.awayScore}`:""}${advTeam?` · <span style="color:#5fcf94;font-weight:700;">เข้ารอบ: ${esc(advTeam)}</span>`:""}</div>`;
+      }
       if(showScore && (m.goals||[]).length){   // ⚽ คนยิง + นาที (เหย้าเขียว/เยือนเทา) — helper ใช้ร่วมหน้าตรวจ
         inner+=`<div class="k" style="margin-top:7px;font-size:12px;line-height:1.55;display:flex;gap:6px;"><span>⚽</span><span style="flex:1;">${matchScorersHTML(m)}</span></div>`;
       }
@@ -184,10 +196,23 @@ export function renderFixtures(){
     if(editMode){
       const hs=$("#hs_"+m.id), as=$("#as_"+m.id), s1=$("#s1_"+m.id), s2=$("#s2_"+m.id);
       if(hs){
+        const ko=isKo(m);
+        const paintAdv=()=>{ if(!ko) return;
+          const h=parseInt(hs.value), a=parseInt(as.value), hasSc=!isNaN(h)&&!isNaN(a);
+          const draw = hasSc && h===a;
+          if(hasSc && !draw) S.advPick[m.id]=null;                 // ทายชนะ → ล็อกอัตโนมัติ (ไม่เก็บ pick มือ)
+          const adv = !hasSc ? null : !draw ? (h>a?"h":"a") : (S.advPick[m.id]||null);   // ผู้เข้ารอบที่จะไฮไลต์
+          ["h","a"].forEach(side=>{ const row=$("#row_"+side+"_"+m.id), lbl=$("#advlbl_"+side+"_"+m.id); if(!row)return; const on=adv===side;
+            row.style.border=on?"2px solid #1FB85E":"2px solid transparent"; row.style.background=on?"rgba(31,184,94,.08)":"transparent"; lbl.style.display=on?"inline":"none"; });
+          const hint=$("#advhint_"+m.id); if(hint) hint.style.display=(draw && !adv)?"block":"none"; };   // เสมอแต่ยังไม่เลือก → เตือน
         const upd=()=>{ const z=parseInt(hs.value)===0&&parseInt(as.value)===0; s1.disabled=s2.disabled=z;
-          if(z){ s1.value="";s2.value=""; s1.placeholder="0-0 = ไม่มีคนยิง"; } else s1.placeholder="คนยิง ตัวจบสกอร์ (บังคับ)"; };
+          if(z){ s1.value="";s2.value=""; s1.placeholder="0-0 = ไม่มีคนยิง"; } else s1.placeholder="คนยิง ตัวจบสกอร์ (บังคับ)"; paintAdv(); };
         hs.oninput=e=>{ e.target.value=e.target.value.replace(/\D/g,"").slice(0,2); upd(); };
         as.oninput=e=>{ e.target.value=e.target.value.replace(/\D/g,"").slice(0,2); upd(); };
+        if(ko) ["h","a"].forEach(side=>{ const row=$("#row_"+side+"_"+m.id); if(!row)return;
+          row.onclick=e=>{ if(e.target.tagName==="INPUT")return; const h=parseInt(hs.value),a=parseInt(as.value);
+            if(!isNaN(h)&&!isNaN(a)&&h!==a) return;   // ทายชนะ = ล็อกทีมชนะ แตะเปลี่ยนไม่ได้
+            S.advPick[m.id]=side; paintAdv(); }; });
         upd(); $("#save_"+m.id).onclick=()=>savePred(m);
       }
     } else {
@@ -203,8 +228,13 @@ async function savePred(m){
   const zero=hs===0&&as===0;
   const s1v=zero?"":$("#s1_"+m.id).value.trim(), s2v=zero?"":$("#s2_"+m.id).value.trim();
   if(!zero && !s1v){ toast("ใส่ชื่อคนยิงคนแรก (บังคับ)"); return; }   // คนแรกบังคับ · คนสอง optional
+  // KO: ทีมเข้ารอบ — ทายชนะล็อกทีมชนะ · ทายเสมอต้องเลือกเอง (บังคับ ห้ามส่งถ้ายังไม่เลือก)
+  let advancePick;
+  if(isKo(m)){ const r=hs>as?"h":hs<as?"a":"d";
+    if(r==="d"){ advancePick=S.advPick[m.id]; if(advancePick!=="h"&&advancePick!=="a"){ toast("เสมอ — แตะเลือกทีมที่จะเข้ารอบก่อนส่ง"); return; } }
+    else advancePick=r; }
   const pred={uid:S.me.uid,player:S.me.name,matchId:m.id,homeScore:hs,awayScore:as,
-    scorer1:s1v, scorer2:s2v};   // revealed ไม่เขียนจาก client (rule ห้าม) — auto-grade พลิกตอนปิดรับ
+    scorer1:s1v, scorer2:s2v, ...(isKo(m)?{advancePick}:{})};   // revealed ไม่เขียนจาก client (rule ห้าม) — auto-grade พลิกตอนปิดรับ
   const pid=`${m.id}__${S.me.uid}`;
   try{ await setDoc(poolDoc("predictions",pid),pred); }              // โพย = สำคัญ · ล้ม = แจ้ง error แล้วจบ
   catch(e){ toast("บันทึกไม่ได้ (อาจปิดรับ)"); return; }
@@ -222,19 +252,21 @@ export function renderChampion(){
       <span class="k" style="font-size:12px;color:var(--green);">ทีมละ +10</span></div>`;
   const mine = S.champPicks[S.me.name]||[];
   const canPick = !locked && !!S.me.name;   // ผู้เล่นเลือกแชมป์เองได้เมื่อยังไม่ล็อก
+  const elim = eliminatedTeams();            // ทีมตกรอบ (จาก KO ที่จบ) → หม่น + pill แดง
+  const elimPill = `<span class="k" style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;background:#3a1c1f;color:#f0707a;white-space:nowrap;">ตกรอบ</span>`;
   html+=`<div style="background:linear-gradient(135deg,#1a1410,#14171D);border:1px solid #3a2f1e;border-radius:18px;padding:16px;margin-bottom:14px;">
       <div class="k" style="font-size:12px;color:var(--gold);letter-spacing:.5px;margin-bottom:12px;">โพยแชมป์ของคุณ · ${locked?"🔒 ปิดรับแล้ว":"เลือกได้เลย · ทีมละ +10"}</div>`;
   if(canPick){
-    const opt = sel => `<option value="">— เลือกทีม —</option>`+CHAMP_TEAMS.map(n=>`<option value="${esc(n)}" ${n===sel?"selected":""}>${fe(n)} ${esc(n)}</option>`).join("");
+    const opt = sel => `<option value="">— เลือกทีม —</option>`+CHAMP_TEAMS.map(n=>`<option value="${esc(n)}" ${n===sel?"selected":""} ${elim.has(n)&&n!==sel?"disabled":""}>${fe(n)} ${esc(n)}${elim.has(n)?" — ตกรอบ":""}</option>`).join("");
     html+=`<div style="display:flex;gap:11px;"><select id="myChamp0" class="field">${opt(mine[0])}</select><select id="myChamp1" class="field">${opt(mine[1])}</select></div>
       <div id="myChampSave" class="k btnG" style="height:42px;margin-top:11px;font-size:14px;background:var(--gold);color:#1a1410;">บันทึกทายแชมป์</div></div>`;
   } else {
     html+=`<div style="display:flex;gap:11px;">`;
-    [0,1].forEach(i=>{ const n=mine[i];
-      html+=`<div style="flex:1;background:#0E1116;border:1px solid #2a2418;border-radius:13px;padding:13px;display:flex;align-items:center;gap:11px;">
+    [0,1].forEach(i=>{ const n=mine[i]; const out=n&&elim.has(n);
+      html+=`<div style="flex:1;background:#0E1116;border:1px solid #2a2418;border-radius:13px;padding:13px;display:flex;align-items:center;gap:11px;${out?"opacity:.5;":""}">
           ${n?flag(n):`<div class="k" style="width:42px;height:30px;border-radius:6px;background:#222730;color:#5b626d;display:flex;align-items:center;justify-content:center;font-weight:700;">–</div>`}
-          <div><div class="k" style="font-size:10px;color:var(--mut);">แชมป์ ${i+1}</div>
-          <div class="k" style="font-weight:700;font-size:15px;">${n?esc(n)+" "+fe(n):"ยังไม่เลือก"}</div></div></div>`; });
+          <div style="min-width:0;"><div class="k" style="font-size:10px;color:var(--mut);">แชมป์ ${i+1}</div>
+          <div class="k" style="font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px;${out?"text-decoration:line-through;color:#8A929E;":""}">${n?esc(n)+" "+fe(n):"ยังไม่เลือก"}${out?elimPill:""}</div></div></div>`; });
     html+=`</div></div>`;
   }
 
@@ -246,7 +278,7 @@ export function renderChampion(){
         ${avatarHTML(ph,38)}
         <div class="k" style="width:48px;flex:none;font-weight:700;font-size:15px;">${esc(n)}</div>
         <div style="flex:1;display:flex;flex-direction:column;gap:7px;">`;
-    tms.forEach(t=>{ html+=`<div style="display:flex;align-items:center;gap:9px;">${flag(t,true)}<span class="k" style="font-weight:600;font-size:14px;color:#cfd4db;">${esc(t)} ${fe(t)}</span></div>`; });
+    tms.forEach(t=>{ const out=elim.has(t); html+=`<div style="display:flex;align-items:center;gap:9px;${out?"opacity:.5;":""}">${flag(t,true)}<span class="k" style="font-weight:600;font-size:14px;color:${out?"#8A929E":"#cfd4db"};${out?"text-decoration:line-through;":""}">${esc(t)} ${fe(t)}</span>${out?elimPill:""}</div>`; });
     html+=`</div></div>`; });
   box.innerHTML=html; bindAvatars(box);
   if($("#myChampSave")) $("#myChampSave").onclick=async()=>{

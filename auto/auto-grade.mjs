@@ -74,8 +74,9 @@ async function fetchEspn(dateStr) {
   });
 }
 
-// ดึงรายชื่อ "คนที่ลงเล่น" (ตัวจริง+สำรองที่ลงมา) → array ชื่อ ESPN จริง · ใช้กฎคนยิงสำรอง (s1played)
-async function fetchLineup(eventId) {
+// ดึง summary แมตช์: รายชื่อคนลงเล่น (s1played) + สกอร์ 90' (reg) + ทีมเข้ารอบ (advancer) สำหรับ KO
+//   reg = linescores[0]+[1] (สองครึ่งปกติ · คู่ต่อเวลามี 4-5 ช่อง บวกสองช่องแรกเสมอ) · advancer = competitor.winner===true
+async function fetchSummary(eventId) {
   try {
     const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`);
     const d = await r.json();
@@ -83,8 +84,18 @@ async function fetchLineup(eventId) {
     for (const t of (d.rosters||[])) for (const pl of (t.roster||[])) {
       if (pl.starter || pl.subbedIn) { const n=pl.athlete?.displayName; if(n) played.push(n); }
     }
-    return played;
-  } catch(e){ return []; }
+    let reg=null, advancer=null;
+    const comp = d.header?.competitions?.[0];
+    if (comp) {
+      const cs = comp.competitors||[];
+      const H = cs.find(c=>c.homeAway==="home"), A = cs.find(c=>c.homeAway==="away");
+      const sum2 = c => { const ls=(c?.linescores||[]); return (+ls[0]?.displayValue||0)+(+ls[1]?.displayValue||0); };
+      if (H && A && (H.linescores||[]).length>=2) reg = { h:sum2(H), a:sum2(A) };   // มี linescores ครบ 2 ครึ่ง
+      const w = cs.find(c=>c.winner===true);
+      if (w) advancer = w.homeAway==="home" ? "h" : "a";
+    }
+    return { played, reg, advancer };
+  } catch(e){ console.log("  ⚠️ summary error:", e.message); return { played:[], reg:null, advancer:null }; }
 }
 
 // ถาม Qwen เฉพาะชื่อที่ไม่อยู่ในดิก (เจาะจง yes/no) — ผ่าน gateway แบบ OpenAI chat/completions
@@ -494,15 +505,23 @@ async function lineLockNotify() {
 }
 // #3 สรุปจบคืน + ตารางคะแนน — replicate scoreMatch/computeBoard จาก wc2026_pool/scoring.js (แหล่งกติกาเดียวกัน)
 const normTxt = s => (s||"").toString().trim().toLowerCase();
+// ===== KO (น็อกเอาต์) — ต้องเป๊ะเท่ากับ wc2026_pool/scoring.js (isKo/koActual/predAdvance/scoreMatch) =====
+const KO_GROUPS = new Set(["รอบ 32","รอบ 16","ก่อนรองฯ","รองชนะเลิศ","ชิงที่ 3","ชิงชนะเลิศ","น็อกเอาต์"]);
+const isKo = m => !!(m && (m.ko || KO_GROUPS.has(m.group)));
+const koActual = m => (isKo(m) && m.reg) ? { h:m.reg.h, a:m.reg.a } : { h:m.homeScore, a:m.awayScore };   // KO = สกอร์ 90' · กลุ่ม = สกอร์จริง
+const predAdvance = p => { const s=p.homeScore>p.awayScore?"h":p.homeScore<p.awayScore?"a":"d"; return s==="d"?(p.advancePick||null):s; };   // ทายชนะ=ล็อกทีมชนะ · ทายเสมอ=advancePick
+const koScorers90 = goals => (goals||[]).filter(g=>(parseInt(g.time)||999)<=90).map(g=>g.name).filter(Boolean);   // คนยิงใน 90' (ตัดต่อเวลา/ลูกโทษ ที่ clock>90 เช่น "108'"/"120'")
 function scoreMatchNode(p, m) {   // = scoreMatch (กติกาวง) · ใช้ p.scorerOk ที่ grader ติ๊ก
   if (!p || !m || (m.status!=="finished" && !m.live)) return 0;
   let pts=0;
-  const actual = m.homeScore>m.awayScore?"h":m.homeScore<m.awayScore?"a":"d";
+  const a = koActual(m);   // KO = 90' · กลุ่ม = สกอร์จริง
+  const actual = a.h>a.a?"h":a.h<a.a?"a":"d";
   const g = p.homeScore>p.awayScore?"h":p.homeScore<p.awayScore?"a":"d";
   if (g===actual) pts += actual==="d"?2:1;
-  if (p.homeScore===m.homeScore && p.awayScore===m.awayScore) pts+=3;
-  if (p.homeScore===0 && p.awayScore===0) { if (m.homeScore===0 && m.awayScore===0) pts+=1; }
+  if (p.homeScore===a.h && p.awayScore===a.a) pts+=3;
+  if (p.homeScore===0 && p.awayScore===0) { if (a.h===0 && a.a===0) pts+=1; }
   else if (p.scorerOk) pts+=1;
+  if (isKo(m) && m.advancer) { const pick=predAdvance(p); if (pick && pick===m.advancer) pts+=1; }   // ทีมเข้ารอบ +1
   return pts;
 }
 async function computeBoardNode(POOL) {   // = computeBoard · ลำดับ + ชื่อ + คะแนนรวม (carry + แต้มคู่ + champ)
@@ -635,9 +654,10 @@ async function run() {
       console.log(`${DRY?"[DRY] ":""}🔴 สด ${m.home} ${ev.hs}-${ev.as} ${m.away} · ${ev.clock}`);
       if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, live:true, clock:ev.clock, goals:ev.goals }, {merge:true});
       if (!lowPower) {   // low-power: เขียนสกอร์แล้วข้ามตรวจคนยิง (regrade เก็บตก)
-        const luLive = await fetchLineup(ev.id);
+        const luLive = (await fetchSummary(ev.id)).played;
+        const scLive = isKo(m) ? koScorers90(ev.goals) : ev.scorers;   // KO: ตรวจคนยิงเทียบเฉพาะ 90' (ระหว่างต่อเวลาไม่เพิ่มเครดิต)
         for (const p of pools) {
-          const n = await gradeScorers(p, mdoc.id, ev.scorers, luLive);   // ⚽ ตรวจคนยิงสด (ดิก + DeepSeek เมื่อมีโกล + กฎคนแรกลงเล่น)
+          const n = await gradeScorers(p, mdoc.id, scLive, luLive);   // ⚽ ตรวจคนยิงสด (ดิก + DeepSeek เมื่อมีโกล + กฎคนแรกลงเล่น)
           if (n) console.log(`[${p.id}]   ⚽ +1 คนยิงสด ${n} โพย`);
         }
       }
@@ -649,16 +669,23 @@ async function run() {
       if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, goals:ev.goals, status:"finished", live:false, clock:"จบ" }, {merge:true});
       continue;
     }
-    if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, goals:ev.goals, status:"finished", live:false, clock:"จบ" }, {merge:true});   // เขียนผล/สกอร์ก่อน — ยัง"ไม่"ปิด (autoGraded) จนตรวจคนยิงครบ
-    // 2) ตรวจคนยิงเต็มทุกวง (ดิก + Qwen กวาดชื่อใหม่ + กฎคนแรกลงเล่น)
-    const luFin = await fetchLineup(ev.id);
+    // summary ก่อนเขียน → KO เอา reg(90')/advancer มาเขียนด้วย · lineup ใช้ตรวจคนยิงทุกแมตช์
+    const sum = await fetchSummary(ev.id);
+    const luFin = sum.played;
+    const ko = isKo(m);
+    const koFields = (ko && sum.reg && sum.advancer) ? { ko:true, reg:sum.reg, advancer:sum.advancer } : (ko ? { ko:true } : {});   // reg/advancer ต้องครบคู่ถึงเขียน (กันเขียนครึ่งๆ ตอน ESPN ยังไม่อัปเดต)
+    if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, goals:ev.goals, status:"finished", live:false, clock:"จบ", ...koFields }, {merge:true});   // เขียนผล/สกอร์ก่อน — ยัง"ไม่"ปิด (autoGraded) จนตรวจคนยิงครบ
+    if (ko) console.log(`   ⚔️ KO: 90'=${sum.reg?`${sum.reg.h}-${sum.reg.a}`:"?"} · เข้ารอบ=${sum.advancer==="h"?m.home:sum.advancer==="a"?m.away:"?"}`);
+    // 2) ตรวจคนยิงเต็มทุกวง (ดิก + Qwen กวาดชื่อใหม่ + กฎคนแรกลงเล่น) · KO = เทียบเฉพาะคนยิง 90'
+    const scFin = ko ? koScorers90(ev.goals) : ev.scorers;
     for (const p of pools) {
-      const n = await gradeScorers(p, mdoc.id, ev.scorers, luFin);
+      const n = await gradeScorers(p, mdoc.id, scFin, luFin);
       console.log(`[${p.id}]   ตรวจคนยิง (จบ) เปลี่ยน ${n} โพย`);
     }
     // 3) ปิด (autoGraded) "หลัง" ตรวจคนยิงครบทุกวง — กัน throw กลางคัน (quota/lineup) ค้าง grade ไม่สมบูรณ์ถาวร (บรรทัด 606 ข้าม) ·
     //    ต้องมี lineup จริง (หรือ 0-0 ไม่ต้องมี) ก่อนปิด — luFin ว่าง → composeGrade เดา s1played=true ผิด → ยังไม่ปิด รอ tick หน้า ESPN ส่ง lineup มา
-    const luOk = luFin.length>0 || (ev.hs===0 && ev.as===0);
+    //    KO: ต้องได้ reg+advancer ครบด้วย (ไม่งั้นคิดแต้มผิดถาวร) — ยังไม่ครบ = รอ tick หน้า
+    const luOk = (luFin.length>0 || (ev.hs===0 && ev.as===0)) && (!ko || (sum.reg && sum.advancer));
     if (!DRY && luOk) await mdoc.ref.set({ autoGraded:true, finishedAt:Date.now() }, {merge:true});
     else if (!luOk) console.log(`   ⏳ ${m.home}-${m.away}: lineup ว่าง — ยังไม่ปิด (autoGraded) รอ tick หน้า`);
   }

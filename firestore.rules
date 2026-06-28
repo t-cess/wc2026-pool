@@ -25,7 +25,7 @@ service cloud.firestore {
     // โพยแก้ได้ถ้า = เจ้าของ (doc มี uid ตรง) · เขียนได้เฉพาะฟิลด์โพย (ห้ามแตะ scorerOk/s1hit/... รวมถึง revealed → กันแอบเปิดเผยโพยตัวเองก่อนเตะ) · ยังก่อนเตะเกิน 10 นาที
     function ownerBeforeKickoff() {
       return request.auth.uid == request.resource.data.uid
-        && request.resource.data.keys().hasOnly(['uid','matchId','player','homeScore','awayScore','scorer1','scorer2'])
+        && request.resource.data.keys().hasOnly(['uid','matchId','player','homeScore','awayScore','scorer1','scorer2','advancePick'])
         && request.time.toMillis()
            < get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.kickoff - 600000;
     }

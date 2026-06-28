@@ -3,16 +3,29 @@ import { S, rosterNames } from "./state.js";
 import { LOCK_BEFORE_MS } from "./config.js";
 import { norm, ymdNYC } from "./utils.js";
 
+// ===== รอบน็อกเอาต์ (แพ้คัดออก) — ผล/สกอร์/คนยิง ตัดที่ 90 นาที + ทีมเข้ารอบ +1 =====
+// ⚠️ ตรรกะนี้ต้องเป๊ะเท่ากับ scoreMatchNode/isKo/koActual/predAdvance ใน auto/auto-grade.mjs (แหล่งกติกาคู่)
+export const KO_GROUPS = new Set(["รอบ 32","รอบ 16","ก่อนรองฯ","รองชนะเลิศ","ชิงที่ 3","ชิงชนะเลิศ","น็อกเอาต์"]);
+export const isKo = m => !!(m && (m.ko || KO_GROUPS.has(m.group)));
+// สกอร์ที่ใช้ตัดสิน: KO ใช้ 90' (m.reg) ถ้ามี · ไม่งั้น/รอบกลุ่ม ใช้สกอร์จริง (live ยังไม่มี reg → ใช้สด)
+export const koActual = m => (isKo(m) && m.reg) ? { h:m.reg.h, a:m.reg.a } : { h:m.homeScore, a:m.awayScore };
+// ทีมเข้ารอบที่โพยเลือก: ทายชนะ → ล็อกทีมที่ทายชนะ · ทายเสมอ → advancePick (เลือกเอง)
+export const predAdvance = p => { const s=p.homeScore>p.awayScore?"h":p.homeScore<p.awayScore?"a":"d"; return s==="d" ? (p.advancePick||null) : s; };
+// ทีมที่ตกรอบแล้ว (จาก KO ที่จบ + รู้ผู้เข้ารอบ) → ใช้หน้าทายแชมป์
+export function eliminatedTeams(){ const out=new Set(); S.matches.forEach(m=>{ if(isKo(m) && m.status==="finished" && m.advancer){ out.add(m.advancer==="h"?m.away:m.home); } }); return out; }
+
 export function scoreMatch(p, m){
   if(!p||!m||(m.status!=="finished" && !m.live)) return 0;   // นับเมื่อจบ หรือ กำลัง live
   let pts=0;
-  const actual = m.homeScore>m.awayScore?"h":m.homeScore<m.awayScore?"a":"d";
+  const a = koActual(m);                                       // KO = สกอร์ 90' · กลุ่ม = สกอร์จริง
+  const actual = a.h>a.a?"h":a.h<a.a?"a":"d";
   const g = p.homeScore>p.awayScore?"h":p.homeScore<p.awayScore?"a":"d";
   if(g===actual) pts += actual==="d"?2:1;
-  if(p.homeScore===m.homeScore && p.awayScore===m.awayScore) pts+=3;
+  if(p.homeScore===a.h && p.awayScore===a.a) pts+=3;
   if(p.homeScore===0 && p.awayScore===0){
-    if(m.homeScore===0 && m.awayScore===0) pts+=1;   // ทาย 0-0 = ทายว่าไม่มีใครยิง
-  } else if(p.scorerOk) pts+=1;                        // คนยิง = แอดมิน/auto ติ๊ก (scorerOk)
+    if(a.h===0 && a.a===0) pts+=1;   // ทาย 0-0 = ทายว่าไม่มีใครยิง (ใน 90' สำหรับ KO)
+  } else if(p.scorerOk) pts+=1;       // คนยิง (KO = ยิงใน 90')
+  if(isKo(m) && m.advancer){ const pick=predAdvance(p); if(pick && pick===m.advancer) pts+=1; }   // ทีมเข้ารอบ +1
   return pts;
 }
 export const lockTs = m => (m.kickoff||0) - LOCK_BEFORE_MS;

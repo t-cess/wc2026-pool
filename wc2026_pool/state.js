@@ -11,7 +11,7 @@ export const S = {
   emailByUid: {},                              // uid→email (PII · โหลดเฉพาะแอดมิน จาก emails/{uid} · non-admin ว่าง)
   admins: [], poolMeta: null, bind: {},        // admins ของวงนี้ · meta (ชื่อวง) · bind {email:ชื่อ} (แอดมินที่เป็นผู้เล่น)
   tab: "fixtures", filter: "open", filterTouched: false, dayKey: null, pickName: "", pickIsNew: false,   // dayKey = คืนแข่งที่เลือกอยู่ · pickIsNew = ผู้เล่นพิมพ์ชื่อใหม่เอง (self-register)
-  expanded: {}, editing: {}, scorerStage: {},
+  expanded: {}, editing: {}, scorerStage: {}, advPick: {},   // advPick: matchId→"h"/"a" ทีมเข้ารอบที่เลือก (KO เสมอ) transient
   nowTs: Date.now(),
   adminSel: "", carryEdit: false, gameEdit: false, fp: null,
   // ----- หน้า "จัดการ" standalone (manage.html · super · ทุกวงพร้อมกัน) -----

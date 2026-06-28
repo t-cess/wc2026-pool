@@ -42,6 +42,11 @@ export function startMock(){
     { id:"m13", home:"โปแลนด์", away:"เซเนกัล", group:"B นัด2", kickoff:now-171*H, homeScore:1, awayScore:2, status:"finished", clock:"จบ" },
     { id:"m14", home:"อิตาลี", away:"นอร์เวย์", group:"C นัด1", kickoff:now-195*H, homeScore:2, awayScore:0, status:"finished", clock:"จบ" },
     { id:"m15", home:"โคลอมเบีย", away:"เอกวาดอร์", group:"D นัด1", kickoff:now-219*H, homeScore:1, awayScore:1, status:"finished", clock:"จบ" },
+    // 🆕 น็อกเอาต์: เปิดทาย (ทดสอบแตะเลือกทีมเข้ารอบ เมื่อทายเสมอ) — ต้น ยังไม่ทาย → โชว์ฟอร์ม
+    { id:"k2", home:"บราซิล", away:"โครเอเชีย", group:"รอบ 16", kickoff:now+4*H, homeScore:0, awayScore:0, status:"upcoming", ko:true },
+    // 🆕 น็อกเอาต์: จบแล้ว 90' เสมอ 1-1 → ต่อเวลา ฝรั่งเศสชนะ 2-1 (อังกฤษตกรอบ) · reg=สกอร์ 90' · advancer=h
+    { id:"k1", home:"ฝรั่งเศส", away:"อังกฤษ", group:"รอบ 16", kickoff:now-2*H, homeScore:2, awayScore:1, status:"finished", clock:"จบ", ko:true, reg:{h:1,a:1}, advancer:"h",
+      goals:[{name:"Kylian Mbappé",time:"22'",side:"h",phase:"reg"},{name:"Harry Kane",time:"58'",side:"a",pen:true,phase:"reg"},{name:"Olivier Giroud",time:"106'",side:"h",phase:"et"}] },
   ];
   S.allPreds = [
     { uid:"u_ton",  player:"ต้น",   matchId:"m1", homeScore:2, awayScore:0, scorer1:"เนย์มาร์", scorer2:"" },
@@ -56,12 +61,16 @@ export function startMock(){
     { uid:"u_ton",  player:"ต้น",   matchId:"m6", homeScore:2, awayScore:1, scorer1:"", scorer2:"" },
     { uid:"u_ton",  player:"ต้น",   matchId:"m7", homeScore:0, awayScore:1, scorer1:"", scorer2:"" },
     { uid:"u_ton",  player:"ต้น",   matchId:"m8", homeScore:1, awayScore:0, scorer1:"", scorer2:"", s1hit:false, scorerOk:false },
+    // KO k1 (จบ): ต้น ทายเสมอ 1-1 + เลือกฝรั่งเศสเข้ารอบ → ผล90'ถูก+สกอร์เป๊ะ+คนยิง+เข้ารอบ = +7
+    { uid:"u_ton",  player:"ต้น",   matchId:"k1", homeScore:1, awayScore:1, scorer1:"เอ็มบัปเป้", scorer2:"", advancePick:"h", s1hit:true, s1played:true, scorerOk:true },
+    // KO k1: กราฟ ทายอังกฤษชนะ 1-2 → ผล/สกอร์/เข้ารอบ พลาด (ล็อกอังกฤษ) แต่คนยิงเคนถูก = +1
+    { uid:"u_graf", player:"กราฟ", matchId:"k1", homeScore:1, awayScore:2, scorer1:"เคน", scorer2:"", s1hit:true, s1played:true, scorerOk:true },
   ];
   S.myPreds = {}; S.allPreds.forEach(p=>{ if(p.uid===S.me.uid) S.myPreds[p.matchId]=p; });
   S.submittedByMatch = {}; S.allPreds.forEach(p=>{ const a=(S.submittedByMatch[p.matchId]=S.submittedByMatch[p.matchId]||[]); if(!a.includes(p.player)) a.push(p.player); });   // mock: derive จาก allPreds (ไม่มี gate)
-  S.expanded = { m4:true, m5:true };   // เปิดโพยคู่จบไว้เลย เห็นออร่า +5/+6 ทันที (เทส)
+  S.expanded = { m4:true, m5:true, k1:true };   // เปิดโพยคู่จบไว้เลย เห็นออร่า +5/+6 + badge เข้ารอบ (เทส)
   S.playersByName = { "ต้น":{photo:"",uid:"u_ton"}, "กราฟ":{photo:"",uid:"u_graf"}, "กุ้ย":{photo:"",uid:"u_kui"}, "BB":{photo:"",uid:"u_bb"}, "กอล์ฟ":{photo:"",uid:"u_golf"} };
-  S.champPicks = { "ต้น":["บราซิล","อาร์เจนตินา"], "กราฟ":["ฝรั่งเศส","สเปน"] };
+  S.champPicks = { "ต้น":["บราซิล","อาร์เจนตินา"], "กราฟ":["ฝรั่งเศส","อังกฤษ"] };   // อังกฤษ ตกรอบจาก k1 → โชว์หม่น + pill "ตกรอบ"
   S.tournament = { batchLabel:"MOCK · ชุดทดสอบ" };
   S.poolMeta = { name:"กลุ่มแทงบอลเถื่อนของอาจารย์กุ้ย" };   // ชื่อวงใต้หัวข้อ
   S.bind = { "graf@example.com":"กราฟ" };                      // กราฟ = แอดมิน+ผู้เล่น → โชว์ badge แอดมิน + ลบเฉพาะ super
