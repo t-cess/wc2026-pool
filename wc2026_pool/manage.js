@@ -5,7 +5,7 @@ import { S } from "./state.js";
 import { db, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, poolColFor, poolDocFor } from "./firebase.js";
 import { TEAMS, fe, CHAMP_TEAMS, genCode, MOCK } from "./config.js";
 import { $, esc, flag, toast, isSuper, avatarHTML, silhouetteHTML, bindAvatars, confirmModal, promptModal, pickModal, alertModal, openMenu, norm } from "./utils.js";
-import { stateOf, scoreMatch } from "./scoring.js";
+import { stateOf, scoreMatch, isKo } from "./scoring.js";
 import { predRowHTML, effPredFromState, matchScorersHTML } from "./predrow.js";
 import { renameMember, moveMember } from "./member-ops.js";
 
@@ -227,9 +227,11 @@ function renderScoresTab(box){
     const ci=k.indexOf("|"), code=k.slice(0,ci), name=k.slice(ci+1), pl=S.mgPools.find(x=>x.code===code), from=before[k]||0, to=after[k]||0;
     return {name:multi?`${name} · ${poolTag(pl||{})}`:name, from:fmtPt(from), to:fmtPt(to), up:to>from, down:to<from}; });
   const writeScore=async fin=>{ const hs=parseInt($("#mgHs").value),as=parseInt($("#mgAs").value); if(isNaN(hs)||isNaN(as)){toast("ใส่สกอร์ครบ");return;}
-    if(fin&&!(await confirmModal(`จบเกม ${selM.home} ${hs}-${as} ${selM.away}?\nคิดแต้มถาวร ทุกวง`)))return;
-    await updateDoc(doc(db,"matches",selM.id), fin?{homeScore:hs,awayScore:as,status:"finished",autoGraded:true,live:false}:{homeScore:hs,awayScore:as,live:true});
-    const mo=S.allMatches.find(x=>x.id===selM.id); if(mo)Object.assign(mo,fin?{homeScore:hs,awayScore:as,status:"finished",live:false}:{homeScore:hs,awayScore:as,live:true});
+    const ko=isKo(selM);   // KO: ตัดสินที่ 90'+ทีมเข้ารอบ ต้องให้ auto-grade เติม reg/advancer — กรอกมือ "ไม่" ปิด (autoGraded) ให้ auto ตรวจต่อ
+    if(fin&&!(await confirmModal(ko?`จบเกม ${selM.home} ${hs}-${as} ${selM.away}? (คู่น็อกเอาต์)\n⚠️ คู่ KO ตรวจอัตโนมัติ (90'+ทีมเข้ารอบ) — สกอร์ที่กรอกมือจะถูก auto-grade เขียนทับด้วยผลจริง`:`จบเกม ${selM.home} ${hs}-${as} ${selM.away}?\nคิดแต้มถาวร ทุกวง`)))return;
+    const finPatch = ko?{homeScore:hs,awayScore:as,status:"finished",live:false}:{homeScore:hs,awayScore:as,status:"finished",autoGraded:true,live:false};   // KO ไม่ตั้ง autoGraded → auto-grade เติม reg/advancer/คนยิง90'
+    await updateDoc(doc(db,"matches",selM.id), fin?finPatch:{homeScore:hs,awayScore:as,live:true});
+    const mo=S.allMatches.find(x=>x.id===selM.id); if(mo)Object.assign(mo,fin?finPatch:{homeScore:hs,awayScore:as,live:true});
     if(fin)S.gameEdit=false; toast(fin?"จบเกม ✓ (สกอร์)":"อัพเดตสด 🔴 (สกอร์)"); if(!MOCK){ for(const p of S.mgPools) await refetchOne0(p.code); } renderManage(); };
   if($("#mgLive")) $("#mgLive").onclick=()=>writeScore(false);
   if($("#mgResult")) $("#mgResult").onclick=()=>writeScore(true);
