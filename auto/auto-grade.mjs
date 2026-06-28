@@ -106,6 +106,8 @@ const QWEN_MODEL = process.env.QWEN_MODEL || "qwen3.6-35b-a3b";
 // ===== LINE Messaging API — โพสต์โพยทั้งวงเข้ากลุ่มตอน "ปิดรับ" (โปร่งใส) =====
 const LINE_TOKEN = process.env.LINE_TOKEN || "";   // channel access token (OA)
 const LINE_GROUP = process.env.LINE_GROUP || "";   // group id (กลุ่มเดิม · ได้จาก webhook)
+// LINE push เข้ากลุ่มคิดเงิน "ต่อผู้รับ" (1 push × N คน) → ประหยัดโควตา: ปิด #5 เตือนก่อนปิดเป็น default (เปิดด้วย LINE_PRELOCK=1)
+const PRELOCK_ON = process.env.LINE_PRELOCK === "1";
 async function linePush(text) {
   if (!LINE_TOKEN || !LINE_GROUP) { console.log("  ⚠️ ไม่มี LINE_TOKEN/LINE_GROUP — ข้ามส่ง LINE"); return false; }
   try {
@@ -482,8 +484,8 @@ async function lineLockNotify() {
     if (DRY) { console.log(`[DRY] LOCK → รวบ ${grp.length} คู่\n${text}\n`); continue; }
     if (await linePush(text)) for (const {d} of grp) await d.ref.set({["lockPosted_"+pid]:true},{merge:true});
   }
-  // #5 เตือนก่อนปิด — รวบทุกคู่ที่เตะเวลาเดียวกันเป็นข้อความเดียว
-  for (const grp of preGroups.values()) {
+  // #5 เตือนก่อนปิด — รวบทุกคู่ที่เตะเวลาเดียวกันเป็นข้อความเดียว · ปิด default (เปลือง quota ต่อคน) เปิดด้วย LINE_PRELOCK=1
+  if (PRELOCK_ON) for (const grp of preGroups.values()) {
     if (!roster) roster = await poolRoster(POOL);
     const lines = [];
     for (const {d, m} of grp) {
