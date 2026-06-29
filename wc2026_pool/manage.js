@@ -65,6 +65,11 @@ export async function loadNextSet(){
   if(MOCK) return;
   try{ const ns=await getDoc(doc(db,"config","nextSet")); S.mgNextSet=ns.exists()?ns.data():null; }catch(e){ S.mgNextSet=null; }
 }
+// คิวรอตรวจชื่อคนยิง (DeepSeek แมพได้ ยังไม่อยู่ในดิก) — โชว์ badge ให้รู้ว่ามีอะไรรอเติม aliases.json (เติมจริงผ่าน Claude/แชต)
+export async function loadSuggest(){
+  if(MOCK){ S.mgSuggest=null; return; }
+  try{ const s=await getDoc(doc(db,"config","suggestedAliases")); S.mgSuggest=s.exists()?s.data():null; }catch(e){ S.mgSuggest=null; }
+}
 async function commitScorers(pool, matchId){   // ติ๊กคนยิงที่ค้างของวงนี้ · stage key = code|pid (กัน uid ซ้ำข้ามวง)
   for(const p of pool.preds.filter(x=>x.matchId===matchId)){ const pid=`${p.matchId}__${p.uid}`, key=`${pool.code}|${pid}`;
     if(key in S.scorerStage){ const st=S.scorerStage[key]; const s1=st[0]==="g",s2=st[1]==="g",ok=s1||s2,s1played=st[0]!=="x",s2played=st[1]!=="x";
@@ -171,6 +176,10 @@ function renderScoresTab(box){
   // แตะชื่อ = วนสถานะ (ตรวจคนยิง+คนลงสนามด้วยมือ ได้ทุกสถานะ) · state = 2 ตัวอักษร [คนแรก][คนสอง]
   //   คนแรก n=ปกติ g=ยิง x=ไม่ลง · คนสอง n=ปกติ g=ยิง d=ขีดฆ่า(ไม่ได้ใช้)
   //   แตะคนแรก: nn→gd→xn→nn · แตะคนสอง: nn→xg→nd→nn · ยิงได้คนเดียว (อีกคนเป็น g อยู่ → เตือน)
+  // คิวรอตรวจชื่อ — badge เตือน super ว่ามีชื่อที่ DeepSeek แมพได้รอเติม aliases.json (แตะดูรายชื่อ → บอก Claude เติม) · ไม่ด่วน แต้มถูกอยู่แล้ว
+  const sug=S.mgSuggest||{}, sugItems=sug.items||{}, sugKeys=Object.keys(sugItems), sugN=sug.pending??sugKeys.length;
+  const sugBadge = sugN>0 ? `<div id="mgSugBadge" class="k" style="display:flex;align-items:center;gap:7px;margin:0 2px 10px;padding:8px 11px;border-radius:11px;background:#1d1a2e;border:1px solid #3a2f5e;color:#c4b5f5;font-size:12.5px;font-weight:600;cursor:pointer;">📥 ${sugN} ชื่อรอเติมดิก <span style="margin-left:auto;font-size:11px;color:#8a7fb0;">แตะดู ▾</span></div>
+      <div id="mgSugList" class="hidden" style="margin:-6px 2px 11px;padding:9px 11px;border-radius:11px;background:#0E1116;border:1px solid #232830;font-size:12px;line-height:1.7;color:#cdd6e0;">${sugKeys.map(k=>`<div>"<b style="color:#c4b5f5;">${esc(sugItems[k].raw||k)}</b>" → ${esc(sugItems[k].canon)} <span style="color:#5b626d;">(${(sugItems[k].matches||[]).length||1} แมตช์)</span></div>`).join("")||'<div style="color:var(--dim);">—</div>'}<div style="color:var(--dim);font-size:11px;margin-top:7px;">บอก Claude ให้เติม aliases.json + เคลียร์คิวได้เลย</div></div>` : "";
   const showPts = selM.status==="finished" || selM.live;   // มีผล/สด = โชว์แต้ม+สถานะคนยิง (เป๊ะเท่าหน้าวง)
   const defSt=pr=> pr.s1hit?"gd" : (pr.s2hit||(pr.scorerOk&&pr.scorer2))?"xg" : (pr.s1played===false?(pr.s2played===false?"xx":"xn"):"nd");   // สถานะตั้งต้นของวงล้อ (จาก flag ที่บันทึกไว้)
   // แถว = หน้าวงเป๊ะ (predRowHTML) · ยังไม่แตะ = แสดง pred จริง (รวม amber "?") · แตะแล้ว = effective ตามสถานะที่เลือก
@@ -181,6 +190,7 @@ function renderScoresTab(box){
     const rows=preds.length?preds.map(pr=>rowHTML(pr,p.code)).join(""):`<div class="k" style="color:var(--dim);padding:8px;font-size:12px;">ไม่มีโพยคู่นี้</div>`;
     return `<div style="margin-bottom:11px;"><div class="k" style="font-weight:700;font-size:13px;color:#b9a6f0;margin-bottom:5px;">${poolName(p)} <span style="font-size:10px;color:#5b626d;">${poolTag(p)}</span></div><div style="background:#0E1116;border:1px solid #232830;border-radius:11px;padding:5px 7px;">${rows}</div></div>`; };
   box.innerHTML=`
+    ${sugBadge}
     ${card(`<div class="k" style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px;margin-bottom:10px;">✅ กรอกผล (ใช้ร่วมทุกวง)${glocked?'<span style="font-size:11px;color:#9cc3f3;">🔒 จบแล้ว</span>':''}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">${navBtn(-1,"◀︎")}<select id="mgSel" class="field" style="flex:1;margin:0;">${opts}</select>${navBtn(1,"▶︎")}</div>
       <div style="${glocked?'opacity:.55;pointer-events:none;':''}">
@@ -214,6 +224,7 @@ function renderScoresTab(box){
     box.querySelectorAll("[data-cyc]").forEach(c=>{ const on=c.dataset.cyc===next; c.style.background=on?"#16202e":""; c.style.boxShadow=on?"inset 2px 0 0 #2D7DF6":""; });
   }); };
   bindTaps(box);
+  if($("#mgSugBadge")) $("#mgSugBadge").onclick=()=>$("#mgSugList").classList.toggle("hidden");   // แตะ badge → กาง/พับรายชื่อรอเติมดิก
   $("#mgSel").onchange=e=>{ S.mgMatchSel=e.target.value; S.gameEdit=false; renderManage(); };
   box.querySelectorAll("[data-nav]").forEach(el=>el.onclick=()=>{ S.mgMatchSel=el.dataset.nav; S.gameEdit=false; renderManage(); });
   if($("#mgGameEdit")) $("#mgGameEdit").onclick=()=>{ S.gameEdit=true; renderManage(); };

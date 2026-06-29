@@ -4,7 +4,7 @@ import { firebaseConfig, MOCK } from "./config.js";
 import { auth, provider, db, collection, query, orderBy, onSnapshot,
   signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "./firebase.js";
 import { $, isSuper } from "./utils.js";
-import { loadAllPools, loadNextSet, renderManage, renderMgBanner } from "./manage.js";
+import { loadAllPools, loadNextSet, loadSuggest, renderManage, renderMgBanner } from "./manage.js";
 
 function show(v){ const sp=$("#mgSplash"); if(sp) sp.classList.add("hidden");   // ผ่านขั้นกู้ session แล้ว
   $("#mgLogin").classList.toggle("hidden",v!=="login"); $("#mgBlock").classList.toggle("hidden",v!=="block"); $("#mgApp").classList.toggle("hidden",v!=="app"); }
@@ -23,7 +23,7 @@ async function enter(){
   bindNav();
   $("#mgContent").innerHTML=`<div class="k" style="color:var(--dim);text-align:center;padding:60px 0;">กำลังโหลดทุกวง…</div>`;
   startMatchesWatch();
-  await Promise.all([ loadAllPools(), loadNextSet() ]);
+  await Promise.all([ loadAllPools(), loadNextSet(), loadSuggest() ]);
   renderManage();
 }
 
