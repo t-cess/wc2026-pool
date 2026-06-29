@@ -16,7 +16,10 @@ initializeApp({ credential: cert(sa) });
 const db = getFirestore();
 
 // ===== safeguard: นับ read ของ grader ต่อวัน · ใกล้เพดาน → low-power (กัน quota เต็ม = แอปล่มทั้งวง) =====
-const READ_CAP = +(process.env.READ_CAP || 40000);   // grader ใช้ได้ ~40K/วัน เหลือ ~10K ให้แอปเพื่อน
+// 🔌 LOW_POWER: ปิด default เพราะจ่าย Blaze แล้ว (ไม่มี hard cap 50K → ทะลุแค่เสียเงินนิดเดียว · low-power เคยบล็อก reveal/advancer/ตรวจคนยิง)
+//   เปิดกลับ: ตั้ง env LOW_POWER=on (หรือเปลี่ยน default ด้านล่างเป็น true) → ใช้ READ_CAP เบรกเหมือนเดิม
+const LOW_POWER = process.env.LOW_POWER ? process.env.LOW_POWER==="on" : false;
+const READ_CAP = +(process.env.READ_CAP || 500000);   // เพดาน read ก่อนเข้า low-power (ใช้เมื่อ LOW_POWER เปิด) · ดันสูงไว้เป็นเบรกกันบั๊กรันรั่วเท่านั้น
 let dayReads = 0;                                     // นับ read ในรอบนี้
 const RD = snap => { dayReads += Math.max(1, snap.size ?? 1); return snap; };   // ครอบ .get() เพื่อนับ · query ว่าง Firestore ก็คิดขั้นต่ำ 1 (กัน undercount)
 const ymdPT = () => {   // วันแบบ Pacific — ตรงกับรอบ reset โควตา Firestore (เที่ยงคืน Pacific)
@@ -626,7 +629,7 @@ async function run() {
   if (DRY) console.log("🧪 DRY-RUN: อ่าน + เรียก Qwen ได้ แต่จะไม่เขียน Firestore\n");
   // safeguard: ใกล้เพดาน read วันนี้ไหม → low-power (เขียนสกอร์อย่างเดียว กันแอปล่มทั้งวง) · FORCE/REGRADE (สั่งมือ) ไม่โดน
   const usage = await usageRead();
-  const lowPower = !FORCE && !REGRADE && usage.prior >= READ_CAP;
+  const lowPower = LOW_POWER && !FORCE && !REGRADE && usage.prior >= READ_CAP;
   if (lowPower) console.log(`🟡 LOW-POWER: read วันนี้ ${usage.prior} ≥ ${READ_CAP} — เขียนเฉพาะสกอร์ ข้ามตรวจคนยิง/autoAdd (regrade เก็บตกทีหลัง)`);
   const pools = await listPools();
   console.log("วงที่ตรวจ:", pools.map(p=>p.id).join(", "));
