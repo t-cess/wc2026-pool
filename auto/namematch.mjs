@@ -1,7 +1,7 @@
 // 🔤 อ่านชื่อคนยิง: "ข้อความที่เพื่อนพิมพ์" = คนยิงจริงคนไหนในแมตช์นี้ (ถ้ามี)
 // กรอบ (ตาม advisor): ตรวจ alias ของ "คนยิงจริงแต่ละคน" ว่าโผล่ใน input ไหม — ไม่ใช่ match มั่วกับดิกทั้งก้อน
 // → bound false positive (เทียบเฉพาะคนที่ยิงจริง) + จับมุก/ประโยคยาวได้เองโดยไม่ต้องเติมทั้งประโยคลงดิก
-// deterministic ล้วน (ไม่เรียก Qwen) → เทสได้เร็ว/ซ้ำได้ · ชื่อใหม่ที่ดิกไม่มี → คืน null ให้ Qwen รับช่วง
+// deterministic ล้วน (ไม่เรียก DeepSeek) → เทสได้เร็ว/ซ้ำได้ · ชื่อใหม่ที่ดิกไม่มี → คืน null ให้ DeepSeek รับช่วง
 
 // ตัด accent ละติน (é→e, ñ→n) ให้ Mbappe=Mbappé, Nunez=Núñez · ไทย (U+0E00+) ไม่โดน (combining อยู่คนละช่วง)
 export const norm = s => (s||"").toString().trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g," ");
@@ -56,7 +56,7 @@ export function composeGrade({ s1, s2, scorer1, scorer2, played, resolved, alias
   return { s1played, ok, credit, s1unsure, s2unsure };
 }
 
-// คืน canonical ของคนยิงจริงที่ input หมายถึง · null = ไม่ตรงใคร (ส่ง Qwen)
+// คืน canonical ของคนยิงจริงที่ input หมายถึง · null = ไม่ตรงใคร (ส่ง DeepSeek)
 export function matchScorer(input, actualScorers, aliasMap) {
   const ni = norm(input);
   if (!ni) return null;

@@ -1,10 +1,10 @@
 // เทส LLM provider ใดๆ (OpenAI-compat) กับ prompt อ่านชื่อคนยิงจริง — ดูว่า format ที่ตอบ parse ได้ไหม
-// รัน: QWEN_BASE_URL=... QWEN_TOKEN=<key> QWEN_MODEL=... node test-llm.mjs
-//   DeepSeek: QWEN_BASE_URL=https://api.deepseek.com QWEN_MODEL=deepseek-v4-flash
-const BASE=(process.env.QWEN_BASE_URL||"https://gateway.9arm.co").replace(/\/$/,"");
-const TOK=process.env.QWEN_TOKEN||"";
-const MODEL=process.env.QWEN_MODEL||"qwen3.6-35b-a3b";
-if(!TOK){ console.log("❌ ใส่ QWEN_TOKEN ก่อน"); process.exit(1); }
+// รัน: DS_BASE_URL=... DS_TOKEN=<key> DS_MODEL=... node test-llm.mjs
+//   DeepSeek: DS_BASE_URL=https://api.deepseek.com DS_MODEL=deepseek-v4-flash
+const BASE=(process.env.DS_BASE_URL||"https://gateway.9arm.co").replace(/\/$/,"");
+const TOK=process.env.DS_TOKEN||"";
+const MODEL=process.env.DS_MODEL||"deepseek-v4-pro";
+if(!TOK){ console.log("❌ ใส่ DS_TOKEN ก่อน"); process.exit(1); }
 
 const actual=["Mikel Oyarzabal","Lamine Yamal","Ferran Torres"];
 const items=["โอยาซาบัล","ลามีนยามาล","เปดรี","ตอเรส","มิเกลโอยา"];   // คาด: 1,2,0,3,1

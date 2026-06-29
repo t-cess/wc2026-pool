@@ -29,7 +29,7 @@ const CASES = [
 
   // — adversarial: กัน false positive —
   ["Brobbey", NED, "Brian Brobbey"],          // นามสกุลล้วน
-  ["บร็อบบี้", NED, "Brian Brobbey"],          // ★ ยังไม่มีในดิก — คาดว่าพลาด (ต้อง Qwen) ดูว่าหลุดเป็น FP ไหม
+  ["บร็อบบี้", NED, "Brian Brobbey"],          // ★ ยังไม่มีในดิก — คาดว่าพลาด (ต้อง DeepSeek) ดูว่าหลุดเป็น FP ไหม
   ["", GER, null],                             // ว่าง
   ["เอลังกา", NED, "Anthony Elanga"],          // ★ ยังไม่มีในดิก
   ["ซาเน่ ยิงให้ที", GER, null],               // ประโยค + คนไม่ได้ยิง → ห้ามตรง
@@ -64,5 +64,5 @@ for (const [input, actual, expect] of CASES) {
 }
 console.log(`\nผ่าน ${pass}/${CASES.length}`);
 if (fpFail.length){ console.log(`\n❌ FALSE POSITIVE (${fpFail.length}) — ให้คะแนนผิด อันตรายสุด:`); fpFail.forEach(f=>console.log(`   "${f.input}" → ${f.got} (ควร null)`)); }
-if (fnFail.length){ console.log(`\n⚠️ FALSE NEG/ผิดคน (${fnFail.length}) — ปฏิเสธผิด/ส่งQwenต่อ:`); fnFail.forEach(f=>console.log(`   "${f.input}" → ${f.got} (ควร ${f.expect})`)); }
+if (fnFail.length){ console.log(`\n⚠️ FALSE NEG/ผิดคน (${fnFail.length}) — ปฏิเสธผิด/ส่งDeepSeekต่อ:`); fnFail.forEach(f=>console.log(`   "${f.input}" → ${f.got} (ควร ${f.expect})`)); }
 console.log(fpFail.length===0 ? "\n✅ ไม่มี false positive" : "\n🔴 มี false positive ต้องแก้");

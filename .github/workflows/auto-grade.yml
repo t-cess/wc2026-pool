@@ -42,9 +42,9 @@ jobs:
         working-directory: auto
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          QWEN_TOKEN: ${{ secrets.QWEN_TOKEN }}
-          QWEN_BASE_URL: https://api.deepseek.com
-          QWEN_MODEL: deepseek-v4-pro
+          DS_TOKEN: ${{ secrets.QWEN_TOKEN }}        # GH secret ยังชื่อ QWEN_TOKEN (เปลี่ยนใน repo settings ได้ถ้าต้องการ)
+          DS_BASE_URL: https://api.deepseek.com
+          DS_MODEL: deepseek-v4-pro
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
           LINE_GROUP: ${{ secrets.LINE_GROUP }}
           FORCE_FLAG: ${{ inputs.force && '--force' || '' }}
