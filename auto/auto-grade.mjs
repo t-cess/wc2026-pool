@@ -694,10 +694,10 @@ async function run() {
     else if (!luOk) console.log(`   ⏳ ${m.home}-${m.away}: lineup ว่าง — ยังไม่ปิด (autoGraded) รอ tick หน้า`);
   }
   }   // ปิด else (live)
-  // 🔓 เปิดเผยโพยตอน "ปิดรับ" (kickoff-10min ≤ now < kickoff) — ทุกวง · นอก live-gate (ต้องรันแม้ยังไม่มีคู่ live ให้ตรงกับ LINE lock-post) · cheat-safe เพราะปิดรับแล้วแก้ไม่ได้ · live/finished → gradeScorers ดูแล revealed ต่อ
-  if (!lowPower) try {
+  // 🔓 เปิดเผยโพยตั้งแต่ "ปิดรับ" (kickoff-10min) เป็นต้นไป — ทุกวง · รันเสมอ "แม้ low-power" (reveal = fairness ห้ามพลาด + อ่านน้อย: query คู่ในกรอบ + preds เฉพาะใบที่ยังไม่เปิด แล้ว revealDone กันอ่านซ้ำ) · ครอบคู่ที่เตะไป/เพิ่งจบด้วย (กันเคส low-power คร่อมช่วงปิดรับ → คู่ live ไม่เคยถูกเปิด ต่อให้ปลด gate ก็ตกกรอบ)
+  try {
     const lockNow = Date.now();
-    const lockMs = RD(await matchesCol().where("kickoff",">", lockNow).where("kickoff","<=", lockNow+LOCK_BEFORE_MS).get());   // คู่ที่ปิดรับแล้วแต่ยังไม่เตะ
+    const lockMs = RD(await matchesCol().where("kickoff",">", lockNow - W_GRADE).where("kickoff","<=", lockNow+LOCK_BEFORE_MS).get());   // คู่ที่ปิดรับแล้ว (kickoff-10min ผ่านไปแล้ว) ย้อนถึง 8 ชม. = รวมคู่กำลังเตะ/เพิ่งจบ
     let rv = 0, done = 0;
     for (const md of lockMs.docs) {
       if (md.data().revealDone) continue;   // เปิดเผยครบแล้ว (ปิดรับแล้วไม่มีโพยใหม่) → ไม่อ่าน preds ซ้ำทุก tick · flag เหมือน lockPosted
