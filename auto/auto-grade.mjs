@@ -371,7 +371,8 @@ async function gradeScorers(p, matchId, actualScorers, lineup) {
     if (pr.scorerManual) continue;                        // แอดมินติ๊กมือ → auto ไม่ทับ
     const s1 = scorerHitOne(pr.scorer1, actualScorers, qwenMap);   // คนแรกยิงไหม (ดิก + DeepSeek)
     const s2 = scorerHitOne(pr.scorer2, actualScorers, qwenMap);   // คนสองยิงไหม
-    const { s1played, ok, s1unsure, s2unsure } = composeGrade({ s1, s2, scorer1:pr.scorer1, scorer2:pr.scorer2, played:lineup, resolved:hasGoals, aliasMap:aliases });   // amber เมื่อมีโกลแล้ว (ยังไม่มีโกล=ไม่ amber)
+    const judged = s => !!s && Object.prototype.hasOwnProperty.call(qwenMap, s);   // DeepSeek ตอบชื่อนี้แล้ว (อยู่ใน map) → ฟันธงแล้ว ไม่ amber
+    const { s1played, ok, s1unsure, s2unsure } = composeGrade({ s1, s2, scorer1:pr.scorer1, scorer2:pr.scorer2, played:lineup, resolved:hasGoals, aliasMap:aliases, dsJudged1:judged(pr.scorer1), dsJudged2:judged(pr.scorer2) });   // amber เมื่อมีโกลแล้ว + DeepSeek ยังไม่ฟัน (ยังไม่มีโกล=ไม่ amber)
     if (ok===!!pr.scorerOk && s1===!!pr.s1hit && s2===!!pr.s2hit && s1played===!!pr.s1played
         && s1unsure===!!pr.s1unsure && s2unsure===!!pr.s2unsure) continue;   // ไม่เปลี่ยน
     changed++;

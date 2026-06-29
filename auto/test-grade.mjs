@@ -7,7 +7,7 @@ const aliases = JSON.parse(readFileSync(new URL("aliases.json", import.meta.url)
 const ACT    = ["Lamine Yamal","Mikel Oyarzabal"];                                  // คนยิงจริง
 const PLAYED = ["Lamine Yamal","Mikel Oyarzabal","Pedri","Rodri","Ferran Torres"];  // คนที่ลงสนาม (Ferran ลงสำรอง · Morata ไม่อยู่เลย)
 
-// [ชื่อเทส, scorer1, scorer2, expectOk, expectCredit, expectUnsure1]
+// [ชื่อเทส, scorer1, scorer2, expectOk, expectCredit, expectUnsure1, dsJudged1?]
 const CASES = [
   ["คนแรกว่าง + คนสองยิง (ไทย)",          "", "ยามาล",                 true,  2, false],  // ★ บั๊กที่แก้
   ["คนแรกว่าง + คนสองยิง (อังกฤษ)",        "", "Yamal",                 true,  2, false],
@@ -19,13 +19,14 @@ const CASES = [
   ["ไม่มีใครยิง",                         "ตอร์เรส","Pedri",           false, 0, false],
   ["คน1 ยิงคนเดียว (ไม่มีสำรอง)",          "โอยาซาบัล","",              true,  1, false],
   ["คน1 ไทยนอกดิก resolve ไม่ได้ → amber + บล็อกสำรอง", "ปรเมศไทยมั่ว","ยามาล", false, 0, true],
+  ["คน1 ไทยนอกดิก + DeepSeek ฟันแล้ว → amber หาย (option ก)", "ปรเมศไทยมั่ว","ยามาล", false, 0, false, true],  // ★ dsJudged1 → เคลียร์ amber อัตโนมัติ
 ];
 
 let pass=0, fail=[];
-for (const [name, s1raw, s2raw, eOk, eCredit, eUnsure1] of CASES) {
+for (const [name, s1raw, s2raw, eOk, eCredit, eUnsure1, dsJudged1] of CASES) {
   const s1 = !!matchScorer(s1raw, ACT, aliases);                     // ยิงไหม = เทียบคนยิงจริง (candidate น้อย = แม่น)
   const s2 = !!matchScorer(s2raw, ACT, aliases);
-  const g = composeGrade({ s1, s2, scorer1:s1raw, scorer2:s2raw, played:PLAYED, resolved:true, aliasMap:aliases });   // resolved:true = จำลองตอนจบ (เทส amber)
+  const g = composeGrade({ s1, s2, scorer1:s1raw, scorer2:s2raw, played:PLAYED, resolved:true, aliasMap:aliases, dsJudged1 });   // resolved:true = จำลองตอนจบ (เทส amber) · dsJudged1 = DeepSeek ฟันแล้ว
   const ok = g.ok===eOk && g.credit===eCredit && g.s1unsure===eUnsure1;
   if (ok) pass++; else fail.push({name, got:`ok=${g.ok} credit=${g.credit} unsure1=${g.s1unsure}`, exp:`ok=${eOk} credit=${eCredit} unsure1=${eUnsure1}`});
 }

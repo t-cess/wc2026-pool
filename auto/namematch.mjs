@@ -43,15 +43,16 @@ export function readable(input, aliasMap) {
 // ประกอบผลโพยเดียว จาก s1/s2 (คนยิงไหม — ตัวเรียกหามาแล้ว เทียบ "คนยิงจริง" + DeepSeek) + lineup → กฎตัวสำรอง
 // แหล่งความจริงเดียว (grader + เทสใช้ร่วม) · credit = ชื่อที่ได้แต้ม (0/1/2) · resolved = ตรวจเสร็จ (ตอนจบ) → gate amber กันโผล่ตอนสด/ก่อนมีโกล
 // s1played: ใช้ดิกเทียบ lineup + อนุรักษ์ "อ่านไม่ออก→ถือว่าลง" (ไม่ free สำรองจากชื่อเดาไม่ออก = safe FN · เลี่ยง FP ที่วงซ่อมไม่ได้)
-export function composeGrade({ s1, s2, scorer1, scorer2, played, resolved, aliasMap }) {
+export function composeGrade({ s1, s2, scorer1, scorer2, played, resolved, aliasMap, dsJudged1, dsJudged2 }) {
   const lineupKnown = played && played.length > 0;
   const inPlayed = lineupKnown && !!matchScorer(scorer1, played, aliasMap);
   const s1played = !scorer1 ? false : !lineupKnown ? true : (inPlayed || !readable(scorer1, aliasMap));
   const ok = s1 || (!s1played && s2);
   const credit = ok ? (s1 ? 1 : 2) : 0;
-  // amber = (resolved=ตอนจบ) + ยังไม่ตรงคนยิง + อ่านชื่อไม่ออก → ต้องเช็กมือ · gate resolved = ไม่ขึ้น amber ตอนสด/ก่อนมีโกล (ปิดบั๊คเดิม)
-  const s1unsure = !!scorer1 && !!resolved && !s1 && !readable(scorer1, aliasMap);
-  const s2unsure = !!scorer2 && !!resolved && !s2 && !readable(scorer2, aliasMap);
+  // amber = (resolved=ตอนจบ) + ยังไม่ตรงคนยิง + อ่านชื่อไม่ออก + DeepSeek "ยังไม่ฟันธง" → ต้องเช็กมือ · gate resolved = ไม่ขึ้น amber ตอนสด/ก่อนมีโกล (ปิดบั๊คเดิม)
+  // dsJudged = DeepSeek ตอบชื่อนี้แล้ว (ฟันว่าไม่ตรงคนยิง) → เคลียร์ amber อัตโนมัติ ไม่ต้องรอเติมดิก (option ก)
+  const s1unsure = !!scorer1 && !!resolved && !s1 && !readable(scorer1, aliasMap) && !dsJudged1;
+  const s2unsure = !!scorer2 && !!resolved && !s2 && !readable(scorer2, aliasMap) && !dsJudged2;
   return { s1played, ok, credit, s1unsure, s2unsure };
 }
 
