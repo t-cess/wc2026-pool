@@ -27,7 +27,7 @@ export function predRowHTML(p, m, opts={}){
   if(isKo(m)){ const pick=predAdvance(p); const advTeam = pick==="h"?m.home:pick==="a"?m.away:null;
     if(advTeam){ const known=!!m.advancer, ok=known&&pick===m.advancer;
       const bg=!known?"#1e2633":ok?"#10301f":"#2a1e1e", fg=!known?"#9fb3cc":ok?"#5fcf94":"#c98b8b";
-      const label=!known?"เข้ารอบ: "+esc(advTeam):ok?"เข้ารอบ ✓":esc(advTeam)+" ✗";
+      const label=!known?"เข้ารอบ: "+esc(advTeam):esc(advTeam)+(ok?" ✓":" ✗");
       advH = `<div class="k" style="flex:none;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:99px;background:${bg};color:${fg};white-space:nowrap;">${label}</div>`;
     } else if(showPts) advH = `<div class="k" style="flex:none;font-size:10.5px;color:#5b626d;">เข้ารอบ —</div>`; }   // ทายเสมอ ยังไม่เลือกทีม
   const scCell=`<div ${tappable?`data-tap="${tapKey}" `:""}style="flex:1;min-width:0;font-size:12px;word-break:break-word;line-height:1.3;${tappable?"cursor:pointer;":""}">${scH}</div>`;
