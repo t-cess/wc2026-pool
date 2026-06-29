@@ -35,7 +35,7 @@ export function predRowHTML(p, m, opts={}){
     <div class="k" style="width:46px;flex:none;font-weight:600;font-size:13.5px;">${esc(p.player)}</div>
     <div class="k" style="width:58px;flex:none;font-weight:700;font-size:14px;color:${resG?'#1FB85E':'#cfd4db'};">${p.homeScore}-${p.awayScore}${exact?' 🔥':resG?' ✓':''}</div>
     ${scCell}${advH}
-    <div class="k" style="flex:none;text-align:right;font-weight:800;${(showPts&&pts>=5)?`min-width:40px;font-size:23px;color:#FFD24A;animation:auraGlow 1.6s ease-in-out infinite;`:`width:30px;font-size:15px;color:${showPts?(pts>0?"#1FB85E":"#5b626d"):"transparent"};`}">${showPts?(pts>0?"+"+pts:pts):""}</div></div>`;
+    <div class="k" style="flex:none;text-align:right;font-weight:800;${(showPts&&pts>=5)?`width:40px;font-size:23px;color:#FFD24A;animation:auraGlow 1.6s ease-in-out infinite;`:`width:40px;font-size:15px;color:${showPts?(pts>0?"#1FB85E":"#5b626d"):"transparent"};`}">${showPts?(pts>0?"+"+pts:pts):""}</div></div>`;
 }
 
 // ⚽ คนยิงจริงในแมตช์ — รวมตามคน+ฝั่ง (เหย้าเขียว/เยือนเทา) + นาที + OG/จุดโทษ · ใช้ร่วมหน้าวง+หน้าตรวจ ให้เป๊ะกัน (กัน drift)
