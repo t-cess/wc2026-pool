@@ -237,7 +237,11 @@ async function savePred(m){
     scorer1:s1v, scorer2:s2v, ...(isKo(m)?{advancePick}:{})};   // revealed ไม่เขียนจาก client (rule ห้าม) — auto-grade พลิกตอนปิดรับ
   const pid=`${m.id}__${S.me.uid}`;
   try{ await setDoc(poolDoc("predictions",pid),pred); }              // โพย = สำคัญ · ล้ม = แจ้ง error แล้วจบ
-  catch(e){ toast("บันทึกไม่ได้ (อาจปิดรับ)"); return; }
+  catch(e){   // rule deny ได้หลายเหตุ — เดาสาเหตุที่น่าจะเป็นเพื่อบอกผู้ใช้ให้ตรง (KO เสมอไม่เลือกทีม = server กัน · client เก่าไม่มีปุ่ม)
+    toast(isKo(m)&&hs===as
+      ? "คู่น็อกเอาต์: ทายเสมอต้องเลือกทีมที่เข้ารอบก่อนส่ง — ถ้าไม่เห็นปุ่มให้เลือก แสดงว่าแอปเวอร์ชันเก่า รีเฟรชหน้า (ดึงจอลง) แล้วทายใหม่"
+      : "บันทึกไม่ได้ — อาจปิดรับแล้ว หรือแอปเวอร์ชันเก่า ลองรีเฟรชหน้า (ดึงจอลง) แล้วลองใหม่");
+    return; }
   // marker "ส่งแล้ว" (ไม่มีสกอร์) = best-effort · ล้มไม่บดบังว่าโพยบันทึกสำเร็จแล้ว (อย่างมากคือ subLine ขาดชื่อจนแก้โพยรอบหน้า)
   setDoc(poolDoc("submitted",pid),{uid:S.me.uid,player:S.me.name,matchId:m.id}).catch(()=>{});
   S.editing[m.id]=false; toast("บันทึกโพยแล้ว ✓"); renderFixtures();
