@@ -643,9 +643,72 @@ function lastMatchMenu(matches, preds){   // ผลการทาย "นัด
   if (whiff.size) parts.push(`ทายผิดทางนัดที่แล้ว (พลาด/มั่ว/จิ้มมั่ว แซวได้): ${[...whiff].join(", ")}`);
   return parts.join(" · ");
 }
+function careerMenu(allMatches, preds){   // A. บุคลิกนักทาย (สถิติสะสมทั้งทัวร์) → ฉายา · คำเชิงคุณภาพล้วน
+  const mById = Object.fromEntries(allMatches.map(m=>[m.id,m]));
+  const st={};
+  for (const p of preds){ const m=mById[p.matchId]; if(!m||m.status!=="finished") continue;
+    const s = st[p.player] = st[p.player]||{n:0,exact:0,whiff:0,scOk:0,scTry:0,draw:0,goals:0};
+    const a=koActual(m), ac=a.h>a.a?"h":a.h<a.a?"a":"d", g=p.homeScore>p.awayScore?"h":p.homeScore<p.awayScore?"a":"d";
+    s.n++; if(p.homeScore===a.h && p.awayScore===a.a)s.exact++; if(g!==ac)s.whiff++;
+    if(g==="d")s.draw++; s.goals+=p.homeScore+p.awayScore;
+    if(p.scorer1||p.scorer2){ s.scTry++; if(p.scorerOk)s.scOk++; } }
+  const ns = Object.entries(st).filter(([,s])=>s.n>=5); if (ns.length<2) return "";
+  const hi = sel => ns.slice().sort((a,b)=>sel(b[1])-sel(a[1]))[0][0];
+  const lo = sel => ns.slice().sort((a,b)=>sel(a[1])-sel(b[1]))[0][0];
+  const tags=[];
+  tags.push(`เซียนทายสกอร์เป๊ะ (เป๊ะบ่อยสุดทั้งทัวร์)=${hi(s=>s.exact/s.n)}`);
+  tags.push(`มือจิ้มมั่ว (ทั้งทัวร์แทบไม่เคยเป๊ะ + พลาดทิศบ่อยสุด)=${lo(s=>s.exact)}`);
+  if (ns.some(([,s])=>s.scTry>=5)) tags.push(`นักล่าคนยิง (ทายคนยิงแม่นสุด)=${hi(s=>s.scTry?s.scOk/s.scTry:0)}`);
+  if (ns.some(([,s])=>s.draw>=5)) tags.push(`สายรักเสมอ (ชอบทายเสมอสุด)=${hi(s=>s.draw)}`);
+  tags.push(`สายบุก/ทายโกลถล่ม (ทายสกอร์รวมสูงสุด)=${hi(s=>s.goals/s.n)} · สายกำแพง/ขี้เหนียวโกล=${lo(s=>s.goals/s.n)}`);
+  return `บุคลิกนักทาย (สถิติสะสม เอามาตั้งฉายา/แซวบุคลิก): ${tags.join(" · ")}`;
+}
+function streakMenu(allMatches, preds){   // B. สตรีคร้อน-เย็น (ได้แต้ม/แห้ง ติดกันล่าสุด)
+  const mById = Object.fromEntries(allMatches.map(m=>[m.id,m]));
+  const byP={};
+  for (const p of preds){ const m=mById[p.matchId]; if(!m||m.status!=="finished") continue; (byP[p.player]=byP[p.player]||[]).push({t:m.kickoff,p,m}); }
+  const res=[];
+  for (const [n,arr] of Object.entries(byP)){ arr.sort((a,b)=>a.t-b.t); let cur=0, hot=null;
+    for (const {p,m} of arr){ const got=scoreMatchNode(p,m)>0; if(hot===null||hot===got)cur++; else cur=1; hot=got; }
+    res.push({n,hot,cur}); }
+  const hots=res.filter(r=>r.hot&&r.cur>=3).sort((a,b)=>b.cur-a.cur);
+  const drys=res.filter(r=>!r.hot&&r.cur>=3).sort((a,b)=>b.cur-a.cur);
+  const parts=[];
+  if (hots.length) parts.push(`กำลังมือขึ้น ได้แต้มติดหลายนัดรวด (ร้อนแรง ยุให้ลากต่อ): ${hots.map(r=>r.n).join(", ")}`);
+  if (drys.length) parts.push(`กำลังมือหนาว แห้งติดหลายนัด (แซวให้ตื่น): ${drys.map(r=>r.n).join(", ")}`);
+  return parts.join(" · ");
+}
+function rivalryMenu(champPicks, elim){   // C. แชมป์ชนกัน (ทายทีมแชมป์ซ้ำกัน → เชียร์/ร่วงยกแก๊ง)
+  const byTeam={};
+  for (const [n,ts] of Object.entries(champPicks)) for (const t of [...new Set(ts.map(normTxt))]){ const disp=ts.find(x=>normTxt(x)===t); (byTeam[t]=byTeam[t]||{disp,ns:[]}).ns.push(n); }
+  const shared = Object.values(byTeam).filter(o=>o.ns.length>1);
+  if (!shared.length) return "";
+  const txt = shared.map(o=>`${o.disp}${elim.has(normTxt(o.disp))?"(ตกรอบแล้ว ร่วงยกแก๊ง ถ่มถุยได้)":""}=${o.ns.join("+")}`).join(" · ");
+  return `ทีมแชมป์ที่หลายคนทายซ้ำกัน (ลุ้นทีมเดียวกัน=เชียร์จอเดียวกัน · ตกรอบ=ร่วงพร้อมกัน): ${txt}`;
+}
+function twinMenu(preds){   // D. โพยฝาแฝด (สกอร์ตรงกันบ่อยผิดปกติ → ลอกกันป่าว)
+  const byMatch={}; preds.forEach(p=>(byMatch[p.matchId]=byMatch[p.matchId]||[]).push(p));
+  const pc={};
+  for (const arr of Object.values(byMatch)) for (let i=0;i<arr.length;i++) for (let j=i+1;j<arr.length;j++){
+    const a=arr[i], b=arr[j]; if(a.homeScore===b.homeScore && a.awayScore===b.awayScore){ const k=[a.player,b.player].sort().join(" กับ "); pc[k]=(pc[k]||0)+1; } }
+  const top=Object.entries(pc).sort((a,b)=>b[1]-a[1])[0];
+  if (!top || top[1]<8) return "";   // ตรงกันน้อย = บังเอิญ ไม่เล่น
+  return `โพยฝาแฝด (คู่นี้ทายสกอร์ตรงกันบ่อยมากจนน่าสงสัยว่าลอกกัน · เฟรมเป็นมุกแซว ไม่ใช่กล่าวหาจริง): ${top[0]}`;
+}
+function advancePickMenu(allMatches, preds){   // E. ดราม่า KO — ทายเสมอแล้วเดาทีมเข้ารอบ ถูก/ผิด
+  const mById = Object.fromEntries(allMatches.map(m=>[m.id,m]));
+  let ok=0,no=0; const wrong=new Set();
+  for (const p of preds){ const m=mById[p.matchId]; if(!m||!isKo(m)||m.status!=="finished"||!m.advancer) continue;
+    const g=p.homeScore>p.awayScore?"h":p.homeScore<p.awayScore?"a":"d";
+    if (g==="d" && p.advancePick){ if(p.advancePick===m.advancer)ok++; else { no++; wrong.add(p.player); } } }
+  if (ok+no<2) return "";
+  if (no>=ok && wrong.size) return `ดราม่า KO: คนทายเสมอแล้วเดาทีมเข้ารอบ "พลาดบ่อย" — แซวพวกเดาทีมเข้ารอบมั่ว: ${[...wrong].join(", ")}`;
+  return `ดราม่า KO: มีคนทายเสมอแล้วเดาทีมเข้ารอบ บางทีถูกบางทีพลาด เอามาแซวความเสี่ยงได้`;
+}
 // บริบทแซวรวม (อ่านครั้งเดียว/การโพสต์ · lazy) — คืน "เมนูวัตถุดิบ" ให้ DeepSeek สุ่มหมุนมุก (กันซ้ำ)
 async function spiceCtx(POOL, board){
   const allM = RD(await matchesCol().get()).docs.map(d=>({id:d.id,...d.data()}));
+  const allP = RD(await col(POOL,"predictions").get()).docs.map(d=>d.data());   // โพยทั้งทัวร์ (career/streak/twin/advancePick/ผลนัดล่าสุด)
   const moreComing = !!(((await col(POOL,"config").doc("nextSet").get()).data()||{}).key);   // ยังมีรอบถัดไปใน ESPN → ห้ามประกาศหมดหวัง
   const fin = allM.filter(m=>m.status==="finished");
   const upcomingCount = allM.length - fin.length;
@@ -654,12 +717,20 @@ async function spiceCtx(POOL, board){
   let lastM = "";
   if (fin.length){
     const lastSlot = Math.max(...fin.map(m=>Math.floor(m.kickoff/60000)));   // นัดที่จบล่าสุด (slot รายนาที)
-    const lastMatches = fin.filter(m=>Math.floor(m.kickoff/60000)===lastSlot).slice(0,30);
-    const ids = lastMatches.map(m=>m.id);
-    const preds = ids.length ? RD(await col(POOL,"predictions").where("matchId","in",ids).get()).docs.map(d=>d.data()) : [];
-    lastM = lastMatchMenu(lastMatches, preds);
+    const lastIds = new Set(fin.filter(m=>Math.floor(m.kickoff/60000)===lastSlot).map(m=>m.id));
+    lastM = lastMatchMenu(allM.filter(m=>lastIds.has(m.id)), allP.filter(p=>lastIds.has(p.matchId)));
   }
-  return [ phaseHint(allM, moreComing), chaseMenu(board, upcomingCount, moreComing, champPicks, elim), champMenu(board, champPicks, elim), lastM ].filter(Boolean).join("\n- ");
+  return [
+    phaseHint(allM, moreComing),
+    chaseMenu(board, upcomingCount, moreComing, champPicks, elim),
+    champMenu(board, champPicks, elim),
+    rivalryMenu(champPicks, elim),
+    careerMenu(allM, allP),
+    streakMenu(allM, allP),
+    twinMenu(allP),
+    advancePickMenu(allM, allP),
+    lastM,
+  ].filter(Boolean).join("\n- ");
 }
 async function nightDigest(recent) {   // recent = คู่ 48 ชม. (แชร์จาก autoAddNext กัน read ซ้ำ)
   if (!LINE_TOKEN || !LINE_GROUP) return;
