@@ -39,13 +39,15 @@ export function predRowHTML(p, m, opts={}){
 }
 
 // ⚽ คนยิงจริงในแมตช์ — รวมตามคน+ฝั่ง (เหย้าเขียว/เยือนเทา) + นาที + OG/จุดโทษ · ใช้ร่วมหน้าวง+หน้าตรวจ ให้เป๊ะกัน (กัน drift)
+// KO = โชว์เฉพาะคนยิงใน 90' (ตัดต่อเวลา/ดวลจุดโทษ clock>90 เช่น "120'") ให้ตรงกับที่คิดแต้ม (koScorers90 ใน auto-grade)
 export function matchScorersHTML(m){
   const sep=` <span style="color:#3f454e;">·</span> `;
-  if((m.goals||[]).length){
-    const byp={}; m.goals.forEach(g=>{ const k=g.name+"|"+g.side; (byp[k]=byp[k]||{name:g.name,side:g.side,times:[]}); byp[k].times.push((g.time||"")+(g.og?" OG":g.pen?" (จุดโทษ)":"")); });
+  const goals = isKo(m) ? (m.goals||[]).filter(g=>(parseInt(g.time)||999)<=90) : (m.goals||[]);
+  if(goals.length){
+    const byp={}; goals.forEach(g=>{ const k=g.name+"|"+g.side; (byp[k]=byp[k]||{name:g.name,side:g.side,times:[]}); byp[k].times.push((g.time||"")+(g.og?" OG":g.pen?" (จุดโทษ)":"")); });
     return Object.values(byp).map(s=>`<span style="color:${s.side==='h'?'#9fe0b6':'#cdd6e0'};font-weight:600;">${esc(s.name)} <span style="color:#5b626d;font-weight:500;">${s.times.join(", ")}</span></span>`).join(sep);
   }
-  return (m.scorers||[]).map(s=>`<span style="color:#cdd6e0;font-weight:600;">${esc(s)}</span>`).join(sep);   // fallback: มีแค่ array ชื่อ (ไม่มี goals) → เทากลางๆ
+  return (isKo(m)?[]:(m.scorers||[])).map(s=>`<span style="color:#cdd6e0;font-weight:600;">${esc(s)}</span>`).join(sep);   // fallback: มีแค่ array ชื่อ (ไม่มี goals) → เทากลางๆ · KO ไม่ใช้ (array ไม่มีนาที กรอง 90' ไม่ได้)
 }
 
 // แปลงสถานะที่แตะ (2 ตัวอักษร [คนแรก][คนสอง]) → effective pred ที่ใช้แสดง/คิดแต้ม (= ตรงกับที่ commitScorers จะบันทึก)

@@ -674,8 +674,17 @@ async function run() {
   console.log("ESPN จบ:", espn.filter(e=>e.final).map(e=>`${e.home} ${e.hs}-${e.as} ${e.away}`).join(" | ")||"-",
     "· สด:", espn.filter(e=>e.live).map(e=>`${e.home} ${e.hs}-${e.as} ${e.away} ${e.clock}`).join(" | ")||"-");
 
-  const ms = REGRADE ? RD(await matchesCol().get()) : RD(await matchesInWindow(W_GRADE));   // ปกติอ่านเฉพาะคู่ช่วง 8 ชม. (regrade=ทั้งหมด)
-  for (const mdoc of ms.docs) {
+  let msDocs;
+  if (REGRADE) msDocs = RD(await matchesCol().get()).docs;
+  else {
+    const win = RD(await matchesInWindow(W_GRADE)).docs;   // ปกติอ่านเฉพาะคู่ช่วง 8 ชม.
+    // เก็บตก KO ที่ "จบแล้วแต่ยังไม่ปิด" (reg/advancer ไม่ครบ ตอนจบ ESPN ยังไม่ตั้ง winner) — หลุด window 8 ชม. แล้วไม่งั้นค้างถาวร
+    // query ko==true อย่างเดียว (single-field index มีอยู่ · ไม่ต้อง composite) แล้วกรอง finished+!autoGraded ในโค้ด · ESPN 3 วันยังดึง summary คู่นี้ได้
+    const stuck = RD(await matchesCol().where("ko","==",true).get()).docs.filter(d=>{ const m=d.data(); return m.status==="finished" && !m.autoGraded; });
+    const seen = new Set(win.map(d=>d.id));
+    msDocs = [...win, ...stuck.filter(d=>!seen.has(d.id))];
+  }
+  for (const mdoc of msDocs) {
     const m = mdoc.data();
     if (m.status==="finished" && m.autoGraded && !REGRADE) continue;   // ตรวจจบแล้ว ข้าม (--regrade = ทำซ้ำ)
     const ev = espn.find(e => e.home===m.home && e.away===m.away);
@@ -705,7 +714,7 @@ async function run() {
     const sum = await fetchSummary(ev.id);
     const luFin = sum.played;
     const ko = isKo(m);
-    const koFields = (ko && sum.reg && sum.advancer) ? { ko:true, reg:sum.reg, advancer:sum.advancer } : (ko ? { ko:true } : {});   // reg/advancer ต้องครบคู่ถึงเขียน (กันเขียนครึ่งๆ ตอน ESPN ยังไม่อัปเดต)
+    const koFields = ko ? { ko:true, ...(sum.reg?{reg:sum.reg}:{}), ...(sum.advancer?{advancer:sum.advancer}:{}) } : {};   // เขียน reg/advancer แยกกัน (มีตัวไหนเขียนตัวนั้น) — ไม่มัดคู่ ไม่งั้น advancer ช้า → reg ก็ไม่เขียน → koActual ใช้สกอร์รวมต่อเวลาผิด
     if (!DRY) await mdoc.ref.set({ homeScore:ev.hs, awayScore:ev.as, scorers:ev.scorers, goals:ev.goals, status:"finished", live:false, clock:"จบ", ...koFields }, {merge:true});   // เขียนผล/สกอร์ก่อน — ยัง"ไม่"ปิด (autoGraded) จนตรวจคนยิงครบ
     if (ko) console.log(`   ⚔️ KO: 90'=${sum.reg?`${sum.reg.h}-${sum.reg.a}`:"?"} · เข้ารอบ=${sum.advancer==="h"?m.home:sum.advancer==="a"?m.away:"?"}`);
     // 2) ตรวจคนยิงเต็มทุกวง (ดิก + DeepSeek กวาดชื่อใหม่ + กฎคนแรกลงเล่น) · KO = เทียบเฉพาะคนยิง 90'
