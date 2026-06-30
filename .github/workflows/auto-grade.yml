@@ -47,6 +47,7 @@ jobs:
           DS_MODEL: deepseek-v4-pro
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
           LINE_GROUP: ${{ secrets.LINE_GROUP }}
+          LINE_LOCKPOST: "1"        # #1 ปิดรับ → โพสต์โพยทั้งวง (เปิดกลับ ก.ค. โควต้ารีเซ็ต · #5 เตือนก่อนปิดยังปิด)
           FORCE_FLAG: ${{ inputs.force && '--force' || '' }}
           REGRADE_FLAG: ${{ inputs.regrade && '--regrade' || '' }}
           LINETEST_FLAG: ${{ inputs.linetest && '--line-test' || '' }}
