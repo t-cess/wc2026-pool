@@ -24,10 +24,15 @@ service cloud.firestore {
     }
     // โพยแก้ได้ถ้า = เจ้าของ (doc มี uid ตรง) · เขียนได้เฉพาะฟิลด์โพย (ห้ามแตะ scorerOk/s1hit/... รวมถึง revealed → กันแอบเปิดเผยโพยตัวเองก่อนเตะ) · ยังก่อนเตะเกิน 10 นาที
     function ownerBeforeKickoff() {
+      let m = get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data;
+      // KO + ทายเสมอ → ต้องเลือกทีมเข้ารอบ (advancePick h/a) · บังคับ server-side กัน client เวอร์ชันเก่า (cache) ที่ไม่มี guard ฝั่งจอ submit โพยเสมอแบบไม่เลือกทีม → เสียแต้มฟรี
+      let koDraw = ( m.get('ko', false) == true
+                     || m.get('group', '') in ['รอบ 32','รอบ 16','ก่อนรองฯ','รองชนะเลิศ','ชิงที่ 3','ชิงชนะเลิศ','น็อกเอาต์'] )
+                   && request.resource.data.get('homeScore', 0) == request.resource.data.get('awayScore', 0);
       return request.auth.uid == request.resource.data.uid
         && request.resource.data.keys().hasOnly(['uid','matchId','player','homeScore','awayScore','scorer1','scorer2','advancePick'])
-        && request.time.toMillis()
-           < get(/databases/$(database)/documents/matches/$(request.resource.data.matchId)).data.kickoff - 600000;
+        && request.time.toMillis() < m.kickoff - 600000
+        && ( !koDraw || request.resource.data.get('advancePick', '') in ['h','a'] );
     }
     // marker "ใครส่งโพยแล้ว" (สาธารณะ · ไม่มีสกอร์) — id = "{matchId}__{uid}" · เจ้าของเขียนของตัวเอง (player ต้องตรงชื่อลงทะเบียน) หรือแอดมิน
     function ownsMarker(pid, nameDoc) {

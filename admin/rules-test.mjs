@@ -65,6 +65,7 @@ async function main() {
   // ---- setup: test data ใต้ _rt* ----
   await db.doc("matches/_rt_future").set({ home:"RTH", away:"RTA", kickoff: now + 86400000, homeScore:0, awayScore:0, status:"upcoming" });
   await db.doc("matches/_rt_past").set({   home:"RTH", away:"RTA", kickoff: now - 3600000,  homeScore:0, awayScore:0, status:"upcoming" });
+  await db.doc("matches/_rt_ko").set({     home:"KOH", away:"KOA", kickoff: now + 86400000, homeScore:0, awayScore:0, status:"upcoming", group:"รอบ 32" });   // KO: ทายเสมอต้องเลือกทีมเข้ารอบ
   await db.doc("pools/_rt/config/admins").set({ emails: ["pooladmin@test.com"] });
   await db.doc("config/_rt_pii").set({ secret: "email@x.com" });   // เทส PII: คนนอกอ่านไม่ได้
   await db.doc("players/u_rt_owner").set({ uid:"u_rt_owner", name:"owner" });   // ชื่อที่ลงทะเบียน → rule เช็ก player ต้องตรงนี้
@@ -95,6 +96,9 @@ async function main() {
     ["คนแปลกหน้า เขียน pools/_rt/predictions",    () => tryWrite(str, "pools/_rt/predictions/p2", { player:"x" }),                          "deny"],
     ["แอดมินวง เขียน pools/_rt/config/admins",    () => tryWrite(pad, "pools/_rt/config/admins", { emails_x:"hack" }),                      "deny"],
     ["เจ้าของทายปกติ (id ถูก matchId__uid)",      () => tryWrite(own, "predictions/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner", homeScore:1, awayScore:0, scorer1:"x", scorer2:"" }), "allow"],
+    ["🔒 KO ทายเสมอ ไม่เลือกทีมเข้ารอบ (client เก่า bypass → server กัน)", () => tryWrite(own, "predictions/_rt_ko__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_ko", player:"owner", homeScore:1, awayScore:1, scorer1:"x", scorer2:"" }), "deny"],
+    ["KO ทายเสมอ + เลือกทีมเข้ารอบ (advancePick) ส่งได้", () => tryWrite(own, "predictions/_rt_ko__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_ko", player:"owner", homeScore:1, awayScore:1, scorer1:"x", scorer2:"", advancePick:"a" }), "allow"],
+    ["KO ทายไม่เสมอ ไม่ต้องเลือกทีมเข้ารอบ ส่งได้",      () => tryWrite(own, "predictions/_rt_ko__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_ko", player:"owner", homeScore:2, awayScore:1, scorer1:"x", scorer2:"" }), "allow"],
     ["เจ้าของทายหลังเตะแล้ว (_rt_past)",          () => tryWrite(own, "predictions/_rt_past__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_past",   player:"owner", homeScore:1, awayScore:0 }), "deny"],
     ["🔴 เจ้าของแอบใส่ revealed เอง (เปิดโพยตัวเองก่อนเตะ)", () => tryWrite(own, "predictions/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", player:"owner", homeScore:1, awayScore:0, scorer1:"x", scorer2:"", revealed:true }), "deny"],
     ["คนแปลกหน้าแอบเขียนโพยคนอื่น",               () => tryWrite(str, "predictions/_rt_future__u_rt_owner", { uid:"u_rt_owner", matchId:"_rt_future", homeScore:1, awayScore:0 }), "deny"],
@@ -146,7 +150,8 @@ async function main() {
   console.log(`\nสรุป: ${pass} ผ่าน / ${fail} พลาด`);
 
   // ---- cleanup ----
-  const dels = ["matches/_rt_future","matches/_rt_past","matches/_rt_x","config/_rt_carry","config/_rt_pii","players/u_rt_owner","emails/u_rt_owner",
+  const dels = ["matches/_rt_future","matches/_rt_past","matches/_rt_ko","matches/_rt_x","config/_rt_carry","config/_rt_pii","players/u_rt_owner","emails/u_rt_owner",
+    "predictions/_rt_ko__u_rt_owner",
     "predictions/_rt_future__u_rt_owner","predictions/_rt_past__u_rt_owner","predictions/_rt_evil_extra","predictions/_rt_future__someone_else",
     "predictions/_rt_hidden__other","predictions/_rt_shown__other","predictions/_rt_ownhid__u_rt_owner","submitted/_rt_sm__other","submitted/_rt_future__u_rt_owner",
     "pools/_rt/predictions/p1","pools/_rt/predictions/p2","pools/_rt/config/admins",
