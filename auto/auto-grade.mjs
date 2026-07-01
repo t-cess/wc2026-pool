@@ -179,9 +179,10 @@ ${frozen}`;
 }
 // แต่งเฉพาะ "ย่อหน้าปิดท้ายแซว" ต่อท้ายบล็อกที่ห้ามแก้ (frozen เป๊ะ byte-for-byte · ไม่แทรกในเนื้อหา) — ใช้ทั้งสรุปจบ + เปิดชุดใหม่
 async function spiceOutro(frozen, kind, instr="", opts={}) {
-  if (!SPICE || !DS_TOKEN) return frozen;
+  if (!SPICE || !DS_TOKEN) return opts.lead ? `${frozen}\n\n${opts.lead.trimEnd()}` : frozen;
   // ปรับความยาว/โควต้า token ต่อการเรียกได้ — digest ขอยาวพอ "เอ่ยชื่อครบทุกคน" · เรียกอื่นคงสั้นเหมือนเดิม
-  const { maxTokens=160, lenRule=`เขียนแค่ "1-2 ประโยคสั้นๆ" จบในบรรทัดเดียว-สองบรรทัด ❌ ห้ามยาวเกินนั้น` } = opts;
+  // lead = วรรคนำหน้ามุก (แปะหน้า outro ที่ DeepSeek เขียน) · ว่าง = ไม่มี
+  const { maxTokens=160, lenRule=`เขียนแค่ "1-2 ประโยคสั้นๆ" จบในบรรทัดเดียว-สองบรรทัด ❌ ห้ามยาวเกินนั้น`, lead="" } = opts;
   const prompt = `คุณคือบอท "AI กุ้ย-ชิน" ในกลุ่มไลน์เพื่อนสนิทเล่นทายผลบอลโลก 2026
 ข้างล่างคือข้อความที่ห้ามแก้ ขอเขียน "ย่อหน้าปิดท้ายแซวๆ" แบบสุดขีด ตลกร้าย ปากจัด เหมือนเพื่อนซี้ ต่อท้ายให้หน่อย (ระบบจะแปะใต้บล็อกเดิมให้เอง)
 ${instr}
@@ -196,7 +197,7 @@ ${instr}
 ${frozen}`;
   try {
     const outro = cleanSpice(await dsChat(prompt, maxTokens), "");
-    return outro && outro.length>=10 ? `${frozen}\n\n${outro}` : frozen;
+    return outro && outro.length>=10 ? `${frozen}\n\n${lead}${outro}` : (lead ? `${frozen}\n\n${lead.trimEnd()}` : frozen);
   } catch(e){ console.log("  ⚠️ spiceOutro error:", e.message, "— ใช้ข้อความแห้ง"); return frozen; }
 }
 async function askDeepSeek(actualScorers, items) {
@@ -800,12 +801,11 @@ ${noZero}
 - 🎲 วัตถุดิบแซวเสริม (หลังรีแคปครบทุกคนแล้ว แทรก "1-2 มุม" จากนี้เพื่อความหลากหลาย ❌ อย่าซ้ำมุมเดิมทุกคืน · ทุกมุมห้ามมีเลข):
 - ${ctx}`;
   // ยาวได้เพราะต้องครบทุกคน → ปลดเพดาน "1-2 ประโยค" + เพิ่มโควต้า token (พอเอ่ยครบทั้งวง)
+  const note = (cfg.note||"").trim();   // วรรคพิเศษ one-off — เซตที่ config/lineNotify.note → นำหน้ามุก DeepSeek แล้วล้างตัวเองหลังยิง (ยิงครั้งเดียว ไม่ซ้ำวันหลัง)
   const text = await spiceOutro(dry, "สรุปผลคู่ที่จบวันนี้ + ตารางคะแนน · เลขในวงเล็บ(+N)=แต้มที่ได้วันนี้", instr,
-    { maxTokens: 600, lenRule: `เขียนยาวได้พอเอ่ยครบทุกคน (ราว 3-6 ประโยค ร้อยต่อเนื่อง) ❌ แต่ห้ามแตกเป็นบรรทัดลิสต์ทีละคน ❌ ห้ามน้ำเยอะเกินจำเป็น` });
-  const note = (cfg.note||"").trim();   // วรรคพิเศษ one-off — เซตที่ config/lineNotify.note → แปะท้าย digest แล้วล้างตัวเองหลังยิง (ยิงครั้งเดียว ไม่ซ้ำวันหลัง)
-  const out = note ? `${text}\n\n${note}` : text;
-  if (DRY) { console.log("[DRY] DIGEST:\n"+out+"\n"); return; }
-  if (await linePush(out)) await cfgRef.set({digested:[...done, night], note:""},{merge:true});
+    { maxTokens: 600, lenRule: `เขียนยาวได้พอเอ่ยครบทุกคน (ราว 3-6 ประโยค ร้อยต่อเนื่อง) ❌ แต่ห้ามแตกเป็นบรรทัดลิสต์ทีละคน ❌ ห้ามน้ำเยอะเกินจำเป็น`, lead: note ? `${note}  ` : "" });
+  if (DRY) { console.log("[DRY] DIGEST:\n"+text+"\n"); return; }
+  if (await linePush(text)) await cfgRef.set({digested:[...done, night], note:""},{merge:true});
 }
 
 const PRELOCK_LEAD_MS = 60*60*1000;   // เตือนก่อน "ปิดรับ" 1 ชม (= kickoff - 70 นาที) · ใช้ใน lineLockNotify
